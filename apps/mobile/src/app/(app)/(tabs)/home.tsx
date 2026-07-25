@@ -1,0 +1,197 @@
+import { router } from 'expo-router';
+import { StyleSheet, View } from 'react-native';
+
+import { AppScreen } from '@/components/layout/app-screen';
+import { DemoDataBanner } from '@/components/ui/demo-data-banner';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
+import { FadeSlide } from '@/components/ui/motion';
+import { SectionHeader } from '@/components/ui/section-header';
+import { DashboardSkeleton } from '@/components/ui/skeleton';
+import { StatePanel } from '@/components/ui/state-panel';
+import { ActivityRow } from '@/features/activity/components/activity-row';
+import { HomeHeader } from '@/features/home/components/home-header';
+import { QuickActionsGrid } from '@/features/home/components/quick-actions-grid';
+import { ServiceBanner } from '@/features/home/components/service-banner';
+import { WalletCard } from '@/features/home/components/wallet-card';
+import type { ServiceSummary } from '@/features/main/domain';
+import { useDashboardQuery, useSetHideBalance } from '@/features/main/queries';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { radii, spacing } from '@/theme/tokens';
+
+export default function HomeScreen() {
+  const theme = useBillyTheme();
+  const dashboard = useDashboardQuery();
+  const privacyMutation = useSetHideBalance();
+
+  function openService(service: ServiceSummary) {
+    router.push({
+      pathname: '/(app)/service/[slug]',
+      params: { slug: service.key },
+    });
+  }
+
+  if (dashboard.isLoading) {
+    return (
+      <AppScreen testID="home-loading">
+        <DemoDataBanner />
+        <DashboardSkeleton />
+      </AppScreen>
+    );
+  }
+
+  if (dashboard.isError || !dashboard.data) {
+    return (
+      <AppScreen testID="home-error">
+        <DemoDataBanner />
+        <StatePanel
+          actionLabel="Try again"
+          icon="cloud-offline-outline"
+          message={
+            dashboard.error?.message ??
+            'Billy could not load your financial overview. No demo data was substituted.'
+          }
+          onAction={() => void dashboard.refetch()}
+          title="Your overview is unavailable"
+          tone="danger"
+        />
+      </AppScreen>
+    );
+  }
+
+  const snapshot = dashboard.data;
+  return (
+    <AppScreen
+      onRefresh={() => void dashboard.refetch()}
+      refreshing={dashboard.isRefetching}
+      testID="home-screen">
+      <DemoDataBanner />
+
+      <FadeSlide>
+        <HomeHeader
+          onAccount={() => router.push('/(app)/(tabs)/account')}
+          onNotifications={() => router.push('/(app)/notifications')}
+          profile={snapshot.profile}
+          unreadCount={snapshot.unreadNotificationCount}
+        />
+      </FadeSlide>
+
+      <FadeSlide delay={50}>
+        <WalletCard
+          onAddMoney={() => router.push('/(app)/wallet/add-money')}
+          onToggleVisibility={() => {
+            if (!snapshot.wallet) return;
+            privacyMutation.mutate(!snapshot.wallet.hideBalance);
+          }}
+          onWithdraw={() => router.push('/(app)/wallet/withdraw')}
+          privacyBusy={privacyMutation.isPending}
+          wallet={snapshot.wallet}
+          walletActions={snapshot.walletActions}
+        />
+        {privacyMutation.isError ? (
+          <View style={styles.feedback}>
+            <FeedbackBanner
+              message="Billy could not save your balance privacy preference. Your previous setting was restored."
+              tone="error"
+            />
+          </View>
+        ) : null}
+      </FadeSlide>
+
+      <FadeSlide delay={90}>
+        <View
+          style={[
+            styles.quickCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}>
+          <SectionHeader
+            subtitle="Everything you need, in one calm place."
+            title="Quick actions"
+          />
+          <QuickActionsGrid
+            onMore={() => router.push('/(app)/(tabs)/services')}
+            onService={openService}
+            services={snapshot.services}
+          />
+        </View>
+      </FadeSlide>
+
+      <FadeSlide delay={130}>
+        <ServiceBanner
+          kyc={snapshot.kyc}
+          onPress={() =>
+            router.push(
+              snapshot.services.some((service) => service.state === 'maintenance')
+                ? '/(app)/(tabs)/services'
+                : '/(app)/kyc',
+            )
+          }
+          services={snapshot.services}
+        />
+      </FadeSlide>
+
+      <FadeSlide delay={170}>
+        <View style={styles.section}>
+          <SectionHeader
+            actionLabel="View all"
+            onAction={() => router.push('/(app)/(tabs)/activity')}
+            title="Recent activity"
+          />
+          {snapshot.activity.length ? (
+            <View
+              style={[
+                styles.activityCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+              ]}>
+              {snapshot.activity.slice(0, 4).map((item) => (
+                <ActivityRow
+                  item={item}
+                  key={item.id}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(app)/transaction/[id]',
+                      params: { id: item.id },
+                    })
+                  }
+                />
+              ))}
+            </View>
+          ) : (
+            <StatePanel
+              compact
+              icon="receipt-outline"
+              message="Your completed and pending Billy activity will appear here."
+              title="No activity yet"
+            />
+          )}
+        </View>
+      </FadeSlide>
+    </AppScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  activityCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.lg,
+  },
+  feedback: {
+    marginTop: spacing.sm,
+  },
+  quickCard: {
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  section: {
+    gap: spacing.md,
+  },
+});

@@ -1,15 +1,18 @@
 # Billy
 
-Billy is a new cross-platform mobile application for Android and iOS.
+Billy is a cross-platform financial-services mobile application for Android
+and iOS, built with Expo, React Native, Expo Router, and Supabase.
 
 ## Workspace
 
 - `apps/mobile` — Expo and React Native application
 - `supabase` — local Supabase configuration, migrations, and Edge Functions
 
-The repository is intentionally only scaffolded. It is connected to the
-dedicated Billy Supabase project but contains no provider integrations or
-database schema yet.
+The local repository currently includes the Billy brand and design system,
+authentication and onboarding, a five-tab main application, and additive
+Supabase migrations for the auth and financial foundations. Provider-backed
+transactions remain disabled until their adapters, credentials, and activation
+checks are complete.
 
 ## Local setup
 
@@ -23,6 +26,17 @@ Billy Supabase project. Only the project URL and publishable key belong in the
 mobile environment. Never place a Supabase secret or service-role key in the
 mobile application.
 
+For a clearly labelled, local-only Phase 3-4 preview, set these values in
+`apps/mobile/.env.local` before starting Expo:
+
+```dotenv
+EXPO_PUBLIC_BILLY_DATA_MODE=demo
+EXPO_PUBLIC_BILLY_DEMO_SCENARIO=funded
+```
+
+Demo mode is rejected by production builds. Supported preview scenarios are
+`funded`, `new-user`, `pending`, `maintenance`, `offline`, and `error`.
+
 ## Current setup
 
 - GitHub remote: `BISHOP-X/BILLY-APP`
@@ -30,8 +44,13 @@ mobile application.
 - Authenticate the project-scoped `billy-supabase` MCP when prompted.
 - Keep all database work scoped to Billy project ref
    `omsrzwwudskxpkyynnxw`.
+- Local migrations are source-controlled but are not proof of cloud state.
+  Inspect the Billy project and run the complete local/preview database test
+  suite before applying them remotely.
 
 ## Product planning
 
 - [Implementation plan](docs/product/IMPLEMENTATION_PLAN.md)
+- [Phase 3-4 delivery status](docs/product/PHASE_3_4_STATUS.md)
 - [Brand and interface direction](docs/product/BRAND_DIRECTION.md)
+- [Financial core and safety model](docs/architecture/FINANCIAL_CORE.md)

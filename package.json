@@ -11,10 +11,12 @@
     "ios": "npm run ios --workspace @billy/mobile",
     "web": "npm run web --workspace @billy/mobile",
     "lint": "npm run lint --workspace @billy/mobile",
+    "test": "npm run test --workspace @billy/mobile",
     "typecheck": "npm run typecheck --workspace @billy/mobile",
     "supabase:start": "supabase start",
     "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status"
+    "supabase:status": "supabase status",
+    "supabase:test:db": "supabase test db --local supabase/tests/database"
   },
   "devDependencies": {
     "supabase": "2.109.1"
