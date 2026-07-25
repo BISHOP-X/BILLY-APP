@@ -23,9 +23,15 @@ Billy Supabase project. Only the project URL and publishable key belong in the
 mobile environment. Never place a Supabase secret or service-role key in the
 mobile application.
 
-## Next setup steps
+## Current setup
 
-1. Create an empty GitHub repository and add it as this repository's remote.
-2. Authenticate the project-scoped `billy-supabase` MCP when prompted.
-3. Keep all future database work scoped to Billy project ref
+- GitHub remote: `BISHOP-X/BILLY-APP`
+- Supabase files live at the repository root for GitHub preview branching.
+- Authenticate the project-scoped `billy-supabase` MCP when prompted.
+- Keep all database work scoped to Billy project ref
    `omsrzwwudskxpkyynnxw`.
+
+## Product planning
+
+- [Implementation plan](docs/product/IMPLEMENTATION_PLAN.md)
+- [Brand and interface direction](docs/product/BRAND_DIRECTION.md)
