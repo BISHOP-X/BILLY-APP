@@ -8,6 +8,16 @@
 - FirstOption and Active Store are reference implementations only. Reuse verified service behavior and lessons, but never copy their credentials, customer data, project-specific schema, deployment settings, or channel-specific UI.
 - Billy is a React Native mobile product for Android and iOS. Adapt every inherited service to mobile navigation, permissions, secure storage, lifecycle, connectivity, and platform behavior.
 
+## Reference-Project Inspection
+
+- Provider documentation and verified implementation notes are available read-only in FirstOption at `C:\Users\dell\Desktop\MONEY` and Active Store at `C:\Users\dell\Desktop\MY STORES\ACTIVE STORE`.
+- Use FirstOption as the primary reference for PocketFi wallet funding, Prembly KYC, VTpass bills, Prestmit gift cards and prepaid cards, and Quidax crypto.
+- Use Active Store as the primary reference for foreign SMS numbers and social media boosting.
+- Read the relevant provider documentation first. If it is incomplete, inspect the corresponding implementation, tests, fixtures, and recorded provider responses to understand the established contract.
+- Never modify, format, rename, delete, install dependencies in, stage, commit, deploy, run migrations against, set secrets for, or otherwise tamper with either reference project. Do not access their Supabase projects or execute scripts that can write to their databases or providers.
+- Do not copy credentials, tokens, customer data, raw production payloads, or project-specific code wholesale. Reimplement the verified behavior behind Billy-owned domain models and adapters.
+- Record the resulting provider contract and any remaining uncertainty in Billy documentation. If documentation and read-only implementation evidence are insufficient or contradictory, stop that integration slice and ask the project owner rather than guessing.
+
 ## Evidence and Sources of Truth
 
 - Inspect the live Billy Supabase project for deployed schemas, policies, functions, logs, counts, and data health. Local files and documentation are references, not proof of live state.
@@ -47,6 +57,7 @@
 
 ## Provider Integrations
 
+- The current Billy provider map is: PocketFi for wallet funding; Prembly for KYC; VTpass for bills; Prestmit for gift cards and prepaid virtual cards; Quidax for crypto; the verified Active Store providers for foreign SMS numbers; and The Lord of the Panels for social media boosting.
 - Route provider traffic through server-side provider adapters. Mobile screens and shared application code must not call provider APIs directly or contain provider secrets.
 - Normalize provider-specific payloads and statuses at the adapter boundary. Keep the rest of Billy dependent on Billy domain models, not provider response shapes.
 - Keep provider identifiers, slugs, API-specific order types, and routing details out of customer-facing UI. Use neutral product language; expose provider details only in secured admin or diagnostic contexts.

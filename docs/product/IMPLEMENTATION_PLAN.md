@@ -6,20 +6,30 @@ Build the complete Android and iOS application, database model, provider boundar
 
 This is a mobile implementation, not a copy of the FirstOption website/WhatsApp experience or the Active Store website. Those projects provide verified service behavior and provider lessons only.
 
+## Bulk Build Sequence
+
+1. **Foundation and brand** — Billy design system, logo assets, navigation shell, animation language, secure configuration, and reusable mobile components.
+2. **Auth and onboarding** — splash, welcome, registration, verification, sign-in/recovery, profile setup, transaction PIN, biometrics, and protected routes.
+3. **Financial core** — profiles, RLS, wallet ledger, reservations, idempotent transactions, receipts, activity, and mock funding/KYC.
+4. **Main product experience** — dashboard, wallet actions, services, cards, notifications, account/security, support, empty/loading/error states, and feature flags.
+5. **Financial service flows** — PocketFi funding, VTpass bills, Prestmit gift cards and prepaid cards, Quidax crypto, and Prembly KYC, completed against Billy-owned mocks and adapters.
+6. **Additional service flows** — foreign SMS numbers and social media boosting, including ordering, pending states, cancellation/refund, history, and reconciliation.
+7. **Provider activation and hardening** — add credentials only when approved, verify live contracts, run bounded end-to-end checks, then enable testers and production progressively.
+
 ## Product Scope
 
 ### Financial services inherited from FirstOption
 
 | Capability | Intended provider boundary | Pre-credential state |
 |---|---|---|
-| Wallet funding | Flutterwave | Build checkout/virtual-account adapter, callback flow, ledger settlement, fixtures, and sandbox UI; keep live funding off |
+| Wallet funding | PocketFi | Build virtual-account adapter, callback flow, ledger settlement, fixtures, and sandbox UI; keep live funding off |
 | KYC | Prembly | Build verification contract, consent screens, status model, mock responses, and service gating; keep verification off |
 | Bills | VTpass | Build dynamic catalog, validation, purchase, status, and reconciliation adapters using sanitized fixtures |
 | Gift cards | Prestmit | Build dynamic products/rates, quote, buy/sell order, evidence upload, and status flows; tester-only |
 | Crypto | Quidax | Build asset/network catalog, quote, deposit/withdraw/trade request boundaries, risk notices, and status flows; off |
-| Virtual cards | Sudo | Build eligibility, KYC gate, card request, funding, freeze, transaction, and secure-details boundaries; off |
+| Virtual/prepaid cards | Prestmit Prepaid Cards | Build eligibility, KYC gate, card request, funding, freeze, transaction, and secure-details boundaries; off |
 
-Sudo and Quidax are not assumed production-ready merely because reference code exists. Their capabilities must be reconfirmed from current provider documentation and dashboard access.
+Prestmit Prepaid Cards and Quidax are not assumed production-ready merely because reference code exists. Their capabilities must be reconfirmed from current provider documentation and dashboard access.
 
 ### Services inherited from Active Store
 
@@ -66,14 +76,15 @@ flowchart TD
 ### First launch
 
 1. Branded splash using the Billy mark.
-2. Two- or three-page introduction focused on paying, trading, and managing services in one place. Always provide `Skip`.
-3. `Create account` and `Sign in` actions.
+2. Branded welcome screen with the Billy wordmark centered and clear `Create account` and `Sign in` actions.
+3. On first account creation, show a three-page introduction focused on paying, trading, and managing services in one place. Always provide `Skip`; returning users can go directly to registration.
 4. Terms, privacy policy, age confirmation, and regulated-service notice before account creation.
 
 ### Initial authentication method
 
 - Start with Supabase email/password plus email verification because it does not depend on an unapproved phone/SMS provider.
 - Implement deep-link handling with PKCE for verification, password reset, and future OAuth callbacks.
+- Require approved HTTPS Terms and Privacy Policy URLs plus immutable version identifiers in production. Record the versions declared at signup in an immutable, owner-readable acceptance record.
 - Collect a phone number as profile data, but do not claim it is verified until a real verification channel is configured.
 - Build Google and Apple sign-in behind disabled feature flags. Apple sign-in must be available when another third-party social sign-in is offered on iOS.
 - Build phone OTP as an adapter-ready future option, not as the initial dependency.
@@ -83,7 +94,7 @@ flowchart TD
 
 1. Verify email.
 2. Capture legal first/last name, display name, country, phone number, and date of birth only where required by the service/compliance model.
-3. Create a six-digit transaction PIN through a server-controlled, rate-limited flow. Store only a strong server-side hash; never store or log the PIN.
+3. Create a six-digit transaction PIN atomically with onboarding progress. HMAC-pepper it with a Supabase Vault secret before bcrypt hashing; never store or log the PIN. Any later money-authorization verifier must remain server-side and add recent-auth checks, online rate limits, lockouts, and auditable attempts.
 4. Offer Face ID, Touch ID, or Android biometrics for local app unlock.
 5. Explain notifications, then request permission only when the user opts in.
 6. Show a short dashboard tour and land on Home.
@@ -235,7 +246,7 @@ Each provider receives a tracked readiness record:
 ### Phase 2 — Wallet and financial core
 
 - Implement wallet display, immutable ledger, reservations, idempotent transaction engine, funding/withdrawal placeholders, receipts, activity timeline, and admin reconciliation primitives.
-- Build Flutterwave and Prembly adapter contracts with mocks.
+- Build PocketFi and Prembly adapter contracts with mocks.
 
 **Exit:** concurrent and retried mock transactions cannot double-spend, double-credit, or produce an unexplained balance.
 
@@ -259,9 +270,9 @@ Each provider receives a tracked readiness record:
 
 **Exit:** dynamic catalogs and complete mocked order lifecycles pass without hardcoded provider inventory.
 
-### Phase 6 — Virtual cards
+### Phase 6 — Prepaid virtual cards
 
-- Implement Sudo eligibility, KYC gates, request flow, fees, card list/details boundary, funding, freeze/unfreeze, transaction history, and secure reauthentication.
+- Implement Prestmit Prepaid Cards eligibility, KYC gates, request flow, fees, card list/details boundary, funding, freeze/unfreeze, transaction history, and secure reauthentication.
 
 **Exit:** sensitive card data never enters logs or insecure storage; unavailable/live states are explicit.
 
