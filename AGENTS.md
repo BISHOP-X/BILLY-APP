@@ -36,6 +36,9 @@
 
 ## Supabase and GitHub Workflow
 
+- The project owner has explicitly authorized direct pushes to `main` for Billy. Do not create a feature branch or pull request unless the owner specifically asks for one.
+- Before every direct push, fetch `origin/main`, integrate any remote changes without overwriting them, verify the intended scope, and run checks proportional to the change. Never force-push `main`.
+- Direct Git pushes do not authorize automatic Supabase production deployments. Database changes still require the Billy-only inspection, migration, and verification workflow in this file.
 - Keep `supabase/` at the repository root. The Supabase GitHub integration working directory is `.`.
 - Treat source-controlled migrations as the authoritative history for Billy database changes. Make DDL changes through reviewed migrations; do not use untracked, ad hoc production schema edits.
 - Inspect the current live schema and migration history before generating or applying a migration. Preserve existing data and provide a rollback or recovery plan for risky changes.
