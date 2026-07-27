@@ -9,7 +9,9 @@
       "distribution": "internal",
       "environment": "preview",
       "env": {
-        "EXPO_PUBLIC_BILLY_DATA_MODE": "supabase"
+        "EXPO_PUBLIC_BILLY_DATA_MODE": "demo",
+        "EXPO_PUBLIC_BILLY_DEMO_SCENARIO": "funded",
+        "EXPO_PUBLIC_BILLY_TESTER_BUILD": "true"
       },
       "android": {
         "buildType": "apk"

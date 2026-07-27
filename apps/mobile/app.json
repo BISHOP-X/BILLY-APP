@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Billy",
-    "slug": "billy",
+    "slug": "billy-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/brand/billy-mark.png",
@@ -16,6 +16,9 @@
     },
     "android": {
       "package": "com.bishopx.billy",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#146237",
         "foregroundImage": "./assets/brand/billy-mark-adaptive.png"
@@ -44,7 +47,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Billy to select gift card images you choose to submit for a sale."
+          "photosPermission": "Allow Billy to select gift card images you choose to submit for a sale.",
+          "microphonePermission": false
         }
       ],
       [
@@ -57,6 +61,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6e07d9bf-d7ae-4358-b6fd-99c353f4ca1b"
+      }
+    },
+    "owner": "bishop-xs-team"
   }
 }
