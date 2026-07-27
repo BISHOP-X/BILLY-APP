@@ -180,10 +180,17 @@ export default function ServiceDetailScreen() {
       </View>
 
       <AppButton
-        disabled={service.key !== 'bills' || !service.canTransact}
+        disabled={
+          !['bills', 'gift_cards', 'prepaid_cards'].includes(service.key) ||
+          !service.canTransact
+        }
         label={
           service.key === 'bills'
             ? 'Explore bill payments'
+            : service.key === 'gift_cards'
+              ? 'Explore gift cards'
+              : service.key === 'prepaid_cards'
+                ? 'Explore prepaid cards'
             : service.state === 'maintenance'
             ? 'Service under maintenance'
             : service.canTransact
@@ -193,6 +200,10 @@ export default function ServiceDetailScreen() {
         onPress={() => {
           if (service.key === 'bills' && service.canTransact) {
             router.push('/(app)/bills/index');
+          } else if (service.key === 'gift_cards' && service.canTransact) {
+            router.push('/(app)/gift-cards/index');
+          } else if (service.key === 'prepaid_cards' && service.canTransact) {
+            router.push('/(app)/(tabs)/cards');
           }
         }}
       />

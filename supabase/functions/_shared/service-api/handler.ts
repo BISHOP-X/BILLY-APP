@@ -17,6 +17,12 @@ import {
   type VtpassTransactionResult,
   type VtpassVerificationResult,
 } from "../providers/vtpass.ts";
+import {
+  handlePrestmitAction,
+  isPrestmitAction,
+  PrestmitServiceError,
+  type PrestmitServiceRuntime,
+} from "./prestmit-service.ts";
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -321,6 +327,7 @@ export type ServiceApiDependencies = {
   now?: () => Date;
   pocketFi: ProviderRuntime<PocketFiAdapter>;
   prembly: ProviderRuntime<PremblyAdapter>;
+  prestmit?: PrestmitServiceRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -2924,12 +2931,19 @@ export function createServiceApiHandler(
       if (!/^[a-z]+(?:[.-][a-z]+)*$/.test(action)) {
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
-      const result = await handleAction(
-        action,
-        body.input ?? {},
-        user,
-        dependencies,
-      );
+      const result = isPrestmitAction(action)
+        ? await handlePrestmitAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies.prestmit,
+        )
+        : await handleAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies,
+        );
       return jsonResponse(requestId, {
         data: result.data,
         ok: true,
@@ -2938,6 +2952,13 @@ export function createServiceApiHandler(
     } catch (error) {
       const normalized = error instanceof ApiError
         ? error
+        : error instanceof PrestmitServiceError
+        ? new ApiError(
+          error.status,
+          error.code,
+          error.message,
+          error.retryable,
+        )
         : error instanceof ServiceTokenError
         ? new ApiError(409, "conflict", error.message)
         : new ApiError(

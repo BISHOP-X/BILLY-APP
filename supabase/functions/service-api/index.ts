@@ -11,12 +11,20 @@ import {
   type PremblyMockScenario,
 } from "../_shared/providers/prembly.ts";
 import {
+  PrestmitHttpAdapter,
+  PrestmitMockAdapter,
+  type PrestmitMockScenario,
+} from "../_shared/providers/prestmit.ts";
+import {
   type VtpassAuth,
   VtpassHttpAdapter,
   VtpassMockAdapter,
   type VtpassMockScenario,
 } from "../_shared/providers/vtpass.ts";
 import { createServiceDatabase } from "../_shared/service-api/database.ts";
+import { SecretPayloadCipher } from "../_shared/service-api/payload-cipher.ts";
+import { createPrestmitDatabase } from "../_shared/service-api/prestmit-database.ts";
+import type { PrestmitServiceRuntime } from "../_shared/service-api/prestmit-service.ts";
 import {
   createServiceApiHandler,
   type ProviderRuntime,
@@ -326,6 +334,21 @@ function premblyRuntime(): ProviderRuntime<PremblyAdapter> {
   };
 }
 
+function basisPoints(
+  name: string,
+  value: string | undefined,
+  fallback?: number,
+): number {
+  const parsed = value === undefined ? fallback : Number(value);
+  if (
+    parsed === undefined || !Number.isSafeInteger(parsed) ||
+    parsed < 0 || parsed > 5_000
+  ) {
+    throw new Error(`${name} must be an integer between 0 and 5000.`);
+  }
+  return parsed;
+}
+
 const supabaseUrl = assertBillyProjectUrl(requiredEnv("SUPABASE_URL"));
 const publishableKey = env("SUPABASE_PUBLISHABLE_KEY") ??
   requiredEnv("SUPABASE_ANON_KEY");
@@ -356,6 +379,70 @@ const digestIdentity = createHmacHexDigester(
   requiredEnv("KYC_IDENTITY_HMAC_SECRET"),
 );
 
+function prestmitRuntime(): PrestmitServiceRuntime {
+  const mode = providerMode("PRESTMIT_MODE");
+  const mockBuyScenario = oneOf(
+    "PRESTMIT_MOCK_BUY_SCENARIO",
+    env("PRESTMIT_MOCK_BUY_SCENARIO"),
+    ["delivered", "failed", "pending", "rejected", "unknown"] as const,
+    "delivered",
+  ) satisfies PrestmitMockScenario;
+  const mockSellScenario = oneOf(
+    "PRESTMIT_MOCK_SELL_SCENARIO",
+    env("PRESTMIT_MOCK_SELL_SCENARIO"),
+    ["delivered", "failed", "pending", "rejected", "unknown"] as const,
+    "pending",
+  ) satisfies PrestmitMockScenario;
+  const adapter = mode === "disabled" ? { mode } as const : mode === "mock"
+    ? {
+      adapter: new PrestmitMockAdapter({
+        buyScenario: mockBuyScenario,
+        sellScenario: mockSellScenario,
+      }),
+      mode,
+    } as const
+    : {
+      adapter: new PrestmitHttpAdapter({
+        accountPin: requiredEnv("PRESTMIT_ACCOUNT_PIN"),
+        apiKey: requiredEnv("PRESTMIT_API_KEY"),
+        baseUrl: requiredEnv("PRESTMIT_BASE_URL"),
+        twoFactorCode: env("PRESTMIT_2FA_CODE"),
+      }),
+      mode,
+    } as const;
+  const feeFallback = mode === "mock"
+    ? 200
+    : mode === "disabled"
+    ? 0
+    : undefined;
+  return {
+    adapter,
+    database: createPrestmitDatabase(serviceClient),
+    digest: digestEvidence,
+    fulfilmentCipher: new SecretPayloadCipher(
+      mode === "live"
+        ? requiredEnv("PRESTMIT_CARD_DATA_SECRET")
+        : env("PRESTMIT_CARD_DATA_SECRET") ?? serviceApiSigningSecret,
+    ),
+    giftCardBuyMarkupBps: basisPoints(
+      "PRESTMIT_GIFTCARD_BUY_MARKUP_BPS",
+      env("PRESTMIT_GIFTCARD_BUY_MARKUP_BPS"),
+      feeFallback,
+    ),
+    giftCardSellMarginBps: basisPoints(
+      "PRESTMIT_GIFTCARD_SELL_MARGIN_BPS",
+      env("PRESTMIT_GIFTCARD_SELL_MARGIN_BPS"),
+      feeFallback,
+    ),
+    prepaidMarkupBps: basisPoints(
+      "PRESTMIT_PREPAID_MARKUP_BPS",
+      env("PRESTMIT_PREPAID_MARKUP_BPS"),
+      feeFallback,
+    ),
+    tokens: tokenCodec,
+  };
+}
+
 const handler = createServiceApiHandler({
   async authenticateBearer(token) {
     const { data, error } = await authClient.auth.getUser(token);
@@ -371,6 +458,7 @@ const handler = createServiceApiHandler({
   digestIdentity,
   pocketFi: pocketFiRuntime(),
   prembly: premblyRuntime(),
+  prestmit: prestmitRuntime(),
   tokens: tokenCodec,
   vtpass: vtpassRuntime(),
 });

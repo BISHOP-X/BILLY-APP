@@ -13,6 +13,9 @@ import { StatePanel } from '@/components/ui/state-panel';
 import { StatusChip } from '@/components/ui/status-chip';
 import type { AppIconName } from '@/features/main/domain';
 import { useDashboardQuery } from '@/features/main/queries';
+import { BuyCardJourney } from '@/features/prestmit/components/buy-card-journey';
+import { PrestmitOrderCard } from '@/features/prestmit/components/prestmit-order-card';
+import { useCardCatalog, useCardOrders } from '@/features/prestmit/queries';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
 
@@ -22,6 +25,8 @@ const maskedCardNumber =
 export default function CardsScreen() {
   const theme = useBillyTheme();
   const query = useDashboardQuery();
+  const catalog = useCardCatalog('prepaid_cards');
+  const orders = useCardOrders('prepaid_cards');
 
   if (query.isLoading) {
     return (
@@ -56,8 +61,14 @@ export default function CardsScreen() {
   return (
     <AppScreen
       contentStyle={styles.content}
-      onRefresh={() => void query.refetch()}
-      refreshing={query.isRefetching}
+      onRefresh={() => {
+        void query.refetch();
+        void catalog.refetch();
+        void orders.refetch();
+      }}
+      refreshing={
+        query.isRefetching || catalog.isRefetching || orders.isRefetching
+      }
       testID="cards-screen">
       <DemoDataBanner />
       <SectionHeader
@@ -126,6 +137,60 @@ export default function CardsScreen() {
           </LinearGradient>
         </View>
       </FadeSlide>
+
+      <FadeSlide delay={45} style={styles.section}>
+        <SectionHeader
+          subtitle="Choose a provider-current prepaid product, value, and secure delivery."
+          title="Get a prepaid card"
+        />
+        {catalog.isLoading ? (
+          <DashboardSkeleton />
+        ) : catalog.isError || !catalog.data ? (
+          <StatePanel
+            actionLabel="Try again"
+            icon="cloud-offline-outline"
+            message={
+              catalog.error?.message ??
+              'Billy could not load current prepaid card products.'
+            }
+            onAction={() => void catalog.refetch()}
+            title="Prepaid products unavailable"
+            tone="danger"
+          />
+        ) : (
+          <BuyCardJourney
+            catalog={catalog.data}
+            onCompleted={(order) =>
+              router.push({
+                pathname: '/(app)/card-order/[id]',
+                params: { id: order.id, service: 'prepaid_cards' },
+              })
+            }
+            service="prepaid_cards"
+          />
+        )}
+      </FadeSlide>
+
+      {orders.data?.length ? (
+        <FadeSlide delay={80} style={styles.section}>
+          <SectionHeader
+            subtitle="Delivered details remain encrypted until you enter your PIN."
+            title="Your prepaid orders"
+          />
+          {orders.data.slice(0, 5).map((order) => (
+            <PrestmitOrderCard
+              key={order.id}
+              onPress={() =>
+                router.push({
+                  pathname: '/(app)/card-order/[id]',
+                  params: { id: order.id, service: 'prepaid_cards' },
+                })
+              }
+              order={order}
+            />
+          ))}
+        </FadeSlide>
+      ) : null}
 
       <FadeSlide delay={60} style={styles.section}>
         <SectionHeader title="Card tools" />

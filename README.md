@@ -10,9 +10,9 @@ and iOS, built with Expo, React Native, Expo Router, and Supabase.
 
 The local repository currently includes the Billy brand and design system,
 authentication and onboarding, a five-tab main application, and additive
-Supabase migrations for the auth and financial foundations. Provider-backed
-transactions remain disabled until their adapters, credentials, and activation
-checks are complete.
+Supabase migrations for the auth and financial foundations. Implemented
+provider-backed transactions remain disabled until Billy credentials and
+activation checks are complete.
 
 ## Local setup
 
@@ -55,3 +55,4 @@ Demo mode is rejected by production builds. Supported preview scenarios are
 - [Brand and interface direction](docs/product/BRAND_DIRECTION.md)
 - [Financial core and safety model](docs/architecture/FINANCIAL_CORE.md)
 - [PocketFi, VTpass, and Prembly contracts](docs/architecture/POCKETFI_VTPASS_PREMBLY.md)
+- [Prestmit gift-card and prepaid-card contract](docs/architecture/PRESTMIT_GIFTCARDS_PREPAID.md)

@@ -114,7 +114,7 @@ async function normalizeActionError(error: unknown) {
   );
 }
 
-async function invokeAction<T>(
+export async function invokeAction<T>(
   action: string,
   input: Record<string, unknown> = {},
 ): Promise<T> {

@@ -37,6 +37,12 @@
       ],
       "expo-secure-store",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Billy to select gift card images you choose to submit for a sale."
+        }
+      ],
+      [
         "expo-local-authentication",
         {
           "faceIDPermission": "Allow Billy to use Face ID to securely unlock your account."
