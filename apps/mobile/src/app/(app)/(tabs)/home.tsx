@@ -28,6 +28,10 @@ export default function HomeScreen() {
       router.push('/(app)/bills/index');
       return;
     }
+    if (service.key === 'social_boost' && service.canTransact) {
+      router.push('/(app)/social-boost/index');
+      return;
+    }
     router.push({
       pathname: '/(app)/service/[slug]',
       params: { slug: service.key },

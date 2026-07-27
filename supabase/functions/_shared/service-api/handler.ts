@@ -29,6 +29,12 @@ import {
   QuidaxServiceError,
   type QuidaxServiceRuntime,
 } from "./quidax-service.ts";
+import {
+  handleSocialBoostAction,
+  isSocialBoostAction,
+  SocialBoostServiceError,
+  type SocialBoostServiceRuntime,
+} from "./social-boost-service.ts";
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -335,6 +341,7 @@ export type ServiceApiDependencies = {
   prembly: ProviderRuntime<PremblyAdapter>;
   prestmit?: PrestmitServiceRuntime;
   quidax?: QuidaxServiceRuntime;
+  socialBoost?: SocialBoostServiceRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -2938,7 +2945,14 @@ export function createServiceApiHandler(
       if (!/^[a-z]+(?:[.-][a-z]+)*$/.test(action)) {
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
-      const result = isQuidaxAction(action)
+      const result = isSocialBoostAction(action)
+        ? await handleSocialBoostAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies.socialBoost,
+        )
+        : isQuidaxAction(action)
         ? await handleQuidaxAction(
           action,
           body.input ?? {},
@@ -2974,6 +2988,13 @@ export function createServiceApiHandler(
           error.retryable,
         )
         : error instanceof QuidaxServiceError
+        ? new ApiError(
+          error.status,
+          error.code,
+          error.message,
+          error.retryable,
+        )
+        : error instanceof SocialBoostServiceError
         ? new ApiError(
           error.status,
           error.code,

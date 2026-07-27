@@ -21,6 +21,11 @@ import {
   type QuidaxMockScenario,
 } from "../_shared/providers/quidax.ts";
 import {
+  SocialBoostHttpAdapter,
+  SocialBoostMockAdapter,
+  type SocialBoostMockScenario,
+} from "../_shared/providers/social-boost.ts";
+import {
   type VtpassAuth,
   VtpassHttpAdapter,
   VtpassMockAdapter,
@@ -32,6 +37,8 @@ import { createPrestmitDatabase } from "../_shared/service-api/prestmit-database
 import type { PrestmitServiceRuntime } from "../_shared/service-api/prestmit-service.ts";
 import { createQuidaxDatabase } from "../_shared/service-api/quidax-database.ts";
 import type { QuidaxServiceRuntime } from "../_shared/service-api/quidax-service.ts";
+import { createSocialBoostDatabase } from "../_shared/service-api/social-boost-database.ts";
+import type { SocialBoostServiceRuntime } from "../_shared/service-api/social-boost-service.ts";
 import {
   createServiceApiHandler,
   type ProviderRuntime,
@@ -494,6 +501,79 @@ function quidaxRuntime(): QuidaxServiceRuntime {
   };
 }
 
+function positiveMinor(
+  name: string,
+  value: string | undefined,
+  fallback?: number,
+): number {
+  const parsed = value === undefined ? fallback : Number(value);
+  if (
+    parsed === undefined || !Number.isSafeInteger(parsed) ||
+    parsed <= 0 || parsed > Number.MAX_SAFE_INTEGER
+  ) {
+    throw new Error(`${name} must be a positive JSON-safe integer.`);
+  }
+  return parsed;
+}
+
+function socialBoostRuntime(): SocialBoostServiceRuntime {
+  const mode = providerMode("SOCIAL_BOOST_MODE");
+  const scenario = oneOf(
+    "SOCIAL_BOOST_MOCK_SCENARIO",
+    env("SOCIAL_BOOST_MOCK_SCENARIO"),
+    [
+      "cancelled",
+      "failed",
+      "partial",
+      "pending",
+      "succeeded",
+      "timeout",
+      "unknown",
+    ] as const,
+    "succeeded",
+  ) satisfies SocialBoostMockScenario;
+  const adapter = mode === "disabled"
+    ? { mode } as const
+    : mode === "mock"
+    ? {
+      adapter: new SocialBoostMockAdapter({ scenario }),
+      mode,
+    } as const
+    : {
+      adapter: new SocialBoostHttpAdapter({
+        apiKey: requiredEnv("SOCIAL_BOOST_API_KEY"),
+        baseUrl: requiredEnv("SOCIAL_BOOST_BASE_URL"),
+      }),
+      mode,
+    } as const;
+  return {
+    adapter,
+    database: createSocialBoostDatabase(serviceClient),
+    digest: digestEvidence,
+    exchangeRateMinorPerUsd: positiveMinor(
+      "SOCIAL_BOOST_USD_NGN_RATE_MINOR",
+      env("SOCIAL_BOOST_USD_NGN_RATE_MINOR"),
+      mode === "live" ? undefined : 160_000,
+    ),
+    inputCipher: new SecretPayloadCipher(
+      mode === "live"
+        ? requiredEnv("SOCIAL_BOOST_INPUT_SECRET")
+        : env("SOCIAL_BOOST_INPUT_SECRET") ?? serviceApiSigningSecret,
+      {
+        additionalData: "billy-social-boost:v1",
+        context: "social-boost-input",
+        prefix: "sb1",
+      },
+    ),
+    markupBps: basisPoints(
+      "SOCIAL_BOOST_MARKUP_BPS",
+      env("SOCIAL_BOOST_MARKUP_BPS"),
+      mode === "live" ? undefined : 3_000,
+    ),
+    tokens: tokenCodec,
+  };
+}
+
 const handler = createServiceApiHandler({
   async authenticateBearer(token) {
     const { data, error } = await authClient.auth.getUser(token);
@@ -511,6 +591,7 @@ const handler = createServiceApiHandler({
   prembly: premblyRuntime(),
   prestmit: prestmitRuntime(),
   quidax: quidaxRuntime(),
+  socialBoost: socialBoostRuntime(),
   tokens: tokenCodec,
   vtpass: vtpassRuntime(),
 });

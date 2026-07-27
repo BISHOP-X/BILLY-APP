@@ -181,7 +181,13 @@ export default function ServiceDetailScreen() {
 
       <AppButton
         disabled={
-          !['bills', 'crypto', 'gift_cards', 'prepaid_cards'].includes(service.key) ||
+          ![
+            'bills',
+            'crypto',
+            'gift_cards',
+            'prepaid_cards',
+            'social_boost',
+          ].includes(service.key) ||
           !service.canTransact
         }
         label={
@@ -193,6 +199,8 @@ export default function ServiceDetailScreen() {
               ? 'Explore gift cards'
               : service.key === 'prepaid_cards'
                 ? 'Explore prepaid cards'
+                : service.key === 'social_boost'
+                  ? 'Explore Social Boost'
             : service.state === 'maintenance'
             ? 'Service under maintenance'
             : service.canTransact
@@ -208,6 +216,8 @@ export default function ServiceDetailScreen() {
             router.push('/(app)/gift-cards/index');
           } else if (service.key === 'prepaid_cards' && service.canTransact) {
             router.push('/(app)/(tabs)/cards');
+          } else if (service.key === 'social_boost' && service.canTransact) {
+            router.push('/(app)/social-boost/index');
           }
         }}
       />

@@ -293,6 +293,13 @@ Each provider receives a tracked readiness record:
 - Implement normalized US/international number catalogs, purchase, countdown, message receipt, cancellation rules, expiry, auto-refund, and history across the four SMS adapters.
 - Implement SMM catalog sync, platform/service selection, dynamic fields, quote, order, progress, refill/cancel eligibility, refunds, and history.
 
+**Current status:** Social Boost is implemented end to end against the
+provider-shaped mock and live adapter boundary, including its mobile journey,
+database/RLS model, atomic wallet orchestration, reconciliation, cancellation,
+bounded refunds, refill tracking, and tests. Live rollout remains `off` until
+Billy provider credentials and an authoritative catalog/status check are
+available. Foreign Numbers remains the unfinished part of this phase.
+
 **Exit:** provider-specific differences stay inside adapters; expired/failed orders reconcile without manual wallet edits.
 
 ### Phase 8 — Operations and launch hardening
