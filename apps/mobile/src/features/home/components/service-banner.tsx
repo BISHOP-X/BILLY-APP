@@ -19,12 +19,12 @@ export function ServiceBanner({ kyc, onPress, services }: ServiceBannerProps) {
   const title = maintenanceCount
     ? `${maintenanceCount} service${maintenanceCount === 1 ? '' : 's'} paused`
     : needsKyc
-      ? 'Verify only when you need to'
+      ? 'Verify for protected services'
       : 'Your Billy security matters';
   const body = maintenanceCount
     ? 'See current availability before starting a service.'
     : needsKyc
-      ? kyc.accessReason
+      ? 'Crypto transactions and gift-card selling require verification. Funding, bills, and gift-card buying remain available.'
       : 'Review privacy and security settings whenever your device or needs change.';
 
   return (

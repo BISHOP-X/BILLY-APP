@@ -22,6 +22,25 @@ function requireSafeMinorUnits(amountMinor: number) {
   return BigInt(amountMinor);
 }
 
+export function parseMajorUnitsToMinor(
+  value: string,
+  currency = 'NGN',
+): number | null {
+  const exponent = requireCurrencyExponent(currency);
+  const normalized = value.trim().replace(/,/g, '');
+  const pattern = new RegExp(`^\\d{1,13}(?:\\.\\d{0,${exponent}})?$`);
+  if (!pattern.test(normalized)) return null;
+
+  const [whole = '0', fraction = ''] = normalized.split('.');
+  const scale = 10n ** BigInt(exponent);
+  const minorUnits =
+    BigInt(whole) * scale +
+    BigInt(fraction.padEnd(exponent, '0') || '0');
+
+  if (minorUnits > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  return Number(minorUnits);
+}
+
 function formatAbsoluteMinorUnits(
   amountMinor: bigint,
   currency: string,

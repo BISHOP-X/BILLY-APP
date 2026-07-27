@@ -1,5 +1,8 @@
 import type { BillyMainRepository } from '@/features/main/domain';
-import { createDemoRepository } from '@/features/main/demo-repository';
+import {
+  createDemoRepository,
+  resetDemoRepositoryStateForTests,
+} from '@/features/main/demo-repository';
 
 async function completeDemoRequest<T>(request: Promise<T>) {
   await jest.runAllTimersAsync();
@@ -9,6 +12,7 @@ async function completeDemoRequest<T>(request: Promise<T>) {
 describe('demo repository', () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    resetDemoRepositoryStateForTests();
   });
 
   afterEach(() => {
@@ -34,7 +38,39 @@ describe('demo repository', () => {
     ).toBe(snapshot.wallet!.balanceMinor);
     expect(snapshot.activity).toHaveLength(4);
     expect(snapshot.services).toHaveLength(6);
-    expect(snapshot.services.every((service) => !service.canTransact)).toBe(true);
+    expect(
+      snapshot.services.find((service) => service.key === 'bills'),
+    ).toMatchObject({
+      accessCode: 'available',
+      canTransact: true,
+      requiresKyc: false,
+      rollout: 'testers',
+      state: 'available',
+    });
+    expect(
+      snapshot.services
+        .filter((service) => service.key !== 'bills')
+        .every((service) => !service.canTransact),
+    ).toBe(true);
+    expect(
+      snapshot.services.find((service) => service.key === 'crypto'),
+    ).toMatchObject({
+      requiredKycTier: 1,
+      requiresKyc: true,
+    });
+    expect(
+      snapshot.services.find((service) => service.key === 'gift_cards'),
+    ).toMatchObject({
+      requiredKycTier: 0,
+      requiresKyc: false,
+    });
+    expect(snapshot.walletActions.funding).toMatchObject({
+      accessCode: 'available',
+      canTransact: true,
+      requiredKycTier: 0,
+      rollout: 'testers',
+      state: 'available',
+    });
 
     const transaction = await completeDemoRequest(
       repository.getTransaction('demo-tx-funding'),

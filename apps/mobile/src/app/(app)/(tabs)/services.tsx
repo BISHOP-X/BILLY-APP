@@ -90,12 +90,16 @@ export default function ServicesScreen() {
           {filtered.map((service) => (
             <ServiceTile
               key={service.key}
-              onPress={() =>
+              onPress={() => {
+                if (service.key === 'bills') {
+                  router.push('/(app)/bills/index');
+                  return;
+                }
                 router.push({
                   pathname: '/(app)/service/[slug]',
                   params: { slug: service.key },
-                })
-              }
+                });
+              }}
               service={service}
               width={tileWidth}
             />

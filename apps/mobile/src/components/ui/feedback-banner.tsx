@@ -6,7 +6,7 @@ import { radii, spacing, typography } from '@/theme/tokens';
 
 type FeedbackBannerProps = {
   message: string;
-  tone?: 'error' | 'success' | 'info';
+  tone?: 'error' | 'success' | 'info' | 'warning';
 };
 
 export function FeedbackBanner({ message, tone = 'info' }: FeedbackBannerProps) {
@@ -26,6 +26,11 @@ export function FeedbackBanner({ message, tone = 'info' }: FeedbackBannerProps) 
       color: theme.colors.brand,
       background: theme.colors.brandMist,
       icon: 'information-circle' as const,
+    },
+    warning: {
+      color: theme.colors.warning,
+      background: `${theme.colors.warning}12`,
+      icon: 'time-outline' as const,
     },
   }[tone];
 

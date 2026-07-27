@@ -24,6 +24,10 @@ export default function HomeScreen() {
   const privacyMutation = useSetHideBalance();
 
   function openService(service: ServiceSummary) {
+    if (service.key === 'bills' && service.canTransact) {
+      router.push('/(app)/bills/index');
+      return;
+    }
     router.push({
       pathname: '/(app)/service/[slug]',
       params: { slug: service.key },

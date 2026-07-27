@@ -54,3 +54,4 @@ Demo mode is rejected by production builds. Supported preview scenarios are
 - [Phase 3-4 delivery status](docs/product/PHASE_3_4_STATUS.md)
 - [Brand and interface direction](docs/product/BRAND_DIRECTION.md)
 - [Financial core and safety model](docs/architecture/FINANCIAL_CORE.md)
+- [PocketFi, VTpass, and Prembly contracts](docs/architecture/POCKETFI_VTPASS_PREMBLY.md)

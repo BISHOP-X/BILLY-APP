@@ -6,6 +6,11 @@ Build the complete Android and iOS application, database model, provider boundar
 
 This is a mobile implementation, not a copy of the FirstOption website/WhatsApp experience or the Active Store website. Those projects provide verified service behavior and provider lessons only.
 
+The read-only production behavior mapping is recorded in
+[`FIRSTOPTION_PRODUCTION_SERVICE_MAP.md`](./FIRSTOPTION_PRODUCTION_SERVICE_MAP.md).
+It informs service semantics only; Billy's visual design and interaction system
+remain independent.
+
 ## Bulk Build Sequence
 
 1. **Foundation and brand** — Billy design system, logo assets, navigation shell, animation language, secure configuration, and reusable mobile components.
@@ -25,9 +30,9 @@ This is a mobile implementation, not a copy of the FirstOption website/WhatsApp 
 | Wallet funding | PocketFi | Build virtual-account adapter, callback flow, ledger settlement, fixtures, and sandbox UI; keep live funding off |
 | KYC | Prembly | Build verification contract, consent screens, status model, mock responses, and service gating; keep verification off |
 | Bills | VTpass | Build dynamic catalog, validation, purchase, status, and reconciliation adapters using sanitized fixtures |
-| Gift cards | Prestmit | Build dynamic products/rates, quote, buy/sell order, evidence upload, and status flows; tester-only |
-| Crypto | Quidax | Build asset/network catalog, quote, deposit/withdraw/trade request boundaries, risk notices, and status flows; off |
-| Virtual/prepaid cards | Prestmit Prepaid Cards | Build eligibility, KYC gate, card request, funding, freeze, transaction, and secure-details boundaries; off |
+| Gift cards | Prestmit | Build dynamic products/rates, ungated browsing/buying, KYC-gated selling, quotes, evidence upload, payout, and status flows; tester-only |
+| Crypto | Quidax | Build KYC-gated Buy, Sell, Receive, and Send flows with runtime asset/network catalogs, quotes, addresses, risk notices, and status tracking; off |
+| Virtual/prepaid cards | Prestmit Prepaid Cards | Build runtime product selection, amount/range validation, creation-fee quote, wallet purchase, secure delivery, and pending fulfilment; no KYC gate |
 
 Prestmit Prepaid Cards and Quidax are not assumed production-ready merely because reference code exists. Their capabilities must be reconfirmed from current provider documentation and dashboard access.
 
@@ -115,7 +120,9 @@ flowchart TD
 
 1. **Home** — greeting, notification entry, wallet balance, add/withdraw actions, quick services, banner, recent activity.
 2. **Activity** — unified transactions and service orders with filters, details, receipts, retry-safe status refresh, and support entry.
-3. **Cards** — virtual-card eligibility, requests, cards, transactions, freeze controls, and empty/disabled states.
+3. **Cards** — Prestmit prepaid-card products, purchase orders, securely
+   delivered details, fulfilment history, and empty/disabled states. Reloading
+   or freeze controls appear only if the live provider contract supports them.
 4. **Services** — full catalog, rates where relevant, availability, search, favorites, and maintenance states.
 5. **Account** — profile, KYC, security, beneficiaries, notification settings, legal documents, support, and sign out.
 
@@ -272,7 +279,12 @@ Each provider receives a tracked readiness record:
 
 ### Phase 6 — Prepaid virtual cards
 
-- Implement Prestmit Prepaid Cards eligibility, KYC gates, request flow, fees, card list/details boundary, funding, freeze/unfreeze, transaction history, and secure reauthentication.
+- Implement the active Prestmit prepaid-card purchase model: runtime USD/CAD
+  Visa and Mastercard products, allowed amount ranges, a server-authoritative
+  quote including the creation fee, wallet/PIN purchase, secure card-detail
+  delivery, pending fulfilment, and order history.
+- Do not inherit legacy Sudo reload, freeze/unfreeze, or KYC behavior. Add a
+  lifecycle action only if the current Prestmit dashboard/API proves it.
 
 **Exit:** sensitive card data never enters logs or insecure storage; unavailable/live states are explicit.
 

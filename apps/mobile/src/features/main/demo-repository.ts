@@ -22,20 +22,31 @@ function demoServices(scenario: DemoScenario): ServiceSummary[] {
   return serviceCatalog.map((service, index) => {
     const maintenance =
       scenario === 'maintenance' && ['bills', 'crypto'].includes(service.key);
+    const activeTesterPreview = service.key === 'bills' && !maintenance;
+    const requiresKyc = service.key === 'crypto';
 
     return {
       ...service,
-      accessCode: maintenance ? 'service_maintenance' : 'feature_disabled',
-      canTransact: false,
+      accessCode: maintenance
+        ? 'service_maintenance'
+        : activeTesterPreview
+          ? 'available'
+          : 'feature_disabled',
+      canTransact: activeTesterPreview,
       message: maintenance
         ? 'This preview is temporarily paused while we complete service checks.'
-        : 'The complete Billy flow is being prepared with a safe mock adapter. Live transactions are off.',
-      requiresKyc: ['crypto', 'prepaid_cards'].includes(service.key),
-      requiredKycTier:
-        service.key === 'crypto' || service.key === 'prepaid_cards' ? 2 : 0,
+        : activeTesterPreview
+          ? 'Bill payments are available through Billy’s safe tester adapter. No live provider transaction will be created.'
+          : 'The complete Billy flow is being prepared with a safe mock adapter. Live transactions are off.',
+      requiresKyc,
+      requiredKycTier: requiresKyc ? 1 : 0,
       requiredVerificationMode: 'live',
-      rollout: 'off',
-      state: maintenance ? 'maintenance' : 'coming_soon',
+      rollout: activeTesterPreview ? 'testers' : 'off',
+      state: maintenance
+        ? 'maintenance'
+        : activeTesterPreview
+          ? 'available'
+          : 'coming_soon',
       sortOrder: service.sortOrder ?? (index + 1) * 10,
     };
   });
@@ -162,7 +173,8 @@ function buildSnapshot(scenario: DemoScenario, now = new Date()): DashboardSnaps
     generatedAt: now.toISOString(),
     kyc: {
       accessCode: 'kyc_not_started',
-      accessReason: 'Identity verification has not started.',
+      accessReason:
+        'Verify before crypto transactions or selling gift cards. Funding, bills, and gift-card buying remain available.',
       expiresAt: null,
       status: 'not_started',
       tier: 0,
@@ -203,21 +215,21 @@ function buildSnapshot(scenario: DemoScenario, now = new Date()): DashboardSnaps
           },
     walletActions: {
       funding: {
-        accessCode: 'feature_disabled',
-        canTransact: false,
+        accessCode: 'available',
+        canTransact: true,
         key: 'wallet_funding',
-        message: 'Wallet funding remains disabled in this preview.',
-        requiredKycTier: 1,
+        message: 'Permanent account funding is ready in this preview.',
+        requiredKycTier: 0,
         requiredVerificationMode: 'live',
-        rollout: 'off',
-        state: 'coming_soon',
+        rollout: 'testers',
+        state: 'available',
       },
       withdrawal: {
         accessCode: 'feature_disabled',
         canTransact: false,
         key: 'wallet_withdrawal',
         message: 'Withdrawals remain disabled in this preview.',
-        requiredKycTier: 1,
+        requiredKycTier: 0,
         requiredVerificationMode: 'live',
         rollout: 'off',
         state: 'coming_soon',
@@ -228,6 +240,11 @@ function buildSnapshot(scenario: DemoScenario, now = new Date()): DashboardSnaps
 
 async function waitForDemo() {
   await new Promise((resolve) => setTimeout(resolve, DEMO_DELAY_MS));
+}
+
+export function resetDemoRepositoryStateForTests() {
+  hideDemoBalance = false;
+  readDemoNotifications.clear();
 }
 
 function throwForScenario(scenario: DemoScenario) {

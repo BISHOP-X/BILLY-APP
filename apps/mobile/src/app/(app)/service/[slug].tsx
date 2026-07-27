@@ -180,15 +180,21 @@ export default function ServiceDetailScreen() {
       </View>
 
       <AppButton
-        disabled
+        disabled={service.key !== 'bills' || !service.canTransact}
         label={
-          service.state === 'maintenance'
+          service.key === 'bills'
+            ? 'Explore bill payments'
+            : service.state === 'maintenance'
             ? 'Service under maintenance'
             : service.canTransact
               ? 'Transaction flow is not installed yet'
               : 'Live transactions are off'
         }
-        onPress={() => undefined}
+        onPress={() => {
+          if (service.key === 'bills' && service.canTransact) {
+            router.push('/(app)/bills/index');
+          }
+        }}
       />
     </AppScreen>
   );

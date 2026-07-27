@@ -14,6 +14,8 @@
 - Use FirstOption as the primary reference for PocketFi wallet funding, Prembly KYC, VTpass bills, Prestmit gift cards and prepaid cards, and Quidax crypto.
 - Use Active Store as the primary reference for foreign SMS numbers and social media boosting.
 - Read the relevant provider documentation first. If it is incomplete, inspect the corresponding implementation, tests, fixtures, and recorded provider responses to understand the established contract.
+- Treat reference-project screens and webviews as production-behavior evidence only. Billy's visual identity, native navigation, components, and animation language remain independent and must not be reshaped to match a website, WhatsApp flow, or legacy provider UI.
+- Trace the active menu or route through to the implementation and tests before treating code as current behavior. Never inherit a deprecated or unreachable integration merely because its files still exist.
 - Never modify, format, rename, delete, install dependencies in, stage, commit, deploy, run migrations against, set secrets for, or otherwise tamper with either reference project. Do not access their Supabase projects or execute scripts that can write to their databases or providers.
 - Do not copy credentials, tokens, customer data, raw production payloads, or project-specific code wholesale. Reimplement the verified behavior behind Billy-owned domain models and adapters.
 - Record the resulting provider contract and any remaining uncertainty in Billy documentation. If documentation and read-only implementation evidence are insufficient or contradictory, stop that integration slice and ask the project owner rather than guessing.
@@ -61,6 +63,9 @@
 ## Provider Integrations
 
 - The current Billy provider map is: PocketFi for wallet funding; Prembly for KYC; VTpass for bills; Prestmit for gift cards and prepaid virtual cards; Quidax for crypto; the verified Active Store providers for foreign SMS numbers; and The Lord of the Panels for social media boosting.
+- Billy Tier-1 KYC gates every crypto transaction action and the gift-card Sell action only. It must not gate PocketFi funding, VTpass bills, gift-card browsing or buying, or Prestmit prepaid-card buying unless a later verified compliance contract explicitly changes that rule.
+- A KYC response is verified only when the provider's terminal verification status and response code agree. Never treat an HTTP 200 or outer `status: true` flag alone as identity proof; pending or contradictory evidence keeps protected operations locked and must follow a provider-confirmed reconciliation path.
+- The active Prestmit prepaid-card model is a purchase-and-delivery flow. Do not inherit legacy Sudo reload, freeze/unfreeze, or KYC behavior without current Prestmit evidence.
 - Route provider traffic through server-side provider adapters. Mobile screens and shared application code must not call provider APIs directly or contain provider secrets.
 - Normalize provider-specific payloads and statuses at the adapter boundary. Keep the rest of Billy dependent on Billy domain models, not provider response shapes.
 - Keep provider identifiers, slugs, API-specific order types, and routing details out of customer-facing UI. Use neutral product language; expose provider details only in secured admin or diagnostic contexts.

@@ -39,7 +39,7 @@ export const serviceCatalog: readonly (
     sortOrder: 50,
   },
   {
-    description: 'Request and manage eligible prepaid virtual cards when this service launches.',
+    description: 'Buy eligible prepaid virtual cards with a clear quote and secure delivery.',
     icon: 'card-outline',
     key: 'prepaid_cards',
     label: 'Prepaid Cards',

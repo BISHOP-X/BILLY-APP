@@ -1,9 +1,18 @@
 import {
   describeMinorUnits,
   formatMinorUnits,
+  parseMajorUnitsToMinor,
 } from '@/features/wallet/money';
 
 describe('minor-unit money formatting', () => {
+  it('parses NGN major units without floating-point arithmetic', () => {
+    expect(parseMajorUnitsToMinor('1,250')).toBe(125_000);
+    expect(parseMajorUnitsToMinor('1250.5')).toBe(125_050);
+    expect(parseMajorUnitsToMinor('0.01')).toBe(1);
+    expect(parseMajorUnitsToMinor('12.345')).toBeNull();
+    expect(parseMajorUnitsToMinor('not-money')).toBeNull();
+  });
+
   it('formats integer kobo as NGN without floating-point arithmetic', () => {
     expect(formatMinorUnits(2_548_500)).toBe('₦25,485.00');
     expect(formatMinorUnits(1, 'NGN', { symbol: false })).toBe('0.01');

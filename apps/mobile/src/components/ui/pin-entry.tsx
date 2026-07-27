@@ -13,11 +13,19 @@ type PinEntryProps = {
   onChange: (value: string) => void;
   length?: number;
   autoFocus?: boolean;
+  disabled?: boolean;
   testID?: string;
 };
 
 export const PinEntry = forwardRef<PinEntryHandle, PinEntryProps>(function PinEntry(
-  { value, onChange, length = 6, autoFocus = false, testID },
+  {
+    value,
+    onChange,
+    length = 6,
+    autoFocus = false,
+    disabled = false,
+    testID,
+  },
   forwardedRef,
 ) {
   const theme = useBillyTheme();
@@ -31,14 +39,17 @@ export const PinEntry = forwardRef<PinEntryHandle, PinEntryProps>(function PinEn
     <Pressable
       accessibilityHint="Enter a six digit transaction PIN"
       accessibilityLabel={`Transaction PIN, ${value.length} of ${length} digits entered`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={() => inputRef.current?.focus()}
-      style={styles.wrapper}
+      style={[styles.wrapper, disabled && styles.disabled]}
       testID={testID}>
       <TextInput
         autoComplete="off"
         autoFocus={autoFocus}
         caretHidden
         contextMenuHidden
+        editable={!disabled}
         importantForAutofill="noExcludeDescendants"
         keyboardType="number-pad"
         maxLength={length}
@@ -81,6 +92,9 @@ export const PinEntry = forwardRef<PinEntryHandle, PinEntryProps>(function PinEn
 const styles = StyleSheet.create({
   wrapper: {
     position: 'relative',
+  },
+  disabled: {
+    opacity: 0.62,
   },
   hiddenInput: {
     height: 1,
