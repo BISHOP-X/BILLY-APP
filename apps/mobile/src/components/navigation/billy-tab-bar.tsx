@@ -42,7 +42,7 @@ export function BillyTabBar({
 
   if (keyboardVisible) return null;
 
-  const barBackground = theme.dark ? '#123D27' : '#F7F9EF';
+  const barBackground = theme.dark ? theme.colors.surfaceRaised : '#F7F9EF';
   const activeColor = theme.dark ? theme.colors.accent : theme.colors.brandDeep;
   const inactiveColor = theme.colors.textMuted;
   const safeBottom = Math.max(insets.bottom, spacing.xs);
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   floatingShadow: Platform.select({
     web: {
-      boxShadow: '0 14px 34px rgba(0, 0, 0, 0.34)',
+      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.26)',
     },
     default: {
       elevation: 12,
@@ -276,9 +276,9 @@ const styles = StyleSheet.create({
   },
   safeWrap: {
     alignSelf: 'center',
-    bottom: 0,
+    bottom: spacing.xs,
     left: 0,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingTop: spacing.sm,
     position: 'absolute',
     right: 0,

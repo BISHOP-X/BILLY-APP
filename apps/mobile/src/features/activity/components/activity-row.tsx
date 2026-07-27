@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
 
+import { ScalePressable } from '@/components/ui/motion';
 import { StatusChip } from '@/components/ui/status-chip';
 import type { ActivityItem } from '@/features/main/domain';
 import {
@@ -15,7 +15,7 @@ import {
   formatMinorUnits,
 } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { radii, spacing, typography } from '@/theme/tokens';
+import { radii, shadows, spacing, typography } from '@/theme/tokens';
 
 type ActivityRowProps = {
   item: ActivityItem;
@@ -40,18 +40,19 @@ export function ActivityRow({ item, onPress, showStatus = false }: ActivityRowPr
   const stacksAmount = width < 360 || fontScale > 1.2;
 
   return (
-    <Pressable
+    <ScalePressable
       accessibilityHint="Opens transaction details"
       accessibilityLabel={`${item.title}, ${describeMinorUnits(signedAmount, item.currency)}, status ${item.status}`}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
+      pressedScale={0.985}
+      style={[
         styles.row,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: theme.colors.surfaceRaised,
           borderColor: theme.colors.border,
-          opacity: pressed ? 0.72 : 1,
         },
+        shadows.card,
         stacksAmount && styles.rowStacked,
       ]}>
       <View style={[styles.icon, { backgroundColor: theme.colors.brandMist }]}>
@@ -83,7 +84,7 @@ export function ActivityRow({ item, onPress, showStatus = false }: ActivityRowPr
           {formatActivityDate(item.createdAt)}
         </Text>
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
@@ -105,18 +106,21 @@ const styles = StyleSheet.create({
   },
   icon: {
     alignItems: 'center',
-    borderRadius: radii.md,
-    height: 44,
+    borderRadius: radii.lg,
+    height: 46,
     justifyContent: 'center',
-    width: 44,
+    width: 46,
   },
   row: {
     alignItems: 'center',
-    borderBottomWidth: 1,
+    borderRadius: radii.lg,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: spacing.sm,
-    minHeight: 76,
-    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
+    minHeight: 88,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 14,
   },
   rowStacked: {
     alignItems: 'flex-start',
@@ -125,11 +129,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: typography.family,
     fontSize: 12,
+    lineHeight: 17,
   },
   title: {
     fontFamily: typography.familyRounded,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
   },
   trailing: {
     alignItems: 'flex-end',

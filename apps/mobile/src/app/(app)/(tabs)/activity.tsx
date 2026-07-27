@@ -134,7 +134,15 @@ export default function ActivityScreen() {
               subtitle="Transactions, orders, refunds, and receipts."
               title="Activity"
             />
-            <View accessibilityRole="tablist" style={styles.filters}>
+            <View
+              accessibilityRole="tablist"
+              style={[
+                styles.filters,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+              ]}>
               {filters.map((item) => {
                 const selected = item.key === filter;
                 return (
@@ -148,10 +156,7 @@ export default function ActivityScreen() {
                       {
                         backgroundColor: selected
                           ? theme.colors.brand
-                          : theme.colors.surface,
-                        borderColor: selected
-                          ? theme.colors.brand
-                          : theme.colors.border,
+                          : 'transparent',
                       },
                     ]}>
                     <Text
@@ -199,26 +204,29 @@ export default function ActivityScreen() {
 const styles = StyleSheet.create({
   content: {
     alignSelf: 'center',
-    paddingBottom: spacing.xxxl,
+    paddingBottom: 128,
     paddingHorizontal: spacing.lg,
     width: '100%',
   },
   filter: {
     borderRadius: radii.pill,
-    borderWidth: 1,
+    flex: 1,
     justifyContent: 'center',
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
+    minHeight: 40,
+    paddingHorizontal: spacing.xs,
   },
   filterText: {
     fontFamily: typography.familyRounded,
     fontSize: 12,
     fontWeight: '700',
+    textAlign: 'center',
   },
   filters: {
+    borderRadius: radii.pill,
+    borderWidth: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: spacing.xxs,
+    padding: spacing.xxs,
   },
   footer: {
     alignItems: 'center',
@@ -238,8 +246,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   header: {
-    gap: spacing.lg,
-    paddingBottom: spacing.md,
+    gap: spacing.md,
+    paddingBottom: spacing.lg,
     paddingTop: spacing.sm,
   },
   list: {
@@ -251,6 +259,6 @@ const styles = StyleSheet.create({
     height: 76,
   },
   skeletons: {
-    gap: spacing.xs,
+    gap: spacing.sm,
   },
 });
