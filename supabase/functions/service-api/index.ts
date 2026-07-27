@@ -16,6 +16,11 @@ import {
   type PrestmitMockScenario,
 } from "../_shared/providers/prestmit.ts";
 import {
+  QuidaxHttpAdapter,
+  QuidaxMockAdapter,
+  type QuidaxMockScenario,
+} from "../_shared/providers/quidax.ts";
+import {
   type VtpassAuth,
   VtpassHttpAdapter,
   VtpassMockAdapter,
@@ -25,6 +30,8 @@ import { createServiceDatabase } from "../_shared/service-api/database.ts";
 import { SecretPayloadCipher } from "../_shared/service-api/payload-cipher.ts";
 import { createPrestmitDatabase } from "../_shared/service-api/prestmit-database.ts";
 import type { PrestmitServiceRuntime } from "../_shared/service-api/prestmit-service.ts";
+import { createQuidaxDatabase } from "../_shared/service-api/quidax-database.ts";
+import type { QuidaxServiceRuntime } from "../_shared/service-api/quidax-service.ts";
 import {
   createServiceApiHandler,
   type ProviderRuntime,
@@ -443,6 +450,50 @@ function prestmitRuntime(): PrestmitServiceRuntime {
   };
 }
 
+function quidaxRuntime(): QuidaxServiceRuntime {
+  const mode = providerMode("QUIDAX_MODE");
+  const scenario = oneOf(
+    "QUIDAX_MOCK_SCENARIO",
+    env("QUIDAX_MOCK_SCENARIO"),
+    ["failed", "pending", "succeeded", "unknown"] as const,
+    "succeeded",
+  ) satisfies QuidaxMockScenario;
+  const adapter = mode === "disabled"
+    ? { mode } as const
+    : mode === "mock"
+    ? { adapter: new QuidaxMockAdapter({ scenario }), mode } as const
+    : {
+      adapter: new QuidaxHttpAdapter({
+        coreBaseUrl: requiredEnv("QUIDAX_CORE_BASE_URL"),
+        coreToken: requiredEnv("QUIDAX_CORE_TOKEN"),
+        rampBaseUrl: requiredEnv("QUIDAX_RAMP_BASE_URL"),
+        rampPrivateKey: requiredEnv("QUIDAX_RAMP_PRIVATE_KEY"),
+        rampSymbols: requiredEnv("QUIDAX_RAMP_SYMBOLS")
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      }),
+      mode,
+    } as const;
+  const pricingFallback = mode === "live" ? undefined : 0;
+  return {
+    adapter,
+    buyMarkupBps: basisPoints(
+      "QUIDAX_BUY_MARKUP_BPS",
+      env("QUIDAX_BUY_MARKUP_BPS"),
+      pricingFallback,
+    ),
+    database: createQuidaxDatabase(serviceClient),
+    digest: digestEvidence,
+    sellMarginBps: basisPoints(
+      "QUIDAX_SELL_MARGIN_BPS",
+      env("QUIDAX_SELL_MARGIN_BPS"),
+      pricingFallback,
+    ),
+    tokens: tokenCodec,
+  };
+}
+
 const handler = createServiceApiHandler({
   async authenticateBearer(token) {
     const { data, error } = await authClient.auth.getUser(token);
@@ -459,6 +510,7 @@ const handler = createServiceApiHandler({
   pocketFi: pocketFiRuntime(),
   prembly: premblyRuntime(),
   prestmit: prestmitRuntime(),
+  quidax: quidaxRuntime(),
   tokens: tokenCodec,
   vtpass: vtpassRuntime(),
 });

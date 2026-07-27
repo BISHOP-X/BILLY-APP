@@ -56,3 +56,4 @@ Demo mode is rejected by production builds. Supported preview scenarios are
 - [Financial core and safety model](docs/architecture/FINANCIAL_CORE.md)
 - [PocketFi, VTpass, and Prembly contracts](docs/architecture/POCKETFI_VTPASS_PREMBLY.md)
 - [Prestmit gift-card and prepaid-card contract](docs/architecture/PRESTMIT_GIFTCARDS_PREPAID.md)
+- [Quidax crypto contract](docs/architecture/QUIDAX_CRYPTO.md)

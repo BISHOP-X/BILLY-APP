@@ -181,12 +181,14 @@ export default function ServiceDetailScreen() {
 
       <AppButton
         disabled={
-          !['bills', 'gift_cards', 'prepaid_cards'].includes(service.key) ||
+          !['bills', 'crypto', 'gift_cards', 'prepaid_cards'].includes(service.key) ||
           !service.canTransact
         }
         label={
           service.key === 'bills'
             ? 'Explore bill payments'
+            : service.key === 'crypto'
+              ? 'Open crypto'
             : service.key === 'gift_cards'
               ? 'Explore gift cards'
               : service.key === 'prepaid_cards'
@@ -200,6 +202,8 @@ export default function ServiceDetailScreen() {
         onPress={() => {
           if (service.key === 'bills' && service.canTransact) {
             router.push('/(app)/bills/index');
+          } else if (service.key === 'crypto' && service.canTransact) {
+            router.push('/(app)/crypto/index');
           } else if (service.key === 'gift_cards' && service.canTransact) {
             router.push('/(app)/gift-cards/index');
           } else if (service.key === 'prepaid_cards' && service.canTransact) {

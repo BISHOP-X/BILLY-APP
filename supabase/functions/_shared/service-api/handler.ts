@@ -23,6 +23,12 @@ import {
   PrestmitServiceError,
   type PrestmitServiceRuntime,
 } from "./prestmit-service.ts";
+import {
+  handleQuidaxAction,
+  isQuidaxAction,
+  QuidaxServiceError,
+  type QuidaxServiceRuntime,
+} from "./quidax-service.ts";
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
@@ -328,6 +334,7 @@ export type ServiceApiDependencies = {
   pocketFi: ProviderRuntime<PocketFiAdapter>;
   prembly: ProviderRuntime<PremblyAdapter>;
   prestmit?: PrestmitServiceRuntime;
+  quidax?: QuidaxServiceRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -2931,7 +2938,14 @@ export function createServiceApiHandler(
       if (!/^[a-z]+(?:[.-][a-z]+)*$/.test(action)) {
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
-      const result = isPrestmitAction(action)
+      const result = isQuidaxAction(action)
+        ? await handleQuidaxAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies.quidax,
+        )
+        : isPrestmitAction(action)
         ? await handlePrestmitAction(
           action,
           body.input ?? {},
@@ -2953,6 +2967,13 @@ export function createServiceApiHandler(
       const normalized = error instanceof ApiError
         ? error
         : error instanceof PrestmitServiceError
+        ? new ApiError(
+          error.status,
+          error.code,
+          error.message,
+          error.retryable,
+        )
+        : error instanceof QuidaxServiceError
         ? new ApiError(
           error.status,
           error.code,

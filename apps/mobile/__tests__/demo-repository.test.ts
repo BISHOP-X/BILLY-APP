@@ -49,14 +49,18 @@ describe('demo repository', () => {
     });
     expect(
       snapshot.services
-        .filter((service) => service.key !== 'bills')
+        .filter((service) => !['bills', 'crypto'].includes(service.key))
         .every((service) => !service.canTransact),
     ).toBe(true);
     expect(
       snapshot.services.find((service) => service.key === 'crypto'),
     ).toMatchObject({
+      accessCode: 'available',
+      canTransact: true,
       requiredKycTier: 1,
       requiresKyc: true,
+      rollout: 'testers',
+      state: 'available',
     });
     expect(
       snapshot.services.find((service) => service.key === 'gift_cards'),

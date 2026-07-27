@@ -22,7 +22,8 @@ function demoServices(scenario: DemoScenario): ServiceSummary[] {
   return serviceCatalog.map((service, index) => {
     const maintenance =
       scenario === 'maintenance' && ['bills', 'crypto'].includes(service.key);
-    const activeTesterPreview = service.key === 'bills' && !maintenance;
+    const activeTesterPreview =
+      ['bills', 'crypto'].includes(service.key) && !maintenance;
     const requiresKyc = service.key === 'crypto';
 
     return {
