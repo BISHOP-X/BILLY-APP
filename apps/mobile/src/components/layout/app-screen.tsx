@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     paddingBottom: spacing.huge * 2,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
     width: '100%',
   },
   staticContent: {

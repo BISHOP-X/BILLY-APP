@@ -29,7 +29,7 @@ export function QuickActionsGrid({
   const theme = useBillyTheme();
   const { fontScale } = useWindowDimensions();
   const [innerWidth, setInnerWidth] = useState(0);
-  const columns = innerWidth < 300 || fontScale > 1.2 ? 2 : 3;
+  const columns = innerWidth < 252 || fontScale > 1.45 ? 2 : 3;
   const itemWidth =
     innerWidth > 0
       ? Math.floor((innerWidth - spacing.sm * (columns - 1)) / columns)

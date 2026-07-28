@@ -189,6 +189,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   feedback: {
     marginTop: spacing.sm,
