@@ -8,6 +8,7 @@
     "tester": {
       "distribution": "internal",
       "environment": "preview",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_BILLY_DATA_MODE": "demo",
         "EXPO_PUBLIC_BILLY_DEMO_SCENARIO": "funded",
