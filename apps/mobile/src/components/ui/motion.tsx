@@ -59,12 +59,14 @@ export function FadeSlide({ children, delay = 0, distance = 18, style }: FadeSli
 
 type ScalePressableProps = Omit<PressableProps, 'children' | 'style'> & {
   children?: ReactNode;
+  containerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<ViewStyle>;
   pressedScale?: number;
 };
 
 export function ScalePressable({
   children,
+  containerStyle,
   onPressIn,
   onPressOut,
   pressedScale = 0.975,
@@ -91,6 +93,7 @@ export function ScalePressable({
   return (
     <Pressable
       {...props}
+      style={containerStyle}
       onPressIn={(event) => {
         animate(pressedScale);
         onPressIn?.(event);

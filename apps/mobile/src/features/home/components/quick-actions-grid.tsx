@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
@@ -21,91 +20,118 @@ type QuickActionsGridProps = {
   services: ServiceSummary[];
 };
 
+const THREE_COLUMN_MIN_TILE_WIDTH = 88;
+
+export function getQuickActionColumnCount(viewportWidth: number, fontScale: number) {
+  const constrainedWidth = Math.min(viewportWidth, 720);
+  const estimatedGridWidth = Math.max(0, constrainedWidth - spacing.lg * 4 - 2);
+  const threeColumnTileWidth = (estimatedGridWidth - spacing.sm * 2) / 3;
+  const scaledMinimum = THREE_COLUMN_MIN_TILE_WIDTH * Math.min(Math.max(fontScale, 1), 1.2);
+
+  return threeColumnTileWidth >= scaledMinimum ? 3 : 2;
+}
+
 export function QuickActionsGrid({
   onMore,
   onService,
   services,
 }: QuickActionsGridProps) {
   const theme = useBillyTheme();
-  const { fontScale } = useWindowDimensions();
-  const [innerWidth, setInnerWidth] = useState(0);
-  const columns = innerWidth < 252 || fontScale > 1.45 ? 2 : 3;
-  const itemWidth =
-    innerWidth > 0
-      ? Math.floor((innerWidth - spacing.sm * (columns - 1)) / columns)
-      : columns === 2
-        ? '47%'
-        : '30%';
+  const { fontScale, width } = useWindowDimensions();
+  const columns = getQuickActionColumnCount(width, fontScale);
   const quickServices = quickServiceKeys
     .map((key) => services.find((service) => service.key === key))
     .filter((service): service is ServiceSummary => Boolean(service));
+  const actions = [
+    ...quickServices.map((service) => ({ kind: 'service' as const, service })),
+    { kind: 'more' as const },
+  ];
+  const rows = Array.from({ length: Math.ceil(actions.length / columns) }, (_, index) =>
+    actions.slice(index * columns, (index + 1) * columns),
+  );
 
   return (
-    <View
-      onLayout={(event) => {
-        const measured = event.nativeEvent.layout.width;
-        if (Math.abs(measured - innerWidth) > 1) setInnerWidth(measured);
-      }}
-      style={styles.grid}>
-      {quickServices.map((service) => (
-        <ScalePressable
-          accessibilityHint={
-            service.canTransact
-              ? 'Opens this service'
-              : `Opens service information. ${service.message}`
-          }
-          accessibilityLabel={`${service.label}, ${service.state.replace('_', ' ')}`}
-          accessibilityRole="button"
-          key={service.key}
-          onPress={() => onService(service)}
-          style={[
-            styles.tile,
-            {
-              backgroundColor: theme.colors.brandMist,
-              borderColor: theme.colors.border,
-              width: itemWidth,
-            },
-          ]}
-          testID={`quick-${service.key}`}>
-          <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
-            <Ionicons
-              accessible={false}
-              color={theme.colors.brand}
-              name={service.icon}
-              size={25}
+    <View style={styles.grid}>
+      {rows.map((row, rowIndex) => (
+        <View key={`row-${rowIndex}`} style={styles.row} testID={`quick-actions-row-${rowIndex}`}>
+          {row.map((action) => {
+            if (action.kind === 'more') {
+              return (
+                <ScalePressable
+                  accessibilityHint="Opens the full service catalog"
+                  accessibilityLabel="More services"
+                  accessibilityRole="button"
+                  containerStyle={styles.slot}
+                  key="more"
+                  onPress={onMore}
+                  style={[
+                    styles.tile,
+                    {
+                      backgroundColor: theme.colors.brandMist,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}
+                  testID="quick-more">
+                  <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
+                    <Ionicons accessible={false} color={theme.colors.brand} name="grid" size={25} />
+                  </View>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>More</Text>
+                </ScalePressable>
+              );
+            }
+
+            const service = action.service;
+            return (
+              <ScalePressable
+                accessibilityHint={
+                  service.canTransact
+                    ? 'Opens this service'
+                    : `Opens service information. ${service.message}`
+                }
+                accessibilityLabel={`${service.label}, ${service.state.replace('_', ' ')}`}
+                accessibilityRole="button"
+                containerStyle={styles.slot}
+                key={service.key}
+                onPress={() => onService(service)}
+                style={[
+                  styles.tile,
+                  {
+                    backgroundColor: theme.colors.brandMist,
+                    borderColor: theme.colors.border,
+                  },
+                ]}
+                testID={`quick-${service.key}`}>
+                <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
+                  <Ionicons
+                    accessible={false}
+                    color={theme.colors.brand}
+                    name={service.icon}
+                    size={25}
+                  />
+                </View>
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  numberOfLines={2}
+                  style={[styles.label, { color: theme.colors.text }]}>
+                  {service.label}
+                </Text>
+                {service.state === 'maintenance' ? (
+                  <View style={[styles.dot, { backgroundColor: theme.colors.warning }]} />
+                ) : null}
+              </ScalePressable>
+            );
+          })}
+          {Array.from({ length: columns - row.length }, (_, spacerIndex) => (
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              key={`spacer-${spacerIndex}`}
+              style={styles.slot}
             />
-          </View>
-          <Text
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-            numberOfLines={2}
-            style={[styles.label, { color: theme.colors.text }]}>
-            {service.label}
-          </Text>
-          {service.state === 'maintenance' ? (
-            <View style={[styles.dot, { backgroundColor: theme.colors.warning }]} />
-          ) : null}
-        </ScalePressable>
-      ))}
-      <ScalePressable
-        accessibilityHint="Opens the full service catalog"
-        accessibilityLabel="More services"
-        accessibilityRole="button"
-        onPress={onMore}
-        style={[
-          styles.tile,
-          {
-            backgroundColor: theme.colors.brandMist,
-            borderColor: theme.colors.border,
-            width: itemWidth,
-          },
-        ]}
-        testID="quick-more">
-        <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
-          <Ionicons accessible={false} color={theme.colors.brand} name="grid" size={25} />
+          ))}
         </View>
-        <Text style={[styles.label, { color: theme.colors.text }]}>More</Text>
-      </ScalePressable>
+      ))}
     </View>
   );
 }
@@ -120,9 +146,15 @@ const styles = StyleSheet.create({
     width: 7,
   },
   grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  slot: {
+    flex: 1,
+    minWidth: 0,
   },
   iconCircle: {
     alignItems: 'center',
@@ -149,5 +181,6 @@ const styles = StyleSheet.create({
     minHeight: 104,
     minWidth: 0,
     padding: spacing.sm,
+    width: '100%',
   },
 });
