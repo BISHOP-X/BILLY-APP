@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
 import type { ServiceKey, ServiceSummary } from '@/features/main/domain';
@@ -66,9 +66,14 @@ export function QuickActionsGrid({
                   onPress={onMore}
                   style={[
                     styles.tile,
+                    styles.tileShadow,
                     {
-                      backgroundColor: theme.colors.brandMist,
-                      borderColor: theme.colors.border,
+                      backgroundColor: theme.dark
+                        ? theme.colors.surfaceMuted
+                        : theme.colors.brandMist,
+                      borderColor: theme.dark
+                        ? 'rgba(133, 227, 173, 0.16)'
+                        : theme.colors.border,
                     },
                   ]}
                   testID="quick-more">
@@ -95,9 +100,14 @@ export function QuickActionsGrid({
                 onPress={() => onService(service)}
                 style={[
                   styles.tile,
+                  styles.tileShadow,
                   {
-                    backgroundColor: theme.colors.brandMist,
-                    borderColor: theme.colors.border,
+                    backgroundColor: theme.dark
+                      ? theme.colors.surfaceMuted
+                      : theme.colors.brandMist,
+                    borderColor: theme.dark
+                      ? 'rgba(133, 227, 173, 0.16)'
+                      : theme.colors.border,
                   },
                 ]}
                 testID={`quick-${service.key}`}>
@@ -146,11 +156,12 @@ const styles = StyleSheet.create({
     width: 7,
   },
   grid: {
-    gap: spacing.sm,
+    gap: spacing.md,
+    paddingHorizontal: spacing.xxs,
   },
   row: {
+    columnGap: spacing.md,
     flexDirection: 'row',
-    gap: spacing.sm,
   },
   slot: {
     flex: 1,
@@ -173,14 +184,26 @@ const styles = StyleSheet.create({
   },
   tile: {
     alignItems: 'center',
-    aspectRatio: 1.05,
+    aspectRatio: 1.15,
     borderRadius: radii.lg,
     borderWidth: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 104,
+    minHeight: 96,
     minWidth: 0,
     padding: spacing.sm,
     width: '100%',
   },
+  tileShadow: Platform.select({
+    web: {
+      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.12)',
+    },
+    default: {
+      elevation: 2,
+      shadowColor: '#000000',
+      shadowOffset: { height: 4, width: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+    },
+  }),
 });

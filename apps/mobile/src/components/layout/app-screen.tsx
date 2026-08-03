@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { spacing } from '@/theme/tokens';
+import { layout, spacing } from '@/theme/tokens';
 
 type AppScreenProps = PropsWithChildren<{
   after?: ReactNode;
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.xl,
     maxWidth: 720,
-    paddingBottom: spacing.huge * 2,
+    paddingBottom: layout.bottomTabDockReserve,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     width: '100%',

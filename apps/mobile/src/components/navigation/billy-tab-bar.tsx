@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { radii, spacing, typography } from '@/theme/tokens';
+import { layout, radii, spacing, typography } from '@/theme/tokens';
 
 const SERVICES_ROUTE = 'services';
 
@@ -49,12 +49,12 @@ export function BillyTabBar({
 
   return (
     <View
+      pointerEvents="box-none"
       style={[
         styles.safeWrap,
         {
-          backgroundColor: 'transparent',
+          backgroundColor: theme.colors.canvas,
           paddingBottom: safeBottom,
-          pointerEvents: 'box-none',
         },
       ]}>
       <View
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     borderWidth: 1,
     flexDirection: 'row',
-    height: 64,
+    height: layout.bottomTabBarHeight,
     maxWidth: 640,
     paddingHorizontal: spacing.xxs,
     width: '100%',
@@ -276,12 +276,8 @@ const styles = StyleSheet.create({
   },
   safeWrap: {
     alignSelf: 'center',
-    bottom: spacing.xs,
-    left: 0,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    position: 'absolute',
-    right: 0,
     width: '100%',
   },
 });

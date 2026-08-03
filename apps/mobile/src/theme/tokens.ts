@@ -95,6 +95,11 @@ export const radii = {
   pill: 999,
 } as const;
 
+export const layout = {
+  bottomTabBarHeight: 64,
+  bottomTabDockReserve: 112,
+} as const;
+
 export const typography = {
   family: Platform.select({
     ios: 'Avenir Next',
