@@ -133,21 +133,22 @@ export default function HomeScreen() {
             />
           </View>
         </FadeSlide>
-      </View>
 
-      <FadeSlide delay={130}>
-        <ServiceBanner
-          kyc={snapshot.kyc}
-          onPress={() =>
-            router.push(
-              snapshot.services.some((service) => service.state === 'maintenance')
-                ? '/(app)/(tabs)/services'
-                : '/(app)/kyc',
-            )
-          }
-          services={snapshot.services}
-        />
-      </FadeSlide>
+        <FadeSlide delay={130}>
+          <ServiceBanner
+            compact
+            kyc={snapshot.kyc}
+            onPress={() =>
+              router.push(
+                snapshot.services.some((service) => service.state === 'maintenance')
+                  ? '/(app)/(tabs)/services'
+                  : '/(app)/kyc',
+              )
+            }
+            services={snapshot.services}
+          />
+        </FadeSlide>
+      </View>
 
       <FadeSlide delay={170}>
         <View style={styles.section}>

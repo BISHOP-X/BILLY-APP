@@ -6,12 +6,18 @@ import type { KycSummary, ServiceSummary } from '@/features/main/domain';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 type ServiceBannerProps = {
+  compact?: boolean;
   kyc: KycSummary;
   onPress: () => void;
   services: ServiceSummary[];
 };
 
-export function ServiceBanner({ kyc, onPress, services }: ServiceBannerProps) {
+export function ServiceBanner({
+  compact = false,
+  kyc,
+  onPress,
+  services,
+}: ServiceBannerProps) {
   const maintenanceCount = services.filter(
     (service) => service.state === 'maintenance',
   ).length;
@@ -26,10 +32,16 @@ export function ServiceBanner({ kyc, onPress, services }: ServiceBannerProps) {
     : needsKyc
       ? 'Crypto transactions and gift-card selling require verification. Funding, bills, and gift-card buying remain available.'
       : 'Review privacy and security settings whenever your device or needs change.';
+  const compactTitle = maintenanceCount
+    ? title
+    : needsKyc
+      ? 'Verify protected access'
+      : 'Security and privacy';
 
   return (
     <Pressable
       accessibilityHint="Opens more information"
+      accessibilityLabel={`${title}. ${body}`}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => pressed && styles.pressed}>
@@ -37,19 +49,23 @@ export function ServiceBanner({ kyc, onPress, services }: ServiceBannerProps) {
         colors={['#0B4829', '#146237']}
         end={{ x: 1, y: 0 }}
         start={{ x: 0, y: 0 }}
-        style={styles.banner}>
-        <View style={styles.icon}>
+        style={[styles.banner, compact && styles.bannerCompact]}>
+        <View style={[styles.icon, compact && styles.iconCompact]}>
           <Ionicons
             accessible={false}
             color="#146237"
             name={maintenanceCount ? 'construct-outline' : 'shield-checkmark-outline'}
-            size={25}
+            size={compact ? 21 : 25}
           />
         </View>
         <View style={styles.copy}>
-          <Text style={styles.eyebrow}>GOOD TO KNOW</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.body}>{body}</Text>
+          {compact ? null : <Text style={styles.eyebrow}>GOOD TO KNOW</Text>}
+          <Text
+            numberOfLines={compact ? 1 : undefined}
+            style={[styles.title, compact && styles.titleCompact]}>
+            {compact ? compactTitle : title}
+          </Text>
+          {compact ? null : <Text style={styles.body}>{body}</Text>}
         </View>
         <Ionicons accessible={false} color="#FFFFFF" name="chevron-forward" size={20} />
       </LinearGradient>
@@ -66,6 +82,13 @@ const styles = StyleSheet.create({
     minHeight: 120,
     overflow: 'hidden',
     padding: spacing.lg,
+  },
+  bannerCompact: {
+    borderRadius: radii.lg,
+    gap: spacing.xs,
+    minHeight: 64,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   body: {
     color: 'rgba(255,255,255,0.72)',
@@ -92,6 +115,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 48,
   },
+  iconCompact: {
+    height: 36,
+    width: 36,
+  },
   pressed: {
     opacity: 0.8,
   },
@@ -100,5 +127,8 @@ const styles = StyleSheet.create({
     fontFamily: typography.familyRounded,
     fontSize: 16,
     fontWeight: '800',
+  },
+  titleCompact: {
+    fontSize: 14,
   },
 });
