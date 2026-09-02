@@ -5,7 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
-import { getMyProfile } from '@/features/auth/auth-api';
+import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { isBillyDevDemo } from '@/features/main/repository';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -13,6 +13,7 @@ import { spacing, typography } from '@/theme/tokens';
 
 type Destination =
   | '/welcome'
+  | '/(auth)/legal-consent'
   | '/(setup)/profile'
   | '/(setup)/pin'
   | '/(setup)/biometrics'
@@ -42,8 +43,12 @@ export default function EntryScreen() {
       }
 
       try {
-        const profile = await getMyProfile();
+        const { hasCurrentLegalAcceptance, profile } = await getMyAccountState();
         if (!active) return;
+        if (!hasCurrentLegalAcceptance) {
+          setDestination('/(auth)/legal-consent');
+          return;
+        }
         const step = profile?.onboarding_step;
         if (!profile || step === 'profile') setDestination('/(setup)/profile');
         else if (step === 'pin') setDestination('/(setup)/pin');

@@ -1,4 +1,6 @@
 import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 import type {
   OnboardingStep,
@@ -8,6 +10,10 @@ import { supabase } from '@/lib/supabase/client';
 
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export type BillyOAuthProvider = 'apple' | 'google';
 
 /**
  * Expo resolves these URLs for the active runtime:
@@ -107,6 +113,57 @@ export function signInWithEmail({ email, password }: SignInInput) {
   });
 }
 
+export async function signInWithOAuth(provider: BillyOAuthProvider) {
+  const redirectTo = createAuthCallbackUrl();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: Platform.OS !== 'web',
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  if (Platform.OS === 'web') {
+    return false;
+  }
+
+  if (!data.url) {
+    throw new Error(`${provider === 'apple' ? 'Apple' : 'Google'} sign-in is unavailable.`);
+  }
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  if (result.type === 'cancel' || result.type === 'dismiss') {
+    return false;
+  }
+  if (result.type !== 'success') {
+    throw new Error('Billy could not complete that sign-in. Please try again.');
+  }
+
+  const parsed = Linking.parse(result.url);
+  const code = typeof parsed.queryParams?.code === 'string' ? parsed.queryParams.code : null;
+  const providerError =
+    typeof parsed.queryParams?.error_description === 'string'
+      ? parsed.queryParams.error_description
+      : null;
+
+  if (providerError) {
+    throw new Error(providerError);
+  }
+  if (!code) {
+    throw new Error('The provider returned an incomplete sign-in response.');
+  }
+
+  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  if (exchangeError) {
+    throw exchangeError;
+  }
+  return true;
+}
+
 export function signOut() {
   return supabase.auth.signOut({ scope: 'local' });
 }
@@ -139,6 +196,51 @@ export async function getMyProfile() {
     throw error;
   }
 
+  return data;
+}
+
+export async function getMyAccountState() {
+  const userId = await requireCurrentUserId();
+  const [profileResult, legalResult] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle<Profile>(),
+    supabase.rpc('has_current_legal_acceptance'),
+  ]);
+
+  if (profileResult.error) {
+    throw profileResult.error;
+  }
+  if (legalResult.error) {
+    throw legalResult.error;
+  }
+
+  return {
+    hasCurrentLegalAcceptance: legalResult.data === true,
+    profile: profileResult.data,
+  };
+}
+
+export async function acceptCurrentLegalDocuments() {
+  const { data, error } = await supabase.rpc('accept_current_legal_documents');
+  if (error) {
+    throw error;
+  }
+  return data[0] ?? null;
+}
+
+export async function requestAccountDeletion() {
+  const { data, error } = await supabase.functions.invoke<{
+    requestId: string;
+    status: 'completed';
+  }>('account-deletion', {
+    body: { confirmation: 'DELETE' },
+  });
+
+  if (error) {
+    throw error;
+  }
+  if (!data || data.status !== 'completed') {
+    throw new Error('Billy could not complete the account deletion request.');
+  }
   return data;
 }
 

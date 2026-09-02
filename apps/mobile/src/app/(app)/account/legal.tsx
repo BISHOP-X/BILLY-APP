@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppScreen } from '@/components/layout/app-screen';
@@ -54,7 +55,7 @@ export default function LegalScreen() {
         <LegalRow
           destructive
           label="Delete account and data"
-          onPress={() => openDocument('accountDeletion')}
+          onPress={() => router.push('/(app)/account/delete')}
         />
       </View>
 

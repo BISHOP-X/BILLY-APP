@@ -15,10 +15,12 @@ import {
 import { retainAuthAutoRefresh, supabase } from '@/lib/supabase/client';
 
 import {
+  type BillyOAuthProvider,
   type SignUpInput,
   resendSignupVerification,
   sendPasswordReset,
   signInWithEmail,
+  signInWithOAuth,
   signOut,
   signUpWithEmail,
 } from './auth-api';
@@ -36,6 +38,7 @@ type AuthContextValue = {
     session: Session;
     user: User;
   }>;
+  signInWithProvider: (provider: BillyOAuthProvider) => Promise<boolean>;
   signOut: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<{
     session: Session | null;
@@ -65,6 +68,10 @@ async function signUp(input: SignUpInput) {
   }
 
   return data;
+}
+
+async function signInWithProvider(provider: BillyOAuthProvider) {
+  return signInWithOAuth(provider);
 }
 
 async function signOutCurrentSession() {
@@ -160,6 +167,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       sendPasswordReset: resetPassword,
       session,
       signIn,
+      signInWithProvider,
       signOut: signOutCurrentSession,
       signUp,
       status,

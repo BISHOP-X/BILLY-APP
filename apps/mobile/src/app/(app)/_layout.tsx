@@ -1,7 +1,7 @@
 import { Redirect, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
 
-import { getMyProfile } from '@/features/auth/auth-api';
+import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { isBillyDevDemo } from '@/features/main/repository';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
@@ -11,7 +11,12 @@ import type { Profile } from '@/lib/supabase/database.types';
 type ProfileState =
   | { status: 'idle' }
   | { error: string; status: 'error'; userId: string }
-  | { profile: Profile | null; status: 'ready'; userId: string };
+  | {
+      hasCurrentLegalAcceptance: boolean;
+      profile: Profile | null;
+      status: 'ready';
+      userId: string;
+    };
 
 function setupDestination(profile: Profile | null) {
   if (!profile || profile.onboarding_step === 'profile') {
@@ -44,10 +49,10 @@ export default function AppLayout() {
       };
     }
 
-    void getMyProfile()
-      .then((profile) => {
+    void getMyAccountState()
+      .then(({ hasCurrentLegalAcceptance, profile }) => {
         if (active) {
-          setProfileState({ profile, status: 'ready', userId });
+          setProfileState({ hasCurrentLegalAcceptance, profile, status: 'ready', userId });
         }
       })
       .catch(() => {
@@ -111,6 +116,10 @@ export default function AppLayout() {
         title="We could not finish loading"
       />
     );
+  }
+
+  if (!profileState.hasCurrentLegalAcceptance) {
+    return <Redirect href="/(auth)/legal-consent" />;
   }
 
   const setupRoute = setupDestination(profileState.profile);

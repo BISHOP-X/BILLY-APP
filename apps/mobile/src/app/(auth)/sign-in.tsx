@@ -8,6 +8,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { TextField } from '@/components/ui/text-field';
 import { friendlyAuthError, normalizeEmail, validateEmail } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
+import { SocialAuthButtons } from '@/features/auth/social-auth-buttons';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -111,6 +112,7 @@ export default function SignInScreen() {
         onPress={submit}
         testID="sign-in-submit"
       />
+      <SocialAuthButtons />
     </AuthShell>
   );
 }

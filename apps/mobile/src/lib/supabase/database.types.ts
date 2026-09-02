@@ -20,7 +20,7 @@ export type Database = {
           accepted_at: string;
           id: number;
           privacy_version: string;
-          source: 'billy_mobile_signup';
+          source: 'billy_mobile_signup' | 'billy_oauth_post_auth';
           terms_version: string;
           user_id: string;
         };
@@ -28,7 +28,7 @@ export type Database = {
           accepted_at?: string;
           id?: never;
           privacy_version: string;
-          source: 'billy_mobile_signup';
+          source: 'billy_mobile_signup' | 'billy_oauth_post_auth';
           terms_version: string;
           user_id: string;
         };
@@ -36,9 +36,36 @@ export type Database = {
           accepted_at?: string;
           id?: never;
           privacy_version?: string;
-          source?: 'billy_mobile_signup';
+          source?: 'billy_mobile_signup' | 'billy_oauth_post_auth';
           terms_version?: string;
           user_id?: string;
+        };
+        Relationships: [];
+      };
+      account_deletion_requests: {
+        Row: {
+          completed_at: string | null;
+          failure_code: string | null;
+          id: string;
+          requested_at: string;
+          status: 'processing' | 'completed' | 'failed';
+          user_id: string | null;
+        };
+        Insert: {
+          completed_at?: string | null;
+          failure_code?: string | null;
+          id?: string;
+          requested_at?: string;
+          status?: 'processing' | 'completed' | 'failed';
+          user_id?: string | null;
+        };
+        Update: {
+          completed_at?: string | null;
+          failure_code?: string | null;
+          id?: string;
+          requested_at?: string;
+          status?: 'processing' | 'completed' | 'failed';
+          user_id?: string | null;
         };
         Relationships: [];
       };
@@ -162,6 +189,18 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      accept_current_legal_documents: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          accepted_at: string;
+          privacy_version: string;
+          terms_version: string;
+        }[];
+      };
+      has_current_legal_acceptance: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
+      };
       set_transaction_pin: {
         Args: {
           p_pin: string;

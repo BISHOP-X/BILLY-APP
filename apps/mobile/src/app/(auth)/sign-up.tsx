@@ -16,6 +16,7 @@ import {
   validatePassword,
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
+import { SocialAuthButtons } from '@/features/auth/social-auth-buttons';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -251,6 +252,7 @@ export default function SignUpScreen() {
         onPress={submit}
         testID="sign-up-submit"
       />
+      <SocialAuthButtons />
     </AuthShell>
   );
 }

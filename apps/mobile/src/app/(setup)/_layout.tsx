@@ -1,7 +1,7 @@
 import { Redirect, Stack, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 
-import { getMyProfile } from '@/features/auth/auth-api';
+import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
@@ -12,6 +12,7 @@ type ProfileState =
   | { error: string; screen: string; status: 'error'; userId: string }
   | {
       profile: Profile | null;
+      hasCurrentLegalAcceptance: boolean;
       screen: string;
       status: 'ready';
       userId: string;
@@ -54,10 +55,11 @@ export default function SetupLayout() {
       };
     }
 
-    void getMyProfile()
-      .then((profile) => {
+    void getMyAccountState()
+      .then(({ hasCurrentLegalAcceptance, profile }) => {
         if (active) {
           setProfileState({
+            hasCurrentLegalAcceptance,
             profile,
             screen: currentScreen,
             status: 'ready',
@@ -138,6 +140,10 @@ export default function SetupLayout() {
         title="We could not finish loading"
       />
     );
+  }
+
+  if (!profileState.hasCurrentLegalAcceptance) {
+    return <Redirect href="/(auth)/legal-consent" />;
   }
 
   const destination = setupDestination(profileState.profile);
