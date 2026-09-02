@@ -389,10 +389,15 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     height: 96,
     justifyContent: 'center',
-    shadowColor: '#082E1C',
-    shadowOffset: { height: 18, width: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
+    ...Platform.select({
+      web: { boxShadow: '0 18px 48px rgba(8, 46, 28, 0.28)' },
+      default: {
+        shadowColor: '#082E1C',
+        shadowOffset: { height: 18, width: 0 },
+        shadowOpacity: 0.28,
+        shadowRadius: 24,
+      },
+    }),
     width: 96,
   },
   sparkEmoji: {
@@ -407,10 +412,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     position: 'absolute',
-    shadowColor: '#082E1C',
-    shadowOffset: { height: 10, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 18,
+    ...Platform.select({
+      web: { boxShadow: '0 10px 36px rgba(8, 46, 28, 0.2)' },
+      default: {
+        shadowColor: '#082E1C',
+        shadowOffset: { height: 10, width: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 18,
+      },
+    }),
   },
   serviceEmoji: {
     fontSize: 23,
@@ -440,10 +450,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.98)',
     borderRadius: radii.xl,
     padding: spacing.lg,
-    shadowColor: '#072B19',
-    shadowOffset: { height: 18, width: 0 },
-    shadowOpacity: 0.28,
-    shadowRadius: 28,
+    ...Platform.select({
+      web: { boxShadow: '0 18px 56px rgba(7, 43, 25, 0.28)' },
+      default: {
+        shadowColor: '#072B19',
+        shadowOffset: { height: 18, width: 0 },
+        shadowOpacity: 0.28,
+        shadowRadius: 28,
+      },
+    }),
     width: '88%',
   },
   walletTopRow: {
@@ -505,10 +520,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 10,
     position: 'absolute',
-    shadowColor: '#082E1C',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 8px 28px rgba(8, 46, 28, 0.2)' },
+      default: {
+        shadowColor: '#082E1C',
+        shadowOffset: { height: 8, width: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 14,
+      },
+    }),
   },
   badgeRight: {
     bottom: 28,
@@ -534,10 +554,15 @@ const styles = StyleSheet.create({
     borderRadius: 66,
     height: 132,
     justifyContent: 'center',
-    shadowColor: '#072B19',
-    shadowOffset: { height: 16, width: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
+    ...Platform.select({
+      web: { boxShadow: '0 16px 48px rgba(7, 43, 25, 0.25)' },
+      default: {
+        shadowColor: '#072B19',
+        shadowOffset: { height: 16, width: 0 },
+        shadowOpacity: 0.25,
+        shadowRadius: 24,
+      },
+    }),
     width: 132,
   },
   securityPill: {
@@ -549,10 +574,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     position: 'absolute',
-    shadowColor: '#072B19',
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
+    ...Platform.select({
+      web: { boxShadow: '0 8px 28px rgba(7, 43, 25, 0.18)' },
+      default: {
+        shadowColor: '#072B19',
+        shadowOffset: { height: 8, width: 0 },
+        shadowOpacity: 0.18,
+        shadowRadius: 14,
+      },
+    }),
   },
   pinPill: {
     left: 12,

@@ -55,7 +55,7 @@ export function FundingAccountCard({
       <View style={styles.header}>
         <View style={styles.brand}>
           <View style={styles.logo}>
-            <BillyLogo imageStyle={styles.logoImage} size={28} />
+            <BillyLogo size={28} tintColor="#FFFFFF" />
           </View>
           <View style={styles.brandCopy}>
             <Text style={styles.eyebrow}>BILLY</Text>
@@ -259,9 +259,6 @@ const styles = StyleSheet.create({
     height: 42,
     justifyContent: 'center',
     width: 42,
-  },
-  logoImage: {
-    tintColor: '#FFFFFF',
   },
   metaLabel: {
     color: 'rgba(255,255,255,0.60)',

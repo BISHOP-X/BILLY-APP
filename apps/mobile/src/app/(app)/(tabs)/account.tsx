@@ -155,7 +155,7 @@ export default function AccountScreen() {
 
       <AppButton label="Sign out" onPress={confirmSignOut} variant="ghost" />
       <Text style={[styles.version, { color: theme.colors.textSoft }]}>
-        Billy mobile · secure preview
+        {Platform.OS === 'web' ? 'Billy web' : 'Billy mobile'} · secure preview
       </Text>
     </AppScreen>
   );

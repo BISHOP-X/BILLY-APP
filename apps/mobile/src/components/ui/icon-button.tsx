@@ -8,17 +8,29 @@ import { radii } from '@/theme/tokens';
 
 import { ScalePressable } from './motion';
 
-type IconButtonProps = {
+type IconButtonBaseProps = {
   accessibilityLabel: string;
   badge?: ReactNode;
-  icon: AppIconName;
   onPress: () => void;
   testID?: string;
 };
 
+type IconButtonProps = IconButtonBaseProps &
+  (
+    | {
+        icon: AppIconName;
+        content?: never;
+      }
+    | {
+        icon?: never;
+        content: ReactNode;
+      }
+  );
+
 export function IconButton({
   accessibilityLabel,
   badge,
+  content,
   icon,
   onPress,
   testID,
@@ -39,7 +51,15 @@ export function IconButton({
         },
       ]}
       testID={testID}>
-      <Ionicons accessible={false} color={theme.colors.text} name={icon} size={22} />
+      {content ??
+        (icon ? (
+          <Ionicons
+            accessible={false}
+            color={theme.colors.text}
+            name={icon}
+            size={22}
+          />
+        ) : null)}
       {badge ? <View style={styles.badge}>{badge}</View> : null}
     </ScalePressable>
   );

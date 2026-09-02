@@ -1,7 +1,7 @@
 # Billy
 
-Billy is a cross-platform financial-services mobile application for Android
-and iOS, built with Expo, React Native, Expo Router, and Supabase.
+Billy is a universal digital-services application for web, Android, and iOS,
+built with Expo, React Native, Expo Router, and Supabase.
 
 ## Workspace
 
@@ -20,6 +20,18 @@ activation checks are complete.
 npm install
 npm run mobile
 ```
+
+To run or export the shared web application:
+
+```powershell
+npm run web
+npm run build:web
+npm run preview:web
+```
+
+The authenticated web application is deployed separately from Billy's
+promotional website and is intended to use `app.billyapp.org`. Vercel builds
+from the repository root and serves `apps/mobile/dist` with SPA route rewrites.
 
 Copy `apps/mobile/.env.example` to `apps/mobile/.env.local` after creating the
 Billy Supabase project. Only the project URL and publishable key belong in the

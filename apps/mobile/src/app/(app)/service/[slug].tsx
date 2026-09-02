@@ -209,15 +209,15 @@ export default function ServiceDetailScreen() {
         }
         onPress={() => {
           if (service.key === 'bills' && service.canTransact) {
-            router.push('/(app)/bills/index');
+            router.push('/(app)/bills');
           } else if (service.key === 'crypto' && service.canTransact) {
-            router.push('/(app)/crypto/index');
+            router.push('/(app)/crypto');
           } else if (service.key === 'gift_cards' && service.canTransact) {
-            router.push('/(app)/gift-cards/index');
+            router.push('/(app)/gift-cards');
           } else if (service.key === 'prepaid_cards' && service.canTransact) {
             router.push('/(app)/(tabs)/cards');
           } else if (service.key === 'social_boost' && service.canTransact) {
-            router.push('/(app)/social-boost/index');
+            router.push('/(app)/social-boost');
           }
         }}
       />

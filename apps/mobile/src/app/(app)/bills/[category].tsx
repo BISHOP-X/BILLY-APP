@@ -58,7 +58,7 @@ export default function BillCategoryScreen() {
           actionLabel="See bill categories"
           icon="search-outline"
           message="This bill category is not part of the current Billy catalog."
-          onAction={() => router.replace('/(app)/bills/index')}
+          onAction={() => router.replace('/(app)/bills')}
           title="Category not found"
         />
       </AppScreen>
@@ -293,7 +293,7 @@ function BillJourney({
       return;
     }
     if (step === 3) {
-      router.replace('/(app)/bills/index');
+      router.replace('/(app)/bills');
       return;
     }
     setStep((step - 1) as JourneyStep);

@@ -19,6 +19,7 @@ import type { ActivityItem } from '@/features/main/domain';
 import { useActivityQuery } from '@/features/main/queries';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { WEB_CONTENT_MAX_WIDTH } from '@/constants/web-layout';
 
 type Filter = 'all' | 'money-in' | 'payments' | 'pending';
 
@@ -252,7 +253,7 @@ const styles = StyleSheet.create({
   },
   list: {
     alignSelf: 'center',
-    maxWidth: 720,
+    maxWidth: WEB_CONTENT_MAX_WIDTH,
     width: '100%',
   },
   skeletonRow: {

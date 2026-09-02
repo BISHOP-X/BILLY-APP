@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Animated, Easing, StyleSheet, View, type ViewStyle } from 'react-native';
+import {
+  Animated,
+  Easing,
+  Platform,
+  StyleSheet,
+  View,
+  type ViewStyle,
+} from 'react-native';
 
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -22,13 +29,13 @@ export function SkeletonBlock({ style }: { style?: ViewStyle }) {
           duration: 700,
           easing: Easing.inOut(Easing.quad),
           toValue: 0.78,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(opacity, {
           duration: 700,
           easing: Easing.inOut(Easing.quad),
           toValue: 0.42,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]),
     );

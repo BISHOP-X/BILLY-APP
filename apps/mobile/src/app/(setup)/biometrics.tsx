@@ -185,10 +185,15 @@ const styles = StyleSheet.create({
     borderRadius: 56,
     height: 112,
     justifyContent: 'center',
-    shadowColor: '#0B4829',
-    shadowOffset: { height: 10, width: 0 },
-    shadowOpacity: 0.13,
-    shadowRadius: 18,
+    ...Platform.select({
+      web: { boxShadow: '0 10px 36px rgba(11, 72, 41, 0.13)' },
+      default: {
+        shadowColor: '#0B4829',
+        shadowOffset: { height: 10, width: 0 },
+        shadowOpacity: 0.13,
+        shadowRadius: 18,
+      },
+    }),
     width: 112,
   },
   sparkle: {

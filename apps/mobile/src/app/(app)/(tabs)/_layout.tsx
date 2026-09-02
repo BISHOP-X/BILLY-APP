@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { type ColorValue } from 'react-native';
+import { Platform, type ColorValue, useWindowDimensions } from 'react-native';
 
 import { BillyTabBar } from '@/components/navigation/billy-tab-bar';
+import { usesDesktopWebLayout, WEB_NAV_HEIGHT } from '@/constants/web-layout';
 import type { AppIconName } from '@/features/main/domain';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 
@@ -25,6 +26,9 @@ function tabIcon(
 
 export default function MainTabsLayout() {
   const theme = useBillyTheme();
+  const { fontScale, width } = useWindowDimensions();
+  const desktopWeb =
+    Platform.OS === 'web' && usesDesktopWebLayout(width, fontScale);
 
   return (
     <Tabs
@@ -33,7 +37,10 @@ export default function MainTabsLayout() {
       screenOptions={{
         animation: 'fade',
         headerShown: false,
-        sceneStyle: { backgroundColor: theme.colors.canvas },
+        sceneStyle: {
+          backgroundColor: theme.colors.canvas,
+          paddingTop: desktopWeb ? WEB_NAV_HEIGHT : 0,
+        },
         tabBarHideOnKeyboard: true,
       }}>
       <Tabs.Screen

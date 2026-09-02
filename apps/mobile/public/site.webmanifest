@@ -1,0 +1,16 @@
+{
+  "name": "Billy",
+  "short_name": "Billy",
+  "description": "Bills, gift cards, virtual cards, crypto and digital services in one Billy experience.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0C1711",
+  "theme_color": "#0B4829",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

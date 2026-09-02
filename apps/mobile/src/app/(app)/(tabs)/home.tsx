@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/layout/app-screen';
@@ -18,25 +18,30 @@ import type { ServiceSummary } from '@/features/main/domain';
 import { useDashboardQuery, useSetHideBalance } from '@/features/main/queries';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { layout, radii, spacing } from '@/theme/tokens';
+import { usesDesktopWebLayout } from '@/constants/web-layout';
 
 export default function HomeScreen() {
   const theme = useBillyTheme();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { fontScale, height, width } = useWindowDimensions();
+  const desktopWeb =
+    Platform.OS === 'web' && usesDesktopWebLayout(width, fontScale);
   const dashboard = useDashboardQuery();
   const privacyMutation = useSetHideBalance();
-  const primaryMinHeight = Math.max(
-    0,
-    height - insets.top - layout.bottomTabDockReserve - spacing.xs,
-  );
+  const primaryMinHeight = desktopWeb
+    ? 0
+    : Math.max(
+        0,
+        height - insets.top - layout.bottomTabDockReserve - spacing.xs,
+      );
 
   function openService(service: ServiceSummary) {
     if (service.key === 'bills' && service.canTransact) {
-      router.push('/(app)/bills/index');
+      router.push('/(app)/bills');
       return;
     }
     if (service.key === 'social_boost' && service.canTransact) {
-      router.push('/(app)/social-boost/index');
+      router.push('/(app)/social-boost');
       return;
     }
     router.push({
@@ -91,48 +96,50 @@ export default function HomeScreen() {
           />
         </FadeSlide>
 
-        <FadeSlide delay={50}>
-          <WalletCard
-            onAddMoney={() => router.push('/(app)/wallet/add-money')}
-            onToggleVisibility={() => {
-              if (!snapshot.wallet) return;
-              privacyMutation.mutate(!snapshot.wallet.hideBalance);
-            }}
-            onWithdraw={() => router.push('/(app)/wallet/withdraw')}
-            privacyBusy={privacyMutation.isPending}
-            wallet={snapshot.wallet}
-            walletActions={snapshot.walletActions}
-          />
-          {privacyMutation.isError ? (
-            <View style={styles.feedback}>
-              <FeedbackBanner
-                message="Billy could not save your balance privacy preference. Your previous setting was restored."
-                tone="error"
+        <View style={[styles.summary, desktopWeb && styles.summaryDesktop]}>
+          <FadeSlide delay={50} style={styles.summaryPane}>
+            <WalletCard
+              onAddMoney={() => router.push('/(app)/wallet/add-money')}
+              onToggleVisibility={() => {
+                if (!snapshot.wallet) return;
+                privacyMutation.mutate(!snapshot.wallet.hideBalance);
+              }}
+              onWithdraw={() => router.push('/(app)/wallet/withdraw')}
+              privacyBusy={privacyMutation.isPending}
+              wallet={snapshot.wallet}
+              walletActions={snapshot.walletActions}
+            />
+            {privacyMutation.isError ? (
+              <View style={styles.feedback}>
+                <FeedbackBanner
+                  message="Billy could not save your balance privacy preference. Your previous setting was restored."
+                  tone="error"
+                />
+              </View>
+            ) : null}
+          </FadeSlide>
+
+          <FadeSlide delay={90} style={styles.summaryPane}>
+            <View
+              style={[
+                styles.quickCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+              ]}>
+              <SectionHeader
+                subtitle="Everything you need, in one calm place."
+                title="Quick actions"
+              />
+              <QuickActionsGrid
+                onMore={() => router.push('/(app)/(tabs)/services')}
+                onService={openService}
+                services={snapshot.services}
               />
             </View>
-          ) : null}
-        </FadeSlide>
-
-        <FadeSlide delay={90}>
-          <View
-            style={[
-              styles.quickCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}>
-            <SectionHeader
-              subtitle="Everything you need, in one calm place."
-              title="Quick actions"
-            />
-            <QuickActionsGrid
-              onMore={() => router.push('/(app)/(tabs)/services')}
-              onService={openService}
-              services={snapshot.services}
-            />
-          </View>
-        </FadeSlide>
+          </FadeSlide>
+        </View>
 
         <FadeSlide delay={130}>
           <ServiceBanner
@@ -215,5 +222,18 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: spacing.md,
+  },
+  summary: {
+    gap: spacing.md,
+  },
+  summaryDesktop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.xl,
+  },
+  summaryPane: {
+    flex: 1,
+    minWidth: 0,
+    width: '100%',
   },
 });

@@ -57,7 +57,7 @@ export function WalletCard({
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         style={styles.watermark}>
-        <BillyLogo imageStyle={styles.watermarkImage} size={220} />
+        <BillyLogo size={220} tintColor="#FFFFFF" />
       </View>
 
       <View style={styles.topRow}>
@@ -273,8 +273,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: -50,
     transform: [{ rotate: '-12deg' }],
-  },
-  watermarkImage: {
-    tintColor: '#FFFFFF',
   },
 });

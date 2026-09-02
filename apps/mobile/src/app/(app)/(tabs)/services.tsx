@@ -8,6 +8,7 @@ import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DashboardSkeleton } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
+import { WEB_CONTENT_MAX_WIDTH } from '@/constants/web-layout';
 import { useDashboardQuery } from '@/features/main/queries';
 import { ServiceTile } from '@/features/services/components/service-tile';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -18,8 +19,12 @@ export default function ServicesScreen() {
   const query = useDashboardQuery();
   const [search, setSearch] = useState('');
   const { fontScale, width } = useWindowDimensions();
-  const columns = width < 560 || fontScale > 1.2 ? 1 : 2;
-  const contentWidth = Math.min(width - spacing.lg * 2, 720 - spacing.lg * 2);
+  const columns =
+    fontScale > 1.2 ? 1 : width >= 1040 ? 3 : width < 560 ? 1 : 2;
+  const contentWidth = Math.min(
+    width - spacing.lg * 2,
+    WEB_CONTENT_MAX_WIDTH - spacing.xxl * 2,
+  );
   const tileWidth =
     columns === 1 ? contentWidth : (contentWidth - spacing.sm) / columns;
   const filtered = useMemo(() => {
@@ -92,11 +97,11 @@ export default function ServicesScreen() {
               key={service.key}
               onPress={() => {
                 if (service.key === 'bills') {
-                  router.push('/(app)/bills/index');
+                  router.push('/(app)/bills');
                   return;
                 }
                 if (service.key === 'social_boost' && service.canTransact) {
-                  router.push('/(app)/social-boost/index');
+                  router.push('/(app)/social-boost');
                   return;
                 }
                 router.push({

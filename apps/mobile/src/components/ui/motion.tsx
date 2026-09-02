@@ -2,6 +2,7 @@ import { PropsWithChildren, ReactNode, useEffect, useState } from 'react';
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   PressableProps,
   StyleProp,
@@ -35,14 +36,14 @@ export function FadeSlide({ children, delay = 0, distance = 18, style }: FadeSli
         duration: motion.relaxed,
         delay,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(translateY, {
         toValue: 0,
         duration: motion.relaxed,
         delay,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]);
 
@@ -86,7 +87,7 @@ export function ScalePressable({
       damping: 18,
       mass: 0.65,
       stiffness: 260,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
   }
 

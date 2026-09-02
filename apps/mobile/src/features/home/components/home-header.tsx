@@ -41,15 +41,14 @@ export function HomeHeader({
       <View style={styles.identity}>
         <IconButton
           accessibilityLabel="Open account"
-          badge={
+          content={
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[styles.avatarBadge, { backgroundColor: theme.colors.brand }]}>
+              style={[styles.avatar, { backgroundColor: theme.colors.brand }]}>
               <Text style={styles.avatarText}>{initials(profile)}</Text>
             </View>
           }
-          icon="person-outline"
           onPress={onAccount}
           testID="home-account"
         />
@@ -84,11 +83,12 @@ export function HomeHeader({
 }
 
 const styles = StyleSheet.create({
-  avatarBadge: {
-    ...StyleSheet.absoluteFill,
+  avatar: {
     alignItems: 'center',
     borderRadius: radii.pill,
+    height: '100%',
     justifyContent: 'center',
+    width: '100%',
   },
   avatarText: {
     color: '#FFFFFF',

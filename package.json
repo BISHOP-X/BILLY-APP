@@ -10,6 +10,8 @@
     "android": "npm run android --workspace @billy/mobile",
     "ios": "npm run ios --workspace @billy/mobile",
     "web": "npm run web --workspace @billy/mobile",
+    "build:web": "npm run build:web --workspace @billy/mobile",
+    "preview:web": "npm run preview:web --workspace @billy/mobile",
     "lint": "npm run lint --workspace @billy/mobile",
     "test": "npm run test --workspace @billy/mobile",
     "typecheck": "npm run typecheck --workspace @billy/mobile",

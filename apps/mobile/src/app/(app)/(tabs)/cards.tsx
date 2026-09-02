@@ -107,7 +107,7 @@ export default function CardsScreen() {
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
                   style={styles.brandMark}>
-                  <BillyLogo imageStyle={styles.brandImage} size={29} />
+                  <BillyLogo size={29} tintColor="#FFFFFF" />
                 </View>
                 <View>
                   <Text style={styles.brandName}>Billy</Text>
@@ -410,9 +410,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.xs,
-  },
-  brandImage: {
-    tintColor: '#FFFFFF',
   },
   brandMark: {
     alignItems: 'center',

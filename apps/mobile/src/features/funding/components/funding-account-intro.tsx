@@ -39,7 +39,7 @@ export function FundingAccountIntro({
         />
         <View style={styles.top}>
           <View style={styles.logo}>
-            <BillyLogo imageStyle={styles.logoImage} size={34} />
+            <BillyLogo size={34} tintColor="#FFFFFF" />
           </View>
           <View style={styles.pill}>
             <Ionicons accessible={false} color="#B8F3CF" name="infinite" size={16} />
@@ -218,9 +218,6 @@ const styles = StyleSheet.create({
     height: 48,
     justifyContent: 'center',
     width: 48,
-  },
-  logoImage: {
-    tintColor: '#FFFFFF',
   },
   pill: {
     alignItems: 'center',
