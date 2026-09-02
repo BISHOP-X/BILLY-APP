@@ -3,7 +3,6 @@
   "buildCommand": "npm run build:web",
   "installCommand": "npm ci",
   "outputDirectory": "apps/mobile/dist",
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/(.*)",
