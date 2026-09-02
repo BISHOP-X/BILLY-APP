@@ -39,7 +39,7 @@ export default function AuthCallbackScreen() {
         setError(exchangeError.message);
         return;
       }
-      router.replace('/(setup)/profile');
+      router.replace('/');
     }
 
     finishAuthentication();

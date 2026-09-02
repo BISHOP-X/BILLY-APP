@@ -3,9 +3,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppScreen } from '@/components/layout/app-screen';
-import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { ScreenHeader } from '@/components/ui/screen-header';
-import { legalConfig } from '@/config/legal';
+import { legalConfig, legalDocumentUrl, type LegalDocument } from '@/config/legal';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -18,13 +17,6 @@ export default function LegalScreen() {
         subtitle="Approved public documents and immutable version identifiers."
         title="Legal and privacy"
       />
-
-      {!legalConfig.isApproved ? (
-        <FeedbackBanner
-          message="Approved production legal documents are not configured. Billy account creation remains fail-closed outside preview."
-          tone="info"
-        />
-      ) : null}
 
       <View
         style={[
@@ -49,6 +41,21 @@ export default function LegalScreen() {
           }
           value={legalConfig.privacyVersion}
         />
+        <LegalRow label="Acceptable use" onPress={() => openDocument('acceptableUse')} />
+        <LegalRow label="Refunds and cancellations" onPress={() => openDocument('refunds')} />
+        <LegalRow label="Cookie notice" onPress={() => openDocument('cookies')} />
+      </View>
+
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+        ]}>
+        <LegalRow
+          destructive
+          label="Delete account and data"
+          onPress={() => openDocument('accountDeletion')}
+        />
       </View>
 
       <View style={[styles.notice, { backgroundColor: theme.colors.surfaceMuted }]}>
@@ -67,14 +74,20 @@ export default function LegalScreen() {
   );
 }
 
+function openDocument(document: LegalDocument) {
+  void WebBrowser.openBrowserAsync(legalDocumentUrl(document));
+}
+
 function LegalRow({
+  destructive = false,
   label,
   onPress,
   value,
 }: {
+  destructive?: boolean;
   label: string;
   onPress?: () => void;
-  value: string;
+  value?: string;
 }) {
   const theme = useBillyTheme();
   return (
@@ -99,10 +112,16 @@ function LegalRow({
         />
       </View>
       <View style={styles.copy}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
-        <Text style={[styles.version, { color: theme.colors.textMuted }]}>
-          Version {value}
+        <Text
+          style={[
+            styles.label,
+            { color: destructive ? theme.colors.danger : theme.colors.text },
+          ]}>
+          {label}
         </Text>
+        {value ? (
+          <Text style={[styles.version, { color: theme.colors.textMuted }]}>Version {value}</Text>
+        ) : null}
       </View>
       <Ionicons
         accessible={false}
