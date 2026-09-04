@@ -64,6 +64,7 @@ export default function SignInScreen() {
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
 
       <TextField
+        appearance="auth"
         autoCapitalize="none"
         autoComplete="email"
         error={emailError}
@@ -82,6 +83,7 @@ export default function SignInScreen() {
       />
       <View style={styles.passwordBlock}>
         <TextField
+          appearance="auth"
           autoCapitalize="none"
           autoComplete="current-password"
           error={passwordError}
@@ -102,7 +104,7 @@ export default function SignInScreen() {
           accessibilityRole="button"
           hitSlop={8}
           onPress={() => router.push('/(auth)/forgot-password')}>
-          <Text style={[styles.forgot, { color: theme.colors.brand }]}>Forgot password?</Text>
+          <Text style={styles.forgot}>Forgot password?</Text>
         </Pressable>
       </View>
       <AppButton
@@ -123,6 +125,7 @@ const styles = StyleSheet.create({
   },
   forgot: {
     alignSelf: 'flex-end',
+    color: '#146237',
     fontFamily: typography.familyRounded,
     fontSize: 13,
     fontWeight: '800',

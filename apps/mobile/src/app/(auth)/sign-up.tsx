@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -98,6 +98,7 @@ export default function SignUpScreen() {
 
   return (
     <AuthShell
+      compact
       footer={
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.colors.textMuted }]}>
@@ -123,6 +124,7 @@ export default function SignUpScreen() {
       {legalNotice ? <FeedbackBanner message={legalNotice} tone="info" /> : null}
 
       <TextField
+        appearance="auth"
         autoCapitalize="words"
         autoComplete="given-name"
         error={errors.firstName}
@@ -137,6 +139,7 @@ export default function SignUpScreen() {
         value={firstName}
       />
       <TextField
+        appearance="auth"
         autoCapitalize="words"
         autoComplete="family-name"
         error={errors.lastName}
@@ -151,6 +154,7 @@ export default function SignUpScreen() {
         value={lastName}
       />
       <TextField
+        appearance="auth"
         autoCapitalize="none"
         autoComplete="email"
         error={errors.email}
@@ -166,6 +170,7 @@ export default function SignUpScreen() {
         value={email}
       />
       <TextField
+        appearance="auth"
         autoCapitalize="none"
         autoComplete="new-password"
         error={errors.password}
@@ -181,6 +186,7 @@ export default function SignUpScreen() {
         value={password}
       />
       <TextField
+        appearance="auth"
         autoCapitalize="none"
         autoComplete="new-password"
         error={errors.confirmPassword}
@@ -217,7 +223,7 @@ export default function SignUpScreen() {
           ]}>
           {acceptedTerms ? <Ionicons color="#FFFFFF" name="checkmark" size={16} /> : null}
         </View>
-        <Text style={[styles.terms, { color: theme.colors.textMuted }]}>
+        <Text style={styles.terms}>
           I agree to the Billy legal documents listed below.
         </Text>
       </Pressable>
@@ -227,15 +233,15 @@ export default function SignUpScreen() {
           hitSlop={8}
           onPress={() => void openLegalDocument('terms')}
           style={styles.legalLinkButton}>
-          <Text style={[styles.legalLink, { color: theme.colors.brand }]}>Terms</Text>
+          <Text style={styles.legalLink}>Terms</Text>
         </Pressable>
-        <Text style={[styles.legalSeparator, { color: theme.colors.textMuted }]}>and</Text>
+        <Text style={styles.legalSeparator}>and</Text>
         <Pressable
           accessibilityRole="link"
           hitSlop={8}
           onPress={() => void openLegalDocument('privacy')}
           style={styles.legalLinkButton}>
-          <Text style={[styles.legalLink, { color: theme.colors.brand }]}>
+          <Text style={styles.legalLink}>
             Privacy Policy
           </Text>
         </Pressable>
@@ -288,6 +294,7 @@ const styles = StyleSheet.create({
     width: 23,
   },
   terms: {
+    color: '#5F6D64',
     flex: 1,
     fontFamily: typography.family,
     fontSize: 13,
@@ -306,6 +313,7 @@ const styles = StyleSheet.create({
     paddingLeft: 35,
   },
   legalLink: {
+    color: '#146237',
     fontFamily: typography.familyRounded,
     fontSize: 13,
     fontWeight: '800',
@@ -316,6 +324,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   legalSeparator: {
+    color: '#6C786F',
     fontFamily: typography.family,
     fontSize: 13,
   },

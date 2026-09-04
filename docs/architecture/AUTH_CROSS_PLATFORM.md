@@ -54,6 +54,19 @@ Remaining native activation:
 3. Register the mobile client IDs in Supabase with the web client ID first.
 4. Test Android and iOS callbacks with Billy testers before enabling the native build flags.
 
+#### Branded Google account chooser domain
+
+Google currently identifies the OAuth destination with Billy's Supabase hostname because that is the hosted Auth callback domain. The intended production hostname is `auth.billyapp.org`.
+
+Activation is intentionally pending because the Billy Supabase project is currently on the Free plan, while Supabase custom domains require an eligible paid plan and the custom-domain add-on. After the owner approves that billing change:
+
+1. Add `https://auth.billyapp.org/auth/v1/callback` to the existing Google web OAuth client's authorized redirect URIs.
+2. Create and DNS-verify `auth.billyapp.org` through the Supabase custom-domain workflow.
+3. Activate the verified hostname and update `EXPO_PUBLIC_SUPABASE_URL` to `https://auth.billyapp.org` in web and native deployment environments.
+4. Re-test email confirmation, password recovery, Google sign-in, PKCE callbacks, and signed Android/iOS authentication before removing the legacy callback.
+
+The Google consent-screen app name and logo improve presentation, but they do not replace the callback hostname shown by Google's account chooser.
+
 ### Apple
 
 1. Complete Apple Developer enrollment and record the Team ID.

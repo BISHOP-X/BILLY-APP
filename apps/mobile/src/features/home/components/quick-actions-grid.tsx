@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';

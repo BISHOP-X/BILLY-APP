@@ -30,7 +30,17 @@
       "favicon": "./assets/brand/billy-mark.png"
     },
     "plugins": [
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": true,
+            "android": false,
+            "ios": false,
+            "default": "development"
+          }
+        }
+      ],
       [
         "expo-splash-screen",
         {

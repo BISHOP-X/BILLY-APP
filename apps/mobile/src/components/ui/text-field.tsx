@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ReactNode, useState } from 'react';
 import {
   Pressable,
@@ -13,6 +13,7 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 type TextFieldProps = TextInputProps & {
+  appearance?: 'default' | 'auth';
   disabled?: boolean;
   label: string;
   icon?: keyof typeof Ionicons.glyphMap;
@@ -21,6 +22,7 @@ type TextFieldProps = TextInputProps & {
 };
 
 export function TextField({
+  appearance = 'default',
   disabled = false,
   label,
   icon,
@@ -33,25 +35,43 @@ export function TextField({
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const isPassword = Boolean(secureTextEntry);
+  const isAuth = appearance === 'auth';
+  const colors = isAuth
+    ? {
+        field: '#FFFFFF',
+        label: '#1A241E',
+        muted: '#748078',
+        text: '#18211B',
+        border: '#DCE5DF',
+        focus: '#146237',
+      }
+    : {
+        field: theme.colors.surface,
+        label: theme.colors.text,
+        muted: theme.colors.textSoft,
+        text: theme.colors.text,
+        border: theme.colors.border,
+        focus: theme.colors.brand,
+      };
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <Text style={[styles.label, { color: colors.label }]}>{label}</Text>
       <View
         style={[
           styles.field,
           {
-            backgroundColor: theme.colors.surface,
+            backgroundColor: colors.field,
             borderColor: error
               ? theme.colors.danger
               : focused
-                ? theme.colors.brand
-                : theme.colors.border,
+                ? colors.focus
+                : colors.border,
           },
         ]}>
         {icon ? (
           <Ionicons
-            color={focused ? theme.colors.brand : theme.colors.textSoft}
+            color={focused ? colors.focus : colors.muted}
             name={icon}
             size={20}
           />
@@ -69,10 +89,10 @@ export function TextField({
             setFocused(true);
             inputProps.onFocus?.(event);
           }}
-          placeholderTextColor={theme.colors.textSoft}
+          placeholderTextColor={colors.muted}
           secureTextEntry={isPassword && !visible}
-          selectionColor={theme.colors.brand}
-          style={[styles.input, { color: theme.colors.text }, inputProps.style]}
+          selectionColor={colors.focus}
+          style={[styles.input, { color: colors.text }, inputProps.style]}
         />
         {isPassword ? (
           <Pressable
@@ -82,7 +102,7 @@ export function TextField({
             hitSlop={10}
             onPress={() => setVisible((value) => !value)}>
             <Ionicons
-              color={theme.colors.textMuted}
+              color={colors.muted}
               name={visible ? 'eye-off-outline' : 'eye-outline'}
               size={21}
             />
