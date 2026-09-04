@@ -21,7 +21,7 @@ export function validatePassword(value: string) {
 }
 
 export function friendlyAuthError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error ?? '');
+  const message = extractErrorMessage(error);
   const normalized = message.toLowerCase();
 
   if (normalized.includes('invalid login credentials')) {
@@ -40,4 +40,22 @@ export function friendlyAuthError(error: unknown) {
     return 'We could not reach Billy. Check your connection and try again.';
   }
   return message || 'Something went wrong. Please try again.';
+}
+
+function extractErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (error && typeof error === 'object') {
+    const candidate = error as Record<string, unknown>;
+    for (const key of ['message', 'error_description', 'details', 'hint']) {
+      if (typeof candidate[key] === 'string' && candidate[key].trim()) {
+        return candidate[key].trim();
+      }
+    }
+  }
+  return '';
 }

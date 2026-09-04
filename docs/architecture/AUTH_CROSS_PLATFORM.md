@@ -8,7 +8,7 @@
 - Email/password registration, email verification, sign-in, recovery, and session restoration use the Billy Supabase project only.
 - Production Auth email is delivered through Forward Email SMTP as `Billy <no-reply@billyapp.org>`.
 - All six authentication templates and all seven security-notification templates are Billy-branded and active in hosted Supabase Auth.
-- Google and Apple controls are feature-gated and remain hidden until their provider credentials are configured and verified.
+- Google is active on the production web application. Apple remains feature-gated until its provider credentials are configured and verified.
 - First-time OAuth users must accept the current Terms and Privacy Policy before entering setup or the application.
 - Email sign-up records the accepted legal-document versions during account creation.
 - Account deletion is an authenticated, audited soft-deletion flow. Financial, KYC, and transaction records may be retained where legally or operationally required.
@@ -38,13 +38,21 @@ Configured on 2026-09-04:
 
 ### Google
 
-1. Configure Billy's Google Auth Platform branding, audience, and only the `openid`, email, and profile scopes.
-2. Create a Web application OAuth client. Add `https://app.billyapp.org` as an authorized JavaScript origin and `https://omsrzwwudskxpkyynnxw.supabase.co/auth/v1/callback` as an authorized redirect URI.
-3. Create the Android OAuth client for package `com.bishopx.billy` using the EAS signing-certificate SHA-1 values.
-4. Create the iOS OAuth client for bundle ID `com.bishopx.billy` when the Apple team information is available.
-5. Enter the web client ID first, followed by mobile client IDs, plus the web client secret in Supabase Auth, then enable Google.
-6. Test web, Android, and iOS callback flows with Billy testers.
-7. Set `EXPO_PUBLIC_GOOGLE_AUTH_ENABLED=true` in the web and native build environments only after the live provider test passes.
+Activated for web on 2026-09-04:
+
+- Google Cloud project `Billy App` owns the OAuth configuration.
+- The external consent screen uses Billy's public home page, Terms, Privacy Policy, and `billyapp.org` authorized domain.
+- The Web application client authorizes `https://app.billyapp.org` and the Billy Supabase callback only.
+- The Google provider is enabled in hosted Billy Supabase Auth; its secret is not stored in the repository or public build environment.
+- The production web feature flag is active.
+- A live first-user journey passed Google account selection, PKCE callback, Supabase session creation, profile provisioning, current-document legal acceptance, and routing into profile setup.
+
+Remaining native activation:
+
+1. Create the Android OAuth client for package `com.bishopx.billy` using the EAS signing-certificate SHA-1 values.
+2. Create the iOS OAuth client for bundle ID `com.bishopx.billy` when the Apple team information is available.
+3. Register the mobile client IDs in Supabase with the web client ID first.
+4. Test Android and iOS callbacks with Billy testers before enabling the native build flags.
 
 ### Apple
 
