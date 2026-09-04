@@ -1,6 +1,6 @@
 import { GoogleLogin, GoogleOAuthProvider, type CredentialResponse } from '@react-oauth/google';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { typography } from '@/theme/tokens';
 
@@ -33,7 +33,9 @@ export function GoogleIdentityButton({
   onConfigurationError,
   onIdToken,
 }: GoogleIdentityButtonProps) {
+  const { width: viewportWidth } = useWindowDimensions();
   const [noncePair, setNoncePair] = useState<NoncePair | null>(null);
+  const buttonWidth = Math.min(320, Math.max(220, viewportWidth - 112));
 
   useEffect(() => {
     let active = true;
@@ -94,7 +96,7 @@ export function GoogleIdentityButton({
           text={intent === 'sign-up' ? 'signup_with' : 'signin_with'}
           theme="outline"
           type="standard"
-          width={320}
+          width={buttonWidth}
         />
         {disabled || loading ? (
           <View
@@ -117,7 +119,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: 44,
     justifyContent: 'center',
-    maxWidth: 320,
+    maxWidth: 340,
     position: 'relative',
     width: '100%',
   },
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
-    maxWidth: 320,
+    maxWidth: 340,
     width: '100%',
   },
   overlay: {
@@ -155,7 +157,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     justifyContent: 'center',
-    maxWidth: 320,
+    maxWidth: 340,
     minHeight: 44,
     paddingHorizontal: 16,
     width: '100%',
