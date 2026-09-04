@@ -6,6 +6,8 @@
 - Supabase Auth uses that origin as its Site URL.
 - Approved redirects include the web callback and password-reset routes, Billy's native `billy://` deep links, local development, and Billy Vercel previews.
 - Email/password registration, email verification, sign-in, recovery, and session restoration use the Billy Supabase project only.
+- Production Auth email is delivered through Forward Email SMTP as `Billy <no-reply@billyapp.org>`.
+- The Billy confirmation, recovery, and email-change templates are active in hosted Supabase Auth.
 - Google and Apple controls are feature-gated and remain hidden until their provider credentials are configured and verified.
 - First-time OAuth users must accept the current Terms and Privacy Policy before entering setup or the application.
 - Email sign-up records the accepted legal-document versions during account creation.
@@ -21,16 +23,17 @@
 6. Incomplete users continue through profile, transaction PIN, and biometrics setup.
 7. Completed users enter the same Billy account and data on web, Android, or iOS.
 
-## Provider activation checklist
+## Provider activation status
 
 ### Production email
 
-1. Verify `billyapp.org` with the selected transactional SMTP provider.
-2. Add the SMTP host, port, username, password, sender name, and `support@billyapp.org` sender in Supabase Auth.
-3. Apply the reviewed templates in `supabase/templates/` to the matching Supabase Auth template slots.
-4. Test confirmation, recovery, email-change, and security-notification delivery before launch.
+Configured on 2026-09-04:
 
-The repository templates are prepared but are not evidence of live template configuration. Billy currently uses Supabase's default SMTP until custom SMTP is configured.
+- Forward Email SMTP is active on its TLS endpoint.
+- SMTP authentication was verified without sending or exposing credentials.
+- `no-reply@billyapp.org` is the hosted Auth sender.
+- The reviewed confirmation, recovery, and email-change templates in `supabase/templates/` are live.
+- Confirmation and recovery delivery must still be exercised through the production Billy user journey before launch.
 
 ### Google
 
