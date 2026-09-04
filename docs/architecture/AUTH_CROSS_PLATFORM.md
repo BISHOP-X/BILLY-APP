@@ -8,7 +8,7 @@
 - Email/password registration, email verification, sign-in, recovery, and session restoration use the Billy Supabase project only.
 - Production Auth email is delivered through Forward Email SMTP as `Billy <no-reply@billyapp.org>`.
 - All six authentication templates and all seven security-notification templates are Billy-branded and active in hosted Supabase Auth.
-- Google is active on the production web application. Apple remains feature-gated until its provider credentials are configured and verified.
+- Google is active on the production web application through Google Identity Services and Supabase ID-token exchange. Apple remains feature-gated until its provider credentials are configured and verified.
 - First-time OAuth users must accept the current Terms and Privacy Policy before entering setup or the application.
 - Email sign-up records the accepted legal-document versions during account creation.
 - Account deletion is an authenticated, audited soft-deletion flow. Financial, KYC, and transaction records may be retained where legally or operationally required.
@@ -17,7 +17,7 @@
 
 1. The public site sends Sign in and Sign up traffic to `app.billyapp.org`.
 2. Email/password users complete the existing confirmation flow.
-3. Google or Apple users return through `/auth/callback` on web or `billy://auth/callback` in a native build.
+3. Web Google users exchange Google's ID token directly for a Supabase session. Native OAuth users return through `billy://auth/callback`; redirect-based web providers return through `/auth/callback`.
 4. The application checks the live Billy profile and current legal acceptance.
 5. A first-time social user accepts the current legal documents.
 6. Incomplete users continue through profile, transaction PIN, and biometrics setup.
@@ -42,10 +42,11 @@ Activated for web on 2026-09-04:
 
 - Google Cloud project `Billy App` owns the OAuth configuration.
 - The external consent screen uses Billy's public home page, Terms, Privacy Policy, and `billyapp.org` authorized domain.
-- The Web application client authorizes `https://app.billyapp.org` and the Billy Supabase callback only.
+- The Web application client authorizes `https://app.billyapp.org` as a JavaScript origin; the existing Billy Supabase callback remains available for native and fallback OAuth flows.
 - The Google provider is enabled in hosted Billy Supabase Auth; its secret is not stored in the repository or public build environment.
 - The production web feature flag is active.
-- A live first-user journey passed Google account selection, PKCE callback, Supabase session creation, profile provisioning, current-document legal acceptance, and routing into profile setup.
+- The earlier redirect-based first-user journey passed Google account selection, PKCE callback, Supabase session creation, profile provisioning, current-document legal acceptance, and routing into profile setup.
+- Billy web uses Google's official browser button and a hashed nonce. The returned Google credential is exchanged with `supabase.auth.signInWithIdToken`, so the user-facing flow does not visit Billy's Supabase project hostname.
 
 Remaining native activation:
 
@@ -54,11 +55,9 @@ Remaining native activation:
 3. Register the mobile client IDs in Supabase with the web client ID first.
 4. Test Android and iOS callbacks with Billy testers before enabling the native build flags.
 
-#### Branded Google account chooser domain
+#### Optional Supabase custom domain
 
-Google currently identifies the OAuth destination with Billy's Supabase hostname because that is the hosted Auth callback domain. The intended production hostname is `auth.billyapp.org`.
-
-Activation is intentionally pending because the Billy Supabase project is currently on the Free plan, while Supabase custom domains require an eligible paid plan and the custom-domain add-on. After the owner approves that billing change:
+The direct Google ID-token flow removes the Supabase project hostname from Billy's web Google journey without requiring a paid Supabase custom domain. A future `auth.billyapp.org` domain remains optional API/Auth infrastructure branding. If the owner later approves that billing change:
 
 1. Add `https://auth.billyapp.org/auth/v1/callback` to the existing Google web OAuth client's authorized redirect URIs.
 2. Create and DNS-verify `auth.billyapp.org` through the Supabase custom-domain workflow.

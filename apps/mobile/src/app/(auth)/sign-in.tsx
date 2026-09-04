@@ -62,6 +62,7 @@ export default function SignInScreen() {
       subtitle="Welcome back. Your wallet and services are right where you left them."
       title="Sign in to Billy">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
+      <SocialAuthButtons intent="sign-in" />
 
       <TextField
         appearance="auth"
@@ -114,7 +115,6 @@ export default function SignInScreen() {
         onPress={submit}
         testID="sign-in-submit"
       />
-      <SocialAuthButtons />
     </AuthShell>
   );
 }

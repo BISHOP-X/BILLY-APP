@@ -122,6 +122,7 @@ export default function SignUpScreen() {
         />
       ) : null}
       {legalNotice ? <FeedbackBanner message={legalNotice} tone="info" /> : null}
+      <SocialAuthButtons intent="sign-up" />
 
       <TextField
         appearance="auth"
@@ -258,7 +259,6 @@ export default function SignUpScreen() {
         onPress={submit}
         testID="sign-up-submit"
       />
-      <SocialAuthButtons />
     </AuthShell>
   );
 }

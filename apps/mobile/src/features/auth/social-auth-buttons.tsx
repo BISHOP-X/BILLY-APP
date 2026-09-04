@@ -1,15 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
@@ -19,14 +11,19 @@ import { spacing, typography } from '@/theme/tokens';
 import type { BillyOAuthProvider } from './auth-api';
 import { useAuth } from './auth-provider';
 import { friendlyAuthError } from './form-utils';
+import { GoogleIdentityButton } from './google-identity-button';
+import type { GoogleAuthIntent } from './google-identity-button.types';
 
-export function SocialAuthButtons() {
-  const { signInWithProvider } = useAuth();
+export function SocialAuthButtons({ intent }: { intent: GoogleAuthIntent }) {
+  const { signInWithGoogleToken, signInWithProvider } = useAuth();
   const [loadingProvider, setLoadingProvider] = useState<BillyOAuthProvider | null>(null);
   const [feedback, setFeedback] = useState('');
-  const providers = (Object.keys(oauthConfig) as BillyOAuthProvider[]).filter(
+  const providers = (['google', 'apple'] satisfies BillyOAuthProvider[]).filter(
     (provider) => oauthConfig[provider],
   );
+  const showConfigurationError = useCallback((message: string) => {
+    setFeedback(message);
+  }, []);
 
   if (!providers.length) {
     return null;
@@ -47,21 +44,32 @@ export function SocialAuthButtons() {
     }
   }
 
+  async function continueWithGoogleToken(token: string, nonce: string) {
+    setLoadingProvider('google');
+    setFeedback('');
+    try {
+      await signInWithGoogleToken(token, nonce);
+      router.replace('/');
+    } catch (error) {
+      setFeedback(friendlyAuthError(error));
+    } finally {
+      setLoadingProvider(null);
+    }
+  }
+
   return (
     <View style={styles.container}>
-      <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>or continue with</Text>
-        <View style={styles.divider} />
-      </View>
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
       {providers.map((provider) =>
         provider === 'google' ? (
-          <GoogleSignInButton
+          <GoogleIdentityButton
             disabled={loadingProvider !== null && loadingProvider !== provider}
+            intent={intent}
             key={provider}
             loading={loadingProvider === provider}
-            onPress={() => void continueWith(provider)}
+            onConfigurationError={showConfigurationError}
+            onIdToken={(token, nonce) => void continueWithGoogleToken(token, nonce)}
+            onOAuthPress={() => void continueWith(provider)}
           />
         ) : (
           <AppButton
@@ -82,42 +90,12 @@ export function SocialAuthButtons() {
           New accounts review Billy&apos;s Terms and Privacy Policy before setup.
         </Text>
       </View>
+      <View style={styles.dividerRow}>
+        <View style={styles.divider} />
+        <Text style={styles.dividerText}>or use email</Text>
+        <View style={styles.divider} />
+      </View>
     </View>
-  );
-}
-
-const googleButtonSource = Platform.select({
-  ios: require('../../../assets/brand/google-sign-in-ios.png'),
-  default: require('../../../assets/brand/google-sign-in-android-web.png'),
-});
-
-function GoogleSignInButton({
-  disabled,
-  loading,
-  onPress,
-}: {
-  disabled: boolean;
-  loading: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel="Sign in with Google"
-      accessibilityRole="button"
-      accessibilityState={{ busy: loading, disabled }}
-      disabled={disabled || loading}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.googleButton,
-        { opacity: disabled ? 0.5 : pressed ? 0.86 : 1 },
-      ]}>
-      <Image resizeMode="contain" source={googleButtonSource} style={styles.googleButtonImage} />
-      {loading ? (
-        <View style={styles.googleLoading}>
-          <ActivityIndicator color="#146237" />
-        </View>
-      ) : null}
-    </Pressable>
   );
 }
 
@@ -154,26 +132,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.family,
     fontSize: 11,
     lineHeight: 16,
-  },
-  googleButton: {
-    alignItems: 'center',
-    height: 56,
-    justifyContent: 'center',
-    width: 252,
-  },
-  googleButtonImage: {
-    height: 56,
-    width: 252,
-  },
-  googleLoading: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    borderRadius: 28,
-    bottom: 0,
-    justifyContent: 'center',
-    left: 0,
-    position: 'absolute',
-    right: 0,
-    top: 0,
   },
 });

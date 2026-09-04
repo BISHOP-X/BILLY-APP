@@ -20,6 +20,7 @@ import {
   resendSignupVerification,
   sendPasswordReset,
   signInWithEmail,
+  signInWithGoogleIdToken,
   signInWithOAuth,
   signOut,
   signUpWithEmail,
@@ -38,6 +39,7 @@ type AuthContextValue = {
     session: Session;
     user: User;
   }>;
+  signInWithGoogleToken: (token: string, nonce: string) => Promise<void>;
   signInWithProvider: (provider: BillyOAuthProvider) => Promise<boolean>;
   signOut: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<{
@@ -72,6 +74,17 @@ async function signUp(input: SignUpInput) {
 
 async function signInWithProvider(provider: BillyOAuthProvider) {
   return signInWithOAuth(provider);
+}
+
+async function signInWithGoogleToken(token: string, nonce: string) {
+  const { data, error } = await signInWithGoogleIdToken(token, nonce);
+
+  if (error) {
+    throw error;
+  }
+  if (!data.session || !data.user) {
+    throw new Error('Google did not return a complete Billy session.');
+  }
 }
 
 async function signOutCurrentSession() {
@@ -167,6 +180,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       sendPasswordReset: resetPassword,
       session,
       signIn,
+      signInWithGoogleToken,
       signInWithProvider,
       signOut: signOutCurrentSession,
       signUp,

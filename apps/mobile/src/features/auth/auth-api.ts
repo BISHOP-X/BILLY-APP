@@ -113,6 +113,14 @@ export function signInWithEmail({ email, password }: SignInInput) {
   });
 }
 
+export function signInWithGoogleIdToken(token: string, nonce: string) {
+  return supabase.auth.signInWithIdToken({
+    nonce,
+    provider: 'google',
+    token,
+  });
+}
+
 export async function signInWithOAuth(provider: BillyOAuthProvider) {
   const redirectTo = createAuthCallbackUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
