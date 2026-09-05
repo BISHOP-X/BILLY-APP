@@ -51,14 +51,14 @@ export default function SignInScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.push('/(auth)/sign-up')}>
+            onPress={() => router.replace('/(auth)/sign-up')}>
             <Text style={[styles.footerLink, { color: theme.colors.brand }]}>
               Create an account
             </Text>
           </Pressable>
         </View>
       }
-      onBack={() => router.back()}
+      onBack={() => router.replace('/welcome')}
       subtitle="Welcome back. Your wallet and services are right where you left them."
       title="Sign in to Billy">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}

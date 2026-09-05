@@ -111,7 +111,7 @@ export default function SignUpScreen() {
           </Pressable>
         </View>
       }
-      onBack={() => router.back()}
+      onBack={() => router.replace('/welcome')}
       subtitle="A few details and you’ll be ready to experience Billy."
       title="Create your account">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}

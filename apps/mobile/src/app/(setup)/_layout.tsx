@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 
 import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import {
+  canVisitSetupPath,
+  setupDestinationForStep,
+} from '@/features/auth/onboarding-routing';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
 import type { Profile } from '@/lib/supabase/database.types';
@@ -17,19 +21,6 @@ type ProfileState =
       status: 'ready';
       userId: string;
     };
-
-function setupDestination(profile: Profile | null) {
-  if (!profile || profile.onboarding_step === 'profile') {
-    return '/(setup)/profile' as const;
-  }
-  if (profile.onboarding_step === 'pin') {
-    return '/(setup)/pin' as const;
-  }
-  if (profile.onboarding_step === 'biometrics') {
-    return '/(setup)/biometrics' as const;
-  }
-  return '/(app)/home' as const;
-}
 
 export default function SetupLayout() {
   const pathname = usePathname();
@@ -145,12 +136,12 @@ export default function SetupLayout() {
     return <Redirect href="/(auth)/legal-consent" />;
   }
 
-  const destination = setupDestination(profileState.profile);
-  const expectedPathname = `/${destination.split('/').at(-1)}`;
+  const step = profileState.profile?.onboarding_step;
+  const destination = setupDestinationForStep(step);
 
   if (
     destination === '/(app)/home' ||
-    pathname !== expectedPathname
+    !canVisitSetupPath(step, pathname)
   ) {
     return <Redirect href={destination} />;
   }

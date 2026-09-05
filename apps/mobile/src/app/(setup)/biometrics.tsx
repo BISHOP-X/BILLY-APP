@@ -9,6 +9,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { SetupShell } from '@/components/ui/setup-shell';
 import { updateOnboardingStep } from '@/features/auth/auth-api';
 import { friendlyAuthError } from '@/features/auth/form-utils';
+import { replaceSetupRoute } from '@/features/auth/setup-navigation';
 import { useAppLock } from '@/features/security/app-lock';
 import {
   authenticateForBilly,
@@ -98,7 +99,7 @@ export default function BiometricsSetupScreen() {
   return (
     <SetupShell
       eyebrow="QUICK, SECURE ACCESS"
-      onBack={() => router.back()}
+      onBack={() => replaceSetupRoute('/(setup)/pin', '/pin')}
       step={3}
       subtitle="Use your device’s secure biometrics to unlock Billy. Your biometric data never leaves your device."
       title="Unlock with a touch">

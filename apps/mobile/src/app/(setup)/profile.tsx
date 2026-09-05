@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -17,12 +16,13 @@ import {
   validatePhoneNumber,
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
+import { replaceSetupRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 export default function ProfileSetupScreen() {
   const theme = useBillyTheme();
-  const { user } = useAuth();
+  const { signOut, user } = useAuth();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -72,14 +72,16 @@ export default function ProfileSetupScreen() {
 
     setLoading(true);
     try {
-      await updateMyProfile({
+      const profile = await updateMyProfile({
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         display_name: displayName.trim(),
         phone: phone.trim(),
       });
-      await updateOnboardingStep('pin');
-      router.push('/(setup)/pin');
+      if (profile.onboarding_step === 'profile') {
+        await updateOnboardingStep('pin');
+      }
+      replaceSetupRoute('/(setup)/pin', '/pin');
     } catch (error) {
       setFeedback(friendlyAuthError(error));
     } finally {
@@ -107,6 +109,15 @@ export default function ProfileSetupScreen() {
   return (
     <SetupShell
       eyebrow="MAKE IT YOURS"
+      onBack={() => {
+        setLoading(true);
+        void signOut()
+          .then(() => replaceSetupRoute('/welcome', '/welcome'))
+          .catch((error) => {
+            setFeedback(friendlyAuthError(error));
+            setLoading(false);
+          });
+      }}
       step={1}
       subtitle="These details help us personalise your experience. You can update them later."
       title="Tell us about you">

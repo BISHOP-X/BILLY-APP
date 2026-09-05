@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <AuthShell
-      onBack={() => router.back()}
+      onBack={() => router.replace('/(auth)/sign-in')}
       subtitle="We’ll send a secure reset link to the email connected to your Billy account."
       title="Reset your password">
       {sent ? (

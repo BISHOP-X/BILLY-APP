@@ -1,6 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +8,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { PinEntry } from '@/components/ui/pin-entry';
 import { SetupShell } from '@/components/ui/setup-shell';
 import { friendlyAuthError } from '@/features/auth/form-utils';
+import { replaceSetupRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { supabase } from '@/lib/supabase/client';
 import { spacing, typography } from '@/theme/tokens';
@@ -49,7 +49,7 @@ export default function PinSetupScreen() {
     try {
       const { error } = await supabase.rpc('set_transaction_pin', { p_pin: pin });
       if (error) throw error;
-      router.push('/(setup)/biometrics');
+      replaceSetupRoute('/(setup)/biometrics', '/biometrics');
     } catch (error) {
       setFeedback(friendlyAuthError(error));
     } finally {
@@ -67,7 +67,7 @@ export default function PinSetupScreen() {
           setCreatedPin('');
           setFeedback('');
         } else {
-          router.back();
+          replaceSetupRoute('/(setup)/profile', '/profile');
         }
       }}
       step={2}
