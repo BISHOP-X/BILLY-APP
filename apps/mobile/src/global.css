@@ -40,6 +40,29 @@ textarea {
   font: inherit;
 }
 
+input,
+textarea {
+  caret-color: #146237;
+  color-scheme: light;
+}
+
+input::selection,
+textarea::selection {
+  background: #d9f1e2;
+  color: #18211b;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #18211b !important;
+  caret-color: #146237;
+}
+
 button,
 [role='button'],
 [role='tab'],

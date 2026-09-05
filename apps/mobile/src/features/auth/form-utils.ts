@@ -21,9 +21,17 @@ export function validatePassword(value: string) {
 }
 
 export function friendlyAuthError(error: unknown) {
+  const code = extractErrorCode(error);
+  const status = extractErrorStatus(error);
   const message = extractErrorMessage(error);
   const normalized = message.toLowerCase();
 
+  if (code === 'over_email_send_rate_limit') {
+    return 'Too many verification emails were requested. Please wait a few minutes and try again.';
+  }
+  if (status === 429 || code === 'over_request_rate_limit') {
+    return 'Too many requests were made. Please wait a few minutes and try again.';
+  }
   if (normalized.includes('invalid login credentials')) {
     return 'That email and password do not match. Check them and try again.';
   }
@@ -38,6 +46,9 @@ export function friendlyAuthError(error: unknown) {
   }
   if (normalized.includes('network') || normalized.includes('fetch')) {
     return 'We could not reach Billy. Check your connection and try again.';
+  }
+  if (message === '{}' || message === '[object Object]') {
+    return 'Something went wrong. Please try again.';
   }
   return message || 'Something went wrong. Please try again.';
 }
@@ -58,4 +69,18 @@ function extractErrorMessage(error: unknown) {
     }
   }
   return '';
+}
+
+function extractErrorCode(error: unknown) {
+  if (!error || typeof error !== 'object') return '';
+  const candidate = error as Record<string, unknown>;
+  return typeof candidate.code === 'string' ? candidate.code.toLowerCase() : '';
+}
+
+function extractErrorStatus(error: unknown) {
+  if (!error || typeof error !== 'object') return null;
+  const status = (error as Record<string, unknown>).status;
+  if (typeof status === 'number') return status;
+  if (typeof status === 'string' && /^\d{3}$/.test(status)) return Number(status);
+  return null;
 }

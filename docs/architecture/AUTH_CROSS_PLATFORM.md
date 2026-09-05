@@ -35,6 +35,7 @@ Configured on 2026-09-04:
 - All 13 reviewed authentication and security templates in `supabase/templates/` are live.
 - Password, email, phone, identity-link, identity-unlink, MFA-added, and MFA-removed notifications are enabled.
 - Confirmation and recovery delivery must still be exercised through the production Billy user journey before launch.
+- The current Forward Email SMTP account defaults to 300 outbound messages per day. Supabase is temporarily capped at 30 Auth emails per hour for controlled development. This is not launch capacity: before public registration opens, Billy must either obtain a verified higher Forward Email allowance or move Auth to a scalable transactional SMTP provider, then set Supabase's project-wide email limit to the tested provider capacity with surge headroom.
 
 ### Google
 
@@ -88,6 +89,7 @@ The Google consent-screen app name and logo improve presentation, but they do no
 
 ## Verification required before launch
 
+- Load-test the approved transactional SMTP path, confirm the provider and Supabase limits support the expected signup surge, and enable Auth CAPTCHA before opening public registration.
 - Email confirmation and recovery on the production domain.
 - Google account creation, returning-user sign-in, cancellation, and account linking behavior.
 - Apple account creation, private-relay email behavior, returning-user sign-in, and cancellation.
