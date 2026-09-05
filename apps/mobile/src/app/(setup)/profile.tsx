@@ -12,7 +12,10 @@ import {
   updateMyProfile,
   updateOnboardingStep,
 } from '@/features/auth/auth-api';
-import { friendlyAuthError } from '@/features/auth/form-utils';
+import {
+  friendlyAuthError,
+  validatePhoneNumber,
+} from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -61,10 +64,8 @@ export default function ProfileSetupScreen() {
     if (!firstName.trim()) nextErrors.firstName = 'Enter your first name.';
     if (!lastName.trim()) nextErrors.lastName = 'Enter your last name.';
     if (!displayName.trim()) nextErrors.displayName = 'Choose the name Billy should use.';
-    const phoneDigits = phone.replace(/\D/g, '');
-    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
-      nextErrors.phone = 'Enter a complete phone number with country code.';
-    }
+    const phoneError = validatePhoneNumber(phone);
+    if (phoneError) nextErrors.phone = phoneError;
     setErrors(nextErrors);
     setFeedback('');
     if (Object.keys(nextErrors).length) return;
@@ -166,7 +167,7 @@ export default function ProfileSetupScreen() {
           setPhone(value);
           setErrors((current) => ({ ...current, phone: '' }));
         }}
-        placeholder="+234 800 000 0000"
+        placeholder="090 0000 0000 or +234 900 000 0000"
         value={phone}
       />
       <View style={[styles.note, { backgroundColor: theme.colors.brandMist }]}>

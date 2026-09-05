@@ -12,7 +12,10 @@ import { StatePanel } from '@/components/ui/state-panel';
 import { TextField } from '@/components/ui/text-field';
 import { getMyProfile, updateMyProfile } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
-import { friendlyAuthError } from '@/features/auth/form-utils';
+import {
+  friendlyAuthError,
+  validatePhoneNumber,
+} from '@/features/auth/form-utils';
 import { isBillyDevDemo } from '@/features/main/repository';
 import type { Profile } from '@/lib/supabase/database.types';
 import { spacing } from '@/theme/tokens';
@@ -101,6 +104,13 @@ function ProfileForm({ profile, userId }: { profile: Profile; userId: string }) 
       setValidationError('Country must be a two-letter code such as NG.');
       return;
     }
+    if (phone.trim()) {
+      const phoneError = validatePhoneNumber(phone);
+      if (phoneError) {
+        setValidationError(phoneError);
+        return;
+      }
+    }
     update.mutate();
   }
 
@@ -144,7 +154,7 @@ function ProfileForm({ profile, userId }: { profile: Profile; userId: string }) 
           keyboardType="phone-pad"
           label="Phone number"
           onChangeText={setPhone}
-          placeholder="+234…"
+          placeholder="090 0000 0000 or +234 900 000 0000"
           value={phone}
         />
         <TextField

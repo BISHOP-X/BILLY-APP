@@ -1,4 +1,28 @@
-import { friendlyAuthError } from '@/features/auth/form-utils';
+import {
+  friendlyAuthError,
+  normalizePhoneNumber,
+  validatePhoneNumber,
+} from '@/features/auth/form-utils';
+
+describe('profile phone numbers', () => {
+  it.each([
+    ['090 67679407', '+2349067679407'],
+    ['+234 906 767 9407', '+2349067679407'],
+    ['2349067679407', '+2349067679407'],
+    ['+1 (202) 555-0100', '+12025550100'],
+  ])('normalizes %s to %s', (input, expected) => {
+    expect(normalizePhoneNumber(input)).toBe(expected);
+    expect(validatePhoneNumber(input)).toBe('');
+  });
+
+  it.each(['090 123', '+09067679407', 'phone number', ''])(
+    'rejects invalid input %s',
+    (input) => {
+      expect(normalizePhoneNumber(input)).toBeNull();
+      expect(validatePhoneNumber(input)).toContain('Enter a valid phone number');
+    },
+  );
+});
 
 describe('friendlyAuthError', () => {
   it('extracts structured Supabase error messages', () => {

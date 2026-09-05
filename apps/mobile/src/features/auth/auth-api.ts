@@ -2,6 +2,10 @@ import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 
+import {
+  normalizePhoneNumber,
+  PHONE_VALIDATION_MESSAGE,
+} from '@/features/auth/form-utils';
 import type {
   OnboardingStep,
   Profile,
@@ -254,12 +258,18 @@ export async function requestAccountDeletion() {
 
 export async function updateMyProfile(input: ProfileUpdateInput) {
   const userId = await requireCurrentUserId();
+  const normalizedPhone =
+    input.phone === null || input.phone === undefined
+      ? input.phone
+      : normalizePhoneNumber(input.phone);
+
+  if (input.phone !== null && input.phone !== undefined && !normalizedPhone) {
+    throw new Error(PHONE_VALIDATION_MESSAGE);
+  }
+
   const normalizedInput = {
     ...input,
-    phone:
-      input.phone === null || input.phone === undefined
-        ? input.phone
-        : `+${input.phone.replace(/\D/g, '')}`,
+    phone: normalizedPhone,
   };
   const { data, error } = await supabase
     .from('profiles')

@@ -20,6 +20,40 @@ export function validatePassword(value: string) {
   return '';
 }
 
+export const PHONE_VALIDATION_MESSAGE =
+  'Enter a valid phone number, for example 090 6767 9407 or +234 906 767 9407.';
+
+/**
+ * Normalizes profile phone numbers to E.164 before they reach Supabase.
+ * Nigerian users may enter either the familiar 11-digit local format or +234.
+ * Other international numbers must include their leading + country code.
+ */
+export function normalizePhoneNumber(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed || !/^[+\d\s().-]+$/.test(trimmed)) return null;
+
+  const digits = trimmed.replace(/\D/g, '');
+  const hasInternationalPrefix = trimmed.startsWith('+');
+
+  if (!hasInternationalPrefix && /^0\d{10}$/.test(digits)) {
+    return `+234${digits.slice(1)}`;
+  }
+
+  if (/^234\d{10}$/.test(digits)) {
+    return `+${digits}`;
+  }
+
+  if (hasInternationalPrefix && /^[1-9]\d{7,14}$/.test(digits)) {
+    return `+${digits}`;
+  }
+
+  return null;
+}
+
+export function validatePhoneNumber(value: string) {
+  return normalizePhoneNumber(value) ? '' : PHONE_VALIDATION_MESSAGE;
+}
+
 export function friendlyAuthError(error: unknown) {
   const code = extractErrorCode(error);
   const status = extractErrorStatus(error);
