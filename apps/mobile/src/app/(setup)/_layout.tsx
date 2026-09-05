@@ -1,4 +1,4 @@
-import { Redirect, Stack, useSegments } from 'expo-router';
+import { Redirect, Stack, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { getMyAccountState } from '@/features/auth/auth-api';
@@ -9,11 +9,11 @@ import type { Profile } from '@/lib/supabase/database.types';
 
 type ProfileState =
   | { status: 'idle' }
-  | { error: string; screen: string; status: 'error'; userId: string }
+  | { error: string; pathname: string; status: 'error'; userId: string }
   | {
       profile: Profile | null;
       hasCurrentLegalAcceptance: boolean;
-      screen: string;
+      pathname: string;
       status: 'ready';
       userId: string;
     };
@@ -32,8 +32,7 @@ function setupDestination(profile: Profile | null) {
 }
 
 export default function SetupLayout() {
-  const segments = useSegments();
-  const currentScreen = segments[segments.length - 1] ?? '';
+  const pathname = usePathname();
   const { signOut, status, user } = useAuth();
   const { status: lockStatus } = useAppLock();
   const userId = user?.id;
@@ -60,8 +59,8 @@ export default function SetupLayout() {
         if (active) {
           setProfileState({
             hasCurrentLegalAcceptance,
+            pathname,
             profile,
-            screen: currentScreen,
             status: 'ready',
             userId,
           });
@@ -72,7 +71,7 @@ export default function SetupLayout() {
           setProfileState({
             error:
               'Billy could not verify your setup step. Check your connection and try again.',
-            screen: currentScreen,
+            pathname,
             status: 'error',
             userId,
           });
@@ -82,7 +81,7 @@ export default function SetupLayout() {
     return () => {
       active = false;
     };
-  }, [currentScreen, lockStatus, retryKey, status, userId]);
+  }, [lockStatus, pathname, retryKey, status, userId]);
 
   if (status === 'loading') {
     return (
@@ -116,7 +115,7 @@ export default function SetupLayout() {
     !userId ||
     profileState.status === 'idle' ||
     profileState.userId !== userId ||
-    profileState.screen !== currentScreen
+    profileState.pathname !== pathname
   ) {
     return (
       <AppGateScreen
@@ -147,11 +146,11 @@ export default function SetupLayout() {
   }
 
   const destination = setupDestination(profileState.profile);
-  const expectedScreen = destination.split('/').at(-1);
+  const expectedPathname = `/${destination.split('/').at(-1)}`;
 
   if (
     destination === '/(app)/home' ||
-    (currentScreen && currentScreen !== expectedScreen)
+    pathname !== expectedPathname
   ) {
     return <Redirect href={destination} />;
   }
