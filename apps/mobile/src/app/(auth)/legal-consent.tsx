@@ -8,7 +8,10 @@ import { AppButton } from '@/components/ui/button';
 import { AuthShell } from '@/components/ui/auth-shell';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { legalConfig } from '@/config/legal';
-import { acceptCurrentLegalDocuments } from '@/features/auth/auth-api';
+import {
+  acceptCurrentLegalDocuments,
+  getMyAccountState,
+} from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { friendlyAuthError } from '@/features/auth/form-utils';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -35,7 +38,18 @@ export default function LegalConsentScreen() {
     setFeedback('');
     try {
       await acceptCurrentLegalDocuments();
-      router.replace('/');
+      const { profile } = await getMyAccountState();
+      const step = profile?.onboarding_step;
+
+      if (!profile || step === 'profile') {
+        router.replace('/(setup)/profile');
+      } else if (step === 'pin') {
+        router.replace('/(setup)/pin');
+      } else if (step === 'biometrics') {
+        router.replace('/(setup)/biometrics');
+      } else {
+        router.replace('/(app)/home');
+      }
     } catch (error) {
       setFeedback(friendlyAuthError(error));
     } finally {
