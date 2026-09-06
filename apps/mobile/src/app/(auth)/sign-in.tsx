@@ -9,6 +9,7 @@ import { TextField } from '@/components/ui/text-field';
 import { friendlyAuthError, normalizeEmail, validateEmail } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
 import { SocialAuthButtons } from '@/features/auth/social-auth-buttons';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -51,14 +52,14 @@ export default function SignInScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/(auth)/sign-up')}>
+            onPress={() => replaceFlowRoute('/(auth)/sign-up', '/sign-up')}>
             <Text style={[styles.footerLink, { color: theme.colors.brand }]}>
               Create an account
             </Text>
           </Pressable>
         </View>
       }
-      onBack={() => router.replace('/welcome')}
+      onBack={() => replaceFlowRoute('/welcome', '/welcome')}
       subtitle="Welcome back. Your wallet and services are right where you left them."
       title="Sign in to Billy">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
@@ -104,7 +105,7 @@ export default function SignInScreen() {
         <Pressable
           accessibilityRole="button"
           hitSlop={8}
-          onPress={() => router.push('/(auth)/forgot-password')}>
+          onPress={() => replaceFlowRoute('/(auth)/forgot-password', '/forgot-password')}>
           <Text style={styles.forgot}>Forgot password?</Text>
         </Pressable>
       </View>

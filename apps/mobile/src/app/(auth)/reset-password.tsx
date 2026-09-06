@@ -6,6 +6,7 @@ import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { TextField } from '@/components/ui/text-field';
 import { friendlyAuthError, validatePassword } from '@/features/auth/form-utils';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { supabase } from '@/lib/supabase/client';
 
 export default function ResetPasswordScreen() {
@@ -69,7 +70,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <AuthShell
-      onBack={() => router.replace('/(auth)/sign-in')}
+      onBack={() => replaceFlowRoute('/(auth)/sign-in', '/sign-in')}
       subtitle="Choose something unique that you don’t use for another account."
       title="Create a new password">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}

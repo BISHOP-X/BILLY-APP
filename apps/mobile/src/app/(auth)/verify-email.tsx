@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Linking from 'expo-linking';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -9,6 +9,7 @@ import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { friendlyAuthError } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -51,7 +52,7 @@ export default function VerifyEmailScreen() {
 
   return (
     <AuthShell
-      onBack={() => router.replace('/(auth)/sign-up')}
+      onBack={() => replaceFlowRoute('/(auth)/sign-up', '/sign-up')}
       subtitle="Tap the secure link in your email. It will return to Billy and finish verification."
       title="Check your inbox">
       <View style={[styles.mailCircle, { backgroundColor: theme.colors.brandMist }]}>
@@ -79,7 +80,7 @@ export default function VerifyEmailScreen() {
       <AppButton
         icon="log-in-outline"
         label="Continue to sign in"
-        onPress={() => router.replace('/(auth)/sign-in')}
+        onPress={() => replaceFlowRoute('/(auth)/sign-in', '/sign-in')}
         variant="secondary"
       />
 

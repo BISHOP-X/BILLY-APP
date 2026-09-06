@@ -105,7 +105,11 @@ export function AuthShell({
             </View>
           </FadeSlide>
 
-          {footer ? <FadeSlide delay={160}>{footer}</FadeSlide> : null}
+          {footer ? (
+            <FadeSlide delay={160} style={styles.footerWrap}>
+              {footer}
+            </FadeSlide>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -115,6 +119,10 @@ export function AuthShell({
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
+  },
+  footerWrap: {
+    marginTop: spacing.lg,
+    width: '100%',
   },
   safeArea: {
     backgroundColor: '#07160D',

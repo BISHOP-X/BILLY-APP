@@ -16,7 +16,7 @@ import {
   validatePhoneNumber,
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
-import { replaceSetupRoute } from '@/features/auth/setup-navigation';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -81,7 +81,7 @@ export default function ProfileSetupScreen() {
       if (profile.onboarding_step === 'profile') {
         await updateOnboardingStep('pin');
       }
-      replaceSetupRoute('/(setup)/pin', '/pin');
+      replaceFlowRoute('/(setup)/pin', '/pin');
     } catch (error) {
       setFeedback(friendlyAuthError(error));
     } finally {
@@ -112,7 +112,7 @@ export default function ProfileSetupScreen() {
       onBack={() => {
         setLoading(true);
         void signOut()
-          .then(() => replaceSetupRoute('/welcome', '/welcome'))
+          .then(() => replaceFlowRoute('/welcome', '/welcome'))
           .catch((error) => {
             setFeedback(friendlyAuthError(error));
             setLoading(false);

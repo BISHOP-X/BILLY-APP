@@ -1,5 +1,6 @@
 :root {
-  color-scheme: light dark;
+  background: #07160d;
+  color-scheme: dark;
   --font-display:
     Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
     Segoe UI Symbol, Noto Color Emoji;
@@ -23,14 +24,14 @@ body,
 }
 
 html {
-  background: #f6f8f7;
+  background: #07160d;
   overscroll-behavior: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
 
 body {
-  background: #f6f8f7;
+  background: #07160d;
   overflow: hidden;
 }
 
@@ -73,13 +74,6 @@ a {
 :focus-visible {
   outline: 3px solid #45b979;
   outline-offset: 3px;
-}
-
-@media (prefers-color-scheme: dark) {
-  html,
-  body {
-    background: #0c1711;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,7 +1,14 @@
 import { type Href, router } from 'expo-router';
 import { Platform } from 'react-native';
 
-type SetupWebPath = '/biometrics' | '/pin' | '/profile' | '/welcome';
+type FlowWebPath =
+  | '/biometrics'
+  | '/forgot-password'
+  | '/pin'
+  | '/profile'
+  | '/sign-in'
+  | '/sign-up'
+  | '/welcome';
 
 /**
  * Replace the current onboarding page without depending on browser history.
@@ -9,7 +16,7 @@ type SetupWebPath = '/biometrics' | '/pin' | '/profile' | '/welcome';
  * async setup mutation re-renders its guard, so web uses a clean document
  * replacement while Android and iOS keep the native stack transition.
  */
-export function replaceSetupRoute(nativeHref: Href, webPath: SetupWebPath) {
+export function replaceFlowRoute(nativeHref: Href, webPath: FlowWebPath) {
   if (Platform.OS === 'web' && typeof globalThis.location !== 'undefined') {
     globalThis.location.replace(webPath);
     return;

@@ -26,6 +26,9 @@ const metadata = `${headMarker}
     <link rel="manifest" href="/site.webmanifest" />`;
 
 const bootstrapStyles = `    <style id="billy-bootstrap-styles">
+      html, body, #root {
+        background: #07160d;
+      }
       #billy-bootstrap {
         align-items: center;
         background:
@@ -40,7 +43,7 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
         opacity: 1;
         pointer-events: none;
         position: fixed;
-        transition: opacity 220ms ease;
+        transition: opacity 120ms ease;
         z-index: 9999;
       }
       #billy-bootstrap img {

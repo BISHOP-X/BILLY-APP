@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +7,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { TextField } from '@/components/ui/text-field';
 import { friendlyAuthError, normalizeEmail, validateEmail } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -39,7 +39,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <AuthShell
-      onBack={() => router.replace('/(auth)/sign-in')}
+      onBack={() => replaceFlowRoute('/(auth)/sign-in', '/sign-in')}
       subtitle="We’ll send a secure reset link to the email connected to your Billy account."
       title="Reset your password">
       {sent ? (
@@ -53,7 +53,10 @@ export default function ForgotPasswordScreen() {
             message={`If an account exists for ${normalizeEmail(email)}, a reset link is on the way.`}
             tone="success"
           />
-          <AppButton label="Back to sign in" onPress={() => router.replace('/(auth)/sign-in')} />
+          <AppButton
+            label="Back to sign in"
+            onPress={() => replaceFlowRoute('/(auth)/sign-in', '/sign-in')}
+          />
         </>
       ) : (
         <>

@@ -14,6 +14,7 @@ import {
 } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { friendlyAuthError } from '@/features/auth/form-utils';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -42,11 +43,11 @@ export default function LegalConsentScreen() {
       const step = profile?.onboarding_step;
 
       if (!profile || step === 'profile') {
-        router.replace('/(setup)/profile');
+        replaceFlowRoute('/(setup)/profile', '/profile');
       } else if (step === 'pin') {
-        router.replace('/(setup)/pin');
+        replaceFlowRoute('/(setup)/pin', '/pin');
       } else if (step === 'biometrics') {
-        router.replace('/(setup)/biometrics');
+        replaceFlowRoute('/(setup)/biometrics', '/biometrics');
       } else {
         router.replace('/(app)/home');
       }
@@ -64,7 +65,9 @@ export default function LegalConsentScreen() {
         <AppButton
           label="Use a different account"
           onPress={() => {
-            void signOut().finally(() => router.replace('/(auth)/sign-in'));
+            void signOut().finally(() =>
+              replaceFlowRoute('/(auth)/sign-in', '/sign-in'),
+            );
           }}
           variant="ghost"
         />
@@ -73,7 +76,7 @@ export default function LegalConsentScreen() {
       title="Your agreement">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
 
-      <View style={[styles.documentCard, { borderColor: theme.colors.border }]}>
+      <View style={[styles.documentCard, { borderColor: '#C9D4CD' }]}>
         <DocumentLink
           label="Terms of service"
           onPress={() => void WebBrowser.openBrowserAsync(legalConfig.termsUrl)}
@@ -104,7 +107,7 @@ export default function LegalConsentScreen() {
           ]}>
           {accepted ? <Ionicons color="#FFFFFF" name="checkmark" size={17} /> : null}
         </View>
-        <Text style={[styles.acceptanceText, { color: theme.colors.text }]}>
+        <Text style={[styles.acceptanceText, { color: '#18211B' }]}>
           I have read and agree to Billy&apos;s Terms of Service and Privacy Policy.
         </Text>
       </Pressable>
@@ -132,14 +135,14 @@ function DocumentLink({
   const theme = useBillyTheme();
   return (
     <Pressable accessibilityRole="link" onPress={onPress} style={styles.documentRow}>
-      <View style={[styles.documentIcon, { backgroundColor: theme.colors.brandMist }]}>
+      <View style={[styles.documentIcon, { backgroundColor: '#E1F3E8' }]}>
         <Ionicons color={theme.colors.brand} name="document-text-outline" size={19} />
       </View>
       <View style={styles.documentCopy}>
-        <Text style={[styles.documentLabel, { color: theme.colors.text }]}>{label}</Text>
-        <Text style={[styles.documentVersion, { color: theme.colors.textMuted }]}>Version {version}</Text>
+        <Text style={[styles.documentLabel, { color: '#18211B' }]}>{label}</Text>
+        <Text style={[styles.documentVersion, { color: '#66736B' }]}>Version {version}</Text>
       </View>
-      <Ionicons color={theme.colors.textSoft} name="open-outline" size={18} />
+      <Ionicons color="#728078" name="open-outline" size={18} />
     </Pressable>
   );
 }

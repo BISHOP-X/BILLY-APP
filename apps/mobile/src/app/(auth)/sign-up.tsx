@@ -17,6 +17,7 @@ import {
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
 import { SocialAuthButtons } from '@/features/auth/social-auth-buttons';
+import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -82,7 +83,7 @@ export default function SignUpScreen() {
       });
 
       if (result.session) {
-        router.replace('/(setup)/profile');
+        replaceFlowRoute('/(setup)/profile', '/profile');
       } else {
         router.replace({
           pathname: '/(auth)/verify-email',
@@ -106,12 +107,12 @@ export default function SignUpScreen() {
           </Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/(auth)/sign-in')}>
+            onPress={() => replaceFlowRoute('/(auth)/sign-in', '/sign-in')}>
             <Text style={[styles.footerLink, { color: theme.colors.brand }]}>Sign in</Text>
           </Pressable>
         </View>
       }
-      onBack={() => router.replace('/welcome')}
+      onBack={() => replaceFlowRoute('/welcome', '/welcome')}
       subtitle="A few details and you’ll be ready to experience Billy."
       title="Create your account">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}

@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BillyLogo } from '@/components/ui/billy-logo';
+import { AppBootScreen } from '@/components/ui/app-boot-screen';
 import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide } from '@/components/ui/motion';
@@ -28,6 +29,10 @@ export function AppGateScreen({
 }: AppGateScreenProps) {
   const theme = useBillyTheme();
   const insets = useSafeAreaInsets();
+
+  if (busy && !error) {
+    return <AppBootScreen />;
+  }
 
   return (
     <View

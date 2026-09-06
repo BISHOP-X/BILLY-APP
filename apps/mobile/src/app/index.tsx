@@ -1,7 +1,8 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { AppBootScreen } from '@/components/ui/app-boot-screen';
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
@@ -102,29 +103,10 @@ export default function EntryScreen() {
     );
   }
 
-  return (
-    <View style={[styles.container, { backgroundColor: theme.colors.brandDeep }]}>
-      <BillyLogo size={228} variant="wordmark" />
-      <ActivityIndicator color="#FFFFFF" size="small" />
-      <Text style={styles.loadingText}>Preparing Billy…</Text>
-    </View>
-  );
+  return <AppBootScreen />;
 }
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.lg,
-    justifyContent: 'center',
-  },
-  loadingText: {
-    color: 'rgba(255,255,255,0.78)',
-    fontFamily: typography.familyRounded,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
   errorContainer: {
     alignItems: 'center',
     flex: 1,
