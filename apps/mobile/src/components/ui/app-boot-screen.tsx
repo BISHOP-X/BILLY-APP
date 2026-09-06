@@ -3,14 +3,22 @@ import { StyleSheet, Text, View } from 'react-native';
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { spacing, typography } from '@/theme/tokens';
 
-export function AppBootScreen() {
+type AppBootScreenProps = {
+  accessibilityLabel?: string;
+  message?: string;
+};
+
+export function AppBootScreen({
+  accessibilityLabel = 'Getting Billy ready',
+  message = 'Getting Billy ready',
+}: AppBootScreenProps) {
   return (
     <View
-      accessibilityLabel="Opening Billy"
+      accessibilityLabel={accessibilityLabel}
       style={styles.screen}
       testID="app-boot-screen">
       <BillyLogo size={164} tintColor="#F5FAF7" variant="wordmark" />
-      <Text style={styles.label}>Opening your Billy space</Text>
+      <Text style={styles.label}>{message}</Text>
     </View>
   );
 }

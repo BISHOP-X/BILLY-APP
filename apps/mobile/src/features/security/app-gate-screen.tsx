@@ -31,7 +31,12 @@ export function AppGateScreen({
   const insets = useSafeAreaInsets();
 
   if (busy && !error) {
-    return <AppBootScreen />;
+    return (
+      <AppBootScreen
+        accessibilityLabel={`${title}. ${subtitle}`}
+        message={title}
+      />
+    );
   }
 
   return (
