@@ -1,7 +1,7 @@
 import { type Href, router } from 'expo-router';
 import { Platform } from 'react-native';
 
-type FlowWebPath =
+type FlowWebBasePath =
   | '/biometrics'
   | '/forgot-password'
   | '/pin'
@@ -9,6 +9,8 @@ type FlowWebPath =
   | '/sign-in'
   | '/sign-up'
   | '/welcome';
+
+type FlowWebPath = FlowWebBasePath | `${FlowWebBasePath}?${string}`;
 
 /**
  * Replace the current onboarding page without depending on browser history.

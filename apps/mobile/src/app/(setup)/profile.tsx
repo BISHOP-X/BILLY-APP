@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -22,7 +23,9 @@ import { radii, spacing, typography } from '@/theme/tokens';
 
 export default function ProfileSetupScreen() {
   const theme = useBillyTheme();
+  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { signOut, user } = useAuth();
+  const isReviewingFromPin = returnTo === 'pin';
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -110,6 +113,10 @@ export default function ProfileSetupScreen() {
     <SetupShell
       eyebrow="MAKE IT YOURS"
       onBack={() => {
+        if (isReviewingFromPin) {
+          replaceFlowRoute('/(setup)/pin', '/pin');
+          return;
+        }
         setLoading(true);
         void signOut()
           .then(() => replaceFlowRoute('/welcome', '/welcome'))
@@ -119,8 +126,12 @@ export default function ProfileSetupScreen() {
           });
       }}
       step={1}
-      subtitle="These details help us personalise your experience. You can update them later."
-      title="Tell us about you">
+      subtitle={
+        isReviewingFromPin
+          ? 'Confirm your saved details or make any changes before creating your PIN.'
+          : 'These details help us personalise your experience. You can update them later.'
+      }
+      title={isReviewingFromPin ? 'Review your details' : 'Tell us about you'}>
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
       <View style={[styles.avatar, { backgroundColor: theme.colors.brandMist }]}>
         <Text accessible={false} style={styles.avatarEmoji}>

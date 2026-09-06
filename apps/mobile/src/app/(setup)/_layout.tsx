@@ -1,10 +1,12 @@
 import { Redirect, Stack, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import {
   canVisitSetupPath,
+  resolveSetupPathname,
   setupDestinationForStep,
 } from '@/features/auth/onboarding-routing';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
@@ -24,6 +26,12 @@ type ProfileState =
 
 export default function SetupLayout() {
   const pathname = usePathname();
+  const activePathname = resolveSetupPathname(
+    pathname,
+    Platform.OS === 'web' && typeof globalThis.location !== 'undefined'
+      ? globalThis.location.pathname
+      : undefined,
+  );
   const { signOut, status, user } = useAuth();
   const { status: lockStatus } = useAppLock();
   const userId = user?.id;
@@ -50,7 +58,7 @@ export default function SetupLayout() {
         if (active) {
           setProfileState({
             hasCurrentLegalAcceptance,
-            pathname,
+            pathname: activePathname,
             profile,
             status: 'ready',
             userId,
@@ -62,7 +70,7 @@ export default function SetupLayout() {
           setProfileState({
             error:
               'Billy could not verify your setup step. Check your connection and try again.',
-            pathname,
+            pathname: activePathname,
             status: 'error',
             userId,
           });
@@ -72,7 +80,7 @@ export default function SetupLayout() {
     return () => {
       active = false;
     };
-  }, [lockStatus, pathname, retryKey, status, userId]);
+  }, [activePathname, lockStatus, retryKey, status, userId]);
 
   if (status === 'loading') {
     return (
@@ -106,7 +114,7 @@ export default function SetupLayout() {
     !userId ||
     profileState.status === 'idle' ||
     profileState.userId !== userId ||
-    profileState.pathname !== pathname
+    profileState.pathname !== activePathname
   ) {
     return (
       <AppGateScreen
@@ -141,7 +149,7 @@ export default function SetupLayout() {
 
   if (
     destination === '/(app)/home' ||
-    !canVisitSetupPath(step, pathname)
+    !canVisitSetupPath(step, activePathname)
   ) {
     return <Redirect href={destination} />;
   }

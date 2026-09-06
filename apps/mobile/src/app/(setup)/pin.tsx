@@ -67,7 +67,10 @@ export default function PinSetupScreen() {
           setCreatedPin('');
           setFeedback('');
         } else {
-          replaceFlowRoute('/(setup)/profile', '/profile');
+          replaceFlowRoute(
+            '/(setup)/profile?returnTo=pin',
+            '/profile?returnTo=pin',
+          );
         }
       }}
       step={2}

@@ -1,5 +1,6 @@
 import {
   canVisitSetupPath,
+  resolveSetupPathname,
   setupDestinationForStep,
 } from '@/features/auth/onboarding-routing';
 
@@ -24,6 +25,13 @@ describe('onboarding routing', () => {
     expect(canVisitSetupPath('pin', '/(setup)/profile')).toBe(true);
     expect(canVisitSetupPath('pin', '/profile/')).toBe(true);
     expect(canVisitSetupPath('biometrics', '/(setup)/pin')).toBe(true);
+  });
+
+  it('prefers the browser URL while Expo Router catches up on web', () => {
+    const pathname = resolveSetupPathname('/pin', '/profile');
+
+    expect(pathname).toBe('/profile');
+    expect(canVisitSetupPath('pin', pathname)).toBe(true);
   });
 
   it('does not allow a user to skip ahead or re-enter completed setup', () => {

@@ -39,3 +39,16 @@ export function canVisitSetupPath(
 
   return requestedRank !== undefined && requestedRank <= progressRank;
 }
+
+/**
+ * A document navigation on web can update window.location before Expo Router's
+ * pathname hook catches up. Prefer the browser pathname when it is available
+ * so the setup guard does not bounce a legitimate review navigation back to
+ * the user's latest incomplete step.
+ */
+export function resolveSetupPathname(
+  routerPathname: string,
+  browserPathname?: string,
+) {
+  return browserPathname || routerPathname;
+}
