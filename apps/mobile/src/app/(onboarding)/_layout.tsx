@@ -1,5 +1,13 @@
 import { Stack } from 'expo-router';
 
 export default function OnboardingLayout() {
-  return <Stack screenOptions={{ animation: 'fade', headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        animation: 'fade',
+        contentStyle: { backgroundColor: '#07160D' },
+        headerShown: false,
+      }}
+    />
+  );
 }

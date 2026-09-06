@@ -13,7 +13,8 @@ if (!original.includes(headMarker)) {
 }
 
 const metadata = `${headMarker}
-    <meta name="theme-color" content="#0B4829" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07160D" />
     <meta name="format-detection" content="telephone=no" />
     <meta name="robots" content="noindex, nofollow" />
     <meta
@@ -43,7 +44,7 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
         opacity: 1;
         pointer-events: none;
         position: fixed;
-        transition: opacity 120ms ease;
+        transition: opacity 120ms ease, visibility 0s linear 120ms;
         z-index: 9999;
       }
       #billy-bootstrap img {
@@ -56,8 +57,9 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
         letter-spacing: 0.16em;
         text-transform: uppercase;
       }
-      #root:not(:empty) + #billy-bootstrap {
+      html[data-billy-ready="true"] #billy-bootstrap {
         opacity: 0;
+        visibility: hidden;
       }
       @media (prefers-reduced-motion: reduce) {
         #billy-bootstrap { transition: none; }
@@ -70,7 +72,11 @@ const bootstrapMarkup = `<div id="billy-bootstrap" aria-label="Opening Billy">
     </div>`;
 
 const prepared = original
-  .replace('<html lang="en">', '<html lang="en-NG">')
+  .replace(
+    '<html lang="en">',
+    '<html lang="en-NG" style="background:#07160d;color-scheme:dark">',
+  )
+  .replace('<body>', '<body style="background:#07160d;margin:0">')
   .replace(
     '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />',

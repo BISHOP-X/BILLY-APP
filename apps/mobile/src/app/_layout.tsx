@@ -9,6 +9,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -24,6 +25,28 @@ import { PrivacyShield } from '@/components/ui/privacy-shield';
 import { FatalErrorScreen } from '@/components/ui/fatal-error-screen';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+const startupBackground = '#07160D';
+
+function WebBootstrapController() {
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        document.documentElement.dataset.billyReady = 'true';
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+    };
+  }, []);
+
+  return null;
+}
 
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
   return <FatalErrorScreen onRetry={retry} />;
@@ -57,6 +80,7 @@ function RootNavigator() {
   return (
     <>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
+      <WebBootstrapController />
       <SplashController />
       {mustUnlock ? (
         <Redirect href="/unlock" />
@@ -76,7 +100,8 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView
+      style={{ backgroundColor: startupBackground, flex: 1 }}>
       <SafeAreaProvider>
         <AppProviders>
           <AuthProvider>

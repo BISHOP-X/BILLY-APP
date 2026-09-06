@@ -72,7 +72,15 @@ export default function AppLayout() {
   }, [retryKey, status, userId]);
 
   if (isBillyDevDemo) {
-    return <Stack screenOptions={{ animation: 'fade', headerShown: false }} />;
+    return (
+      <Stack
+        screenOptions={{
+          animation: 'fade',
+          contentStyle: { backgroundColor: '#07160D' },
+          headerShown: false,
+        }}
+      />
+    );
   }
 
   if (status === 'loading') {
@@ -141,5 +149,13 @@ export default function AppLayout() {
     return <Redirect href="/unlock" />;
   }
 
-  return <Stack screenOptions={{ animation: 'fade', headerShown: false }} />;
+  return (
+    <Stack
+      screenOptions={{
+        animation: 'fade',
+        contentStyle: { backgroundColor: '#07160D' },
+        headerShown: false,
+      }}
+    />
+  );
 }

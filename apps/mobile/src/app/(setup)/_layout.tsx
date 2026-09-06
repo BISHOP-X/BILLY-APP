@@ -150,7 +150,7 @@ export default function SetupLayout() {
     <Stack
       screenOptions={{
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: 'transparent' },
+        contentStyle: { backgroundColor: '#07160D' },
         gestureEnabled: false,
         headerShown: false,
       }}
