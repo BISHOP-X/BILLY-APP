@@ -69,39 +69,8 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
 
 const bootstrapMarkup = `<div id="billy-bootstrap" aria-label="Getting Billy ready">
       <img alt="Billy" src="${logoSource}" />
-      <span id="billy-bootstrap-label">Getting Billy ready</span>
-    </div>
-    <script id="billy-bootstrap-copy">
-      (() => {
-        const path = window.location.pathname;
-        const accessPaths = new Set([
-          '/forgot-password',
-          '/reset-password',
-          '/sign-in',
-          '/sign-up',
-          '/verify-email',
-        ]);
-        const setupPaths = new Set([
-          '/biometrics',
-          '/legal-consent',
-          '/pin',
-          '/profile',
-        ]);
-        const message = path.startsWith('/auth/')
-          ? 'Finishing secure sign-in'
-          : accessPaths.has(path)
-            ? 'Preparing secure access'
-            : setupPaths.has(path)
-              ? 'Preparing account setup'
-              : path === '/' || path === '/welcome'
-                ? 'Getting Billy ready'
-                : 'Opening your Billy space';
-        const bootstrap = document.getElementById('billy-bootstrap');
-        const label = document.getElementById('billy-bootstrap-label');
-        if (bootstrap) bootstrap.setAttribute('aria-label', message);
-        if (label) label.textContent = message;
-      })();
-    </script>`;
+      <span>Getting Billy ready</span>
+    </div>`;
 
 const prepared = original
   .replace(
