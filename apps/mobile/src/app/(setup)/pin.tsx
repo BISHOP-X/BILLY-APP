@@ -1,12 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Platform, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { PinEntry } from '@/components/ui/pin-entry';
 import { SetupShell } from '@/components/ui/setup-shell';
+import { ProfileDetailsForm } from '@/features/auth/components/profile-details-form';
 import { friendlyAuthError } from '@/features/auth/form-utils';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -20,6 +21,7 @@ export default function PinSetupScreen() {
   const [createdPin, setCreatedPin] = useState('');
   const [feedback, setFeedback] = useState('');
   const [loading, setLoading] = useState(false);
+  const [reviewingProfile, setReviewingProfile] = useState(false);
 
   async function continueFlow() {
     setFeedback('');
@@ -57,6 +59,22 @@ export default function PinSetupScreen() {
     }
   }
 
+  if (reviewingProfile) {
+    return (
+      <SetupShell
+        eyebrow="MAKE IT YOURS"
+        onBack={() => setReviewingProfile(false)}
+        step={1}
+        subtitle="Confirm your saved details or make any changes before creating your PIN."
+        title="Review your details">
+        <ProfileDetailsForm
+          onSaved={() => setReviewingProfile(false)}
+          submitLabel="Save and return to PIN"
+        />
+      </SetupShell>
+    );
+  }
+
   return (
     <SetupShell
       eyebrow="TRANSACTION SECURITY"
@@ -67,10 +85,9 @@ export default function PinSetupScreen() {
           setCreatedPin('');
           setFeedback('');
         } else {
-          replaceFlowRoute(
-            '/(setup)/profile?returnTo=pin',
-            '/profile?returnTo=pin',
-          );
+          Keyboard.dismiss();
+          setFeedback('');
+          setReviewingProfile(true);
         }
       }}
       step={2}
