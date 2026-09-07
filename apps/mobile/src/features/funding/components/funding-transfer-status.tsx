@@ -24,12 +24,12 @@ export function FundingTransferStatus({
   const received = status === 'received';
   const paused = status === 'paused';
   const title = received
-    ? 'Your wallet balance changed'
+    ? 'Transfer received'
     : paused
       ? 'Automatic checks paused'
       : 'Waiting for your transfer';
   const message = received
-    ? 'Review your refreshed dashboard and activity to confirm the transfer details.'
+    ? 'Your transfer is now confirmed in Billy. Open the dashboard to review the amount and updated balance.'
     : paused
       ? 'Your account remains active. Check again here, or refresh the dashboard whenever you are ready.'
       : 'Billy checks your wallet every few seconds while this screen is open. We will also check when you return to the app.';

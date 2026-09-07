@@ -33,7 +33,7 @@ describe('useFundingTransferMonitor', () => {
     const onRefresh = jest.fn(() => Promise.resolve());
     const { result, unmount } = await renderHook(() =>
       useFundingTransferMonitor({
-        currentBalanceMinor: 100_000,
+        currentFundingTransactionId: null,
         isRefreshing: false,
         onRefresh,
       }),
@@ -60,22 +60,22 @@ describe('useFundingTransferMonitor', () => {
     await unmount();
   });
 
-  it('stops polling after the wallet balance increases', async () => {
+  it('stops polling only after a new successful funding transaction appears', async () => {
     const onRefresh = jest.fn(() => Promise.resolve());
     const { rerender, result, unmount } = await renderHook<
       ReturnType<typeof useFundingTransferMonitor>,
-      { balance: number }
+      { transactionId: string | null }
     >(
-      ({ balance }) =>
+      ({ transactionId }) =>
         useFundingTransferMonitor({
-          currentBalanceMinor: balance,
+          currentFundingTransactionId: transactionId,
           isRefreshing: false,
           onRefresh,
         }),
-      { initialProps: { balance: 100_000 } },
+      { initialProps: { transactionId: 'existing-funding-transaction' } },
     );
 
-    await rerender({ balance: 125_000 });
+    await rerender({ transactionId: 'new-funding-transaction' });
     expect(result.current.status).toBe('received');
 
     await act(() => {
@@ -98,7 +98,7 @@ describe('useFundingTransferMonitor', () => {
 
     const { result, unmount } = await renderHook(() =>
       useFundingTransferMonitor({
-        currentBalanceMinor: 100_000,
+        currentFundingTransactionId: null,
         isRefreshing: false,
         onRefresh,
       }),

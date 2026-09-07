@@ -2,20 +2,20 @@ import { FundingTransferStatus } from './funding-transfer-status';
 import { useFundingTransferMonitor } from '../use-funding-transfer-monitor';
 
 type FundingTransferWatcherProps = {
-  currentBalanceMinor: number | null;
+  currentFundingTransactionId: string | null;
   isRefreshing: boolean;
   onOpenDashboard: () => void;
   onRefresh: () => Promise<unknown> | void;
 };
 
 export function FundingTransferWatcher({
-  currentBalanceMinor,
+  currentFundingTransactionId,
   isRefreshing,
   onOpenDashboard,
   onRefresh,
 }: FundingTransferWatcherProps) {
   const monitor = useFundingTransferMonitor({
-    currentBalanceMinor,
+    currentFundingTransactionId,
     isRefreshing,
     onRefresh,
   });

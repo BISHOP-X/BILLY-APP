@@ -391,6 +391,11 @@ verify_jwt = true
 [functions.account-deletion]
 verify_jwt = true
 
+# PocketFi cannot present a Billy user JWT. This endpoint is public at the
+# gateway and authorizes every request with PocketFi's raw-body HMAC instead.
+[functions.pocketfi-webhook]
+verify_jwt = false
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

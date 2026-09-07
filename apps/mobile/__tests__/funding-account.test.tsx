@@ -113,6 +113,7 @@ function arrange({
   } as never);
   jest.mocked(useDashboardQuery).mockReturnValue({
     data: {
+      activity: [],
       wallet: {
         availableMinor: 240_000,
       },

@@ -110,6 +110,7 @@ export function AppScreen({
         onScroll={(event) => {
           scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
         }}
+        scrollEventThrottle={16}
         onTouchCancel={webRefreshEnabled ? finishWebPull : undefined}
         onTouchEnd={webRefreshEnabled ? finishWebPull : undefined}
         onTouchMove={webRefreshEnabled ? continueWebPull : undefined}

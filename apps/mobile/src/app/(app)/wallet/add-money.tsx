@@ -43,8 +43,10 @@ export default function AddMoneyScreen() {
   const account =
     fundingQuery.data?.account ?? createFundingAccount.data?.account ?? null;
   const readyAccount = isReadyFundingAccount(account) ? account : null;
-  const walletBalanceMinor =
-    dashboardQuery.data?.wallet?.availableMinor ?? null;
+  const latestFundingTransactionId =
+    dashboardQuery.data?.activity.find(
+      (item) => item.kind === 'wallet_funding' && item.status === 'succeeded',
+    )?.id ?? null;
   const creationPending =
     (createFundingAccount.isSuccess &&
       createFundingAccount.data.account === null &&
@@ -264,7 +266,7 @@ export default function AddMoneyScreen() {
 
           <FadeSlide delay={60}>
             <FundingTransferWatcher
-              currentBalanceMinor={walletBalanceMinor}
+              currentFundingTransactionId={latestFundingTransactionId}
               isRefreshing={dashboardQuery.isFetching}
               key={readyAccount.id}
               onOpenDashboard={openRefreshedDashboard}

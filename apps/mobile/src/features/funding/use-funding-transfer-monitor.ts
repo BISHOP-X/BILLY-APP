@@ -7,13 +7,13 @@ export const FUNDING_MAX_AUTO_REFRESHES = 12;
 export type FundingTransferMonitorStatus = 'paused' | 'received' | 'waiting';
 
 type FundingTransferMonitorInput = {
-  currentBalanceMinor: number | null;
+  currentFundingTransactionId: string | null;
   isRefreshing: boolean;
   onRefresh: () => Promise<unknown> | void;
 };
 
 export function useFundingTransferMonitor({
-  currentBalanceMinor,
+  currentFundingTransactionId,
   isRefreshing,
   onRefresh,
 }: FundingTransferMonitorInput) {
@@ -21,17 +21,15 @@ export function useFundingTransferMonitor({
     AppState.currentState ?? 'active',
   );
   const [attempts, setAttempts] = useState(0);
-  const [baselineMinor, setBaselineMinor] = useState(currentBalanceMinor);
+  const [baselineTransactionId] = useState(currentFundingTransactionId);
   const refresh = useRef(onRefresh);
 
   useEffect(() => {
     refresh.current = onRefresh;
   }, [onRefresh]);
 
-  const received =
-    baselineMinor !== null &&
-    currentBalanceMinor !== null &&
-    currentBalanceMinor > baselineMinor;
+  const received = currentFundingTransactionId !== null &&
+    currentFundingTransactionId !== baselineTransactionId;
   const paused =
     !received && attempts >= FUNDING_MAX_AUTO_REFRESHES;
 
@@ -46,9 +44,6 @@ export function useFundingTransferMonitor({
     }
 
     const timer = setTimeout(() => {
-      if (baselineMinor === null && currentBalanceMinor !== null) {
-        setBaselineMinor(currentBalanceMinor);
-      }
       setAttempts((value) => Math.min(value + 1, FUNDING_MAX_AUTO_REFRESHES));
       void Promise.resolve(refresh.current()).catch(() => undefined);
     }, FUNDING_REFRESH_INTERVAL_MS);
@@ -57,8 +52,7 @@ export function useFundingTransferMonitor({
   }, [
     appState,
     attempts,
-    baselineMinor,
-    currentBalanceMinor,
+    currentFundingTransactionId,
     isRefreshing,
     paused,
     received,
@@ -69,9 +63,6 @@ export function useFundingTransferMonitor({
     const subscription = AppState.addEventListener('change', (nextState) => {
       setAppState(nextState);
       if (previousState !== 'active' && nextState === 'active') {
-        if (baselineMinor === null && currentBalanceMinor !== null) {
-          setBaselineMinor(currentBalanceMinor);
-        }
         setAttempts(0);
         void Promise.resolve(refresh.current()).catch(() => undefined);
       }
@@ -79,12 +70,9 @@ export function useFundingTransferMonitor({
     });
 
     return () => subscription.remove();
-  }, [baselineMinor, currentBalanceMinor]);
+  }, []);
 
   function checkAgain() {
-    if (baselineMinor === null && currentBalanceMinor !== null) {
-      setBaselineMinor(currentBalanceMinor);
-    }
     setAttempts(0);
     void Promise.resolve(refresh.current()).catch(() => undefined);
   }

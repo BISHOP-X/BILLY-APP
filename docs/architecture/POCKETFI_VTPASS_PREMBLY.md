@@ -44,9 +44,14 @@ Still required before live activation:
 - Billy PocketFi token and business ID.
 - Provider confirmation of the current production base URL and response
   contract.
-- A documented, cryptographically verifiable transfer notification or an
-  authoritative requery contract. Until that exists, Billy does not expose a
-  live funding webhook and cannot credit a wallet from an unverified callback.
+- Provider confirmation that production transfer notifications use the
+  documented raw-body HMAC SHA-512 signature and identify a terminal status.
+  Billy now has a fail-closed webhook implementation, but it remains disabled
+  until that contract and Billy's webhook secret are confirmed. Unsigned,
+  statusless, conflicting, test-account, and unknown-account callbacks cannot
+  credit a wallet.
+- Confirmation of the commercial fee policy. The current ledger credits the
+  received transfer amount in full and records no customer fee.
 - Explicit reconciliation of tester-only funding rows before a user is
   activated for live account provisioning. Test rows are never silently
   promoted.
@@ -161,6 +166,8 @@ Still required before live activation:
   handling, inspected only where the documentation was incomplete.
 - Billy-owned adapter and contract tests in
   `supabase/functions/_shared/providers` and `supabase/functions/tests`.
+- Billy activation and rollback procedure in
+  `docs/runbooks/POCKETFI_ACTIVATION.md`.
 
 Provider dashboards, current provider documentation, and explicit provider
 support confirmations supersede this record when Billy activates live mode.
