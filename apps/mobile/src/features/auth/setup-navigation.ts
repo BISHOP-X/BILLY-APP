@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 type FlowWebBasePath =
   | '/biometrics'
   | '/forgot-password'
+  | '/home'
   | '/pin'
   | '/profile'
   | '/sign-in'

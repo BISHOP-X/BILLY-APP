@@ -53,7 +53,10 @@ const slides: Slide[] = [
     id: 'security',
     eyebrow: 'SECURITY, YOUR WAY',
     title: 'Protected at every step.',
-    description: 'Secure access, transaction PINs, and biometric unlock when you choose.',
+    description:
+      Platform.OS === 'web'
+        ? 'Secure access and transaction PIN protection when it matters.'
+        : 'Secure access, transaction PINs, and biometric unlock when you choose.',
     visual: 'security',
   },
 ];
@@ -129,12 +132,14 @@ function SlideVisual({ scale, type }: { scale: number; type: Slide['visual'] }) 
         </View>
         <View style={[styles.securityPill, styles.pinPill]}>
           <Ionicons color="#146237" name="keypad-outline" size={18} />
-          <Text style={styles.securityPillText}>6-digit PIN</Text>
+          <Text style={styles.securityPillText}>4-digit PIN</Text>
         </View>
-        <View style={[styles.securityPill, styles.bioPill]}>
-          <Ionicons color="#146237" name="finger-print-outline" size={19} />
-          <Text style={styles.securityPillText}>Biometrics</Text>
-        </View>
+        {Platform.OS !== 'web' ? (
+          <View style={[styles.securityPill, styles.bioPill]}>
+            <Ionicons color="#146237" name="finger-print-outline" size={19} />
+            <Text style={styles.securityPillText}>Biometrics</Text>
+          </View>
+        ) : null}
       </View>
     );
   }

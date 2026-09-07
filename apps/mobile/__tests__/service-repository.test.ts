@@ -136,7 +136,7 @@ describe('demo service repository', () => {
     );
     const invalidPinRequest = repository.purchaseBill({
       idempotencyKey: 'bill-test-operation-0003',
-      pin: '1234',
+      pin: '123',
       quoteId: quote.id,
     });
     const invalidPin = expect(invalidPinRequest).rejects.toMatchObject({

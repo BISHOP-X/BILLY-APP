@@ -37,7 +37,7 @@ export const PinEntry = forwardRef<PinEntryHandle, PinEntryProps>(function PinEn
 
   return (
     <Pressable
-      accessibilityHint="Enter a six digit transaction PIN"
+      accessibilityHint={`Enter a ${length} digit transaction PIN`}
       accessibilityLabel={`Transaction PIN, ${value.length} of ${length} digits entered`}
       accessibilityState={{ disabled }}
       disabled={disabled}

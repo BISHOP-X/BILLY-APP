@@ -124,7 +124,11 @@ export default function AccountScreen() {
           icon="lock-closed-outline"
           label="Security"
           onPress={() => router.push('/(app)/security')}
-          subtitle="PIN, biometrics, and protected access"
+          subtitle={
+            Platform.OS === 'web'
+              ? 'PIN and protected access'
+              : 'PIN, biometrics, and protected access'
+          }
         />
         <AccountRow
           icon="notifications-outline"

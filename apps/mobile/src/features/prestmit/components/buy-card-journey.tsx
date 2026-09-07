@@ -7,6 +7,11 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide, ScalePressable } from '@/components/ui/motion';
 import { TextField } from '@/components/ui/text-field';
 import { createBillyOperationKey } from '@/features/services/idempotency';
+import {
+  isCompleteTransactionPin,
+  normalizeTransactionPin,
+  TRANSACTION_PIN_INPUT_MAX_LENGTH,
+} from '@/features/security/transaction-pin';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -248,13 +253,12 @@ export function BuyCardJourney({
             <ReviewRow label="Total" strong value={formatMinorUnits(quote.totalMinor)} />
           </View>
           <TextField
-            error={pin && !/^\d{0,6}$/.test(pin) ? 'Use digits only.' : undefined}
             icon="keypad-outline"
             keyboardType="number-pad"
             label="Transaction PIN"
-            maxLength={6}
-            onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6 digits"
+            maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
+            onChangeText={(value) => setPin(normalizeTransactionPin(value))}
+            placeholder="4 digits"
             secureTextEntry
             value={pin}
           />
@@ -263,7 +267,7 @@ export function BuyCardJourney({
             tone="info"
           />
           <AppButton
-            disabled={pin.length !== 6}
+            disabled={!isCompleteTransactionPin(pin)}
             icon="shield-checkmark-outline"
             label="Confirm secure purchase"
             loading={purchase.isPending}

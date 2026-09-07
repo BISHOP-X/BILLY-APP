@@ -494,16 +494,16 @@ select throws_ok(
 );
 
 select throws_ok(
-  $$select public.set_transaction_pin('12345')$$,
-  '22023',
-  'The transaction PIN must contain exactly six digits.',
-  'PIN setup rejects a value that is not exactly six digits'
+    $$select public.set_transaction_pin('123456')$$,
+    '22023',
+    'The transaction PIN must contain exactly four digits.',
+    'PIN setup rejects a value that is not exactly four digits'
 );
 select throws_ok(
-  $$select public.set_transaction_pin('123456')$$,
-  '22023',
-  'Choose a less predictable transaction PIN.',
-  'PIN setup rejects a predictable six-digit value'
+  $$select public.set_transaction_pin('1234')$$,
+    '22023',
+    'Choose a less predictable transaction PIN.',
+    'PIN setup rejects a predictable four-digit value'
 );
 
 reset role;
@@ -519,19 +519,19 @@ select is(
 
 set local role authenticated;
 select lives_ok(
-  $$select public.set_transaction_pin('928375')$$,
-  'a valid six-digit PIN can be configured once'
+  $$select public.set_transaction_pin('9283')$$,
+  'a valid four-digit PIN can be configured once'
 );
 
 reset role;
 select ok(
   (
     select
-      pin_hash <> '928375'
+      pin_hash <> '9283'
       and extensions.crypt(
         encode(
           extensions.hmac(
-            '928375',
+            '9283',
             (
               select decrypted_secret
               from vault.decrypted_secrets
@@ -559,7 +559,7 @@ select ok(
 
 set local role authenticated;
 select throws_ok(
-  $$select public.set_transaction_pin('739284')$$,
+  $$select public.set_transaction_pin('7392')$$,
   '55000',
   'A transaction PIN is already configured. Use the authenticated PIN-change flow.',
   'repeated PIN setup is rejected'

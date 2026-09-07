@@ -28,6 +28,11 @@ import {
   useCryptoSubmit,
 } from '@/features/crypto/queries';
 import { cryptoRepository } from '@/features/crypto/repository';
+import {
+  isCompleteTransactionPin,
+  normalizeTransactionPin,
+  TRANSACTION_PIN_INPUT_MAX_LENGTH,
+} from '@/features/security/transaction-pin';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -605,15 +610,15 @@ export default function CryptoScreen() {
               ) : null}
               <TextField
                 inputMode="numeric"
-                label="6-digit transaction PIN"
-                maxLength={6}
-                onChangeText={(value) => setPin(value.replace(/\D/g, ''))}
-                placeholder="••••••"
+                label="Transaction PIN"
+                maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
+                onChangeText={(value) => setPin(normalizeTransactionPin(value))}
+                placeholder="4 digits"
                 secureTextEntry
                 value={pin}
               />
               <AppButton
-                disabled={pin.length !== 6}
+                disabled={!isCompleteTransactionPin(pin)}
                 label={`Confirm ${operation}`}
                 loading={busy}
                 onPress={() => void handleConfirm()}

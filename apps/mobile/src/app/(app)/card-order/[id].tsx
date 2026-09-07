@@ -23,6 +23,11 @@ import {
   formatFullDate,
   formatMinorUnits,
 } from '@/features/wallet/money';
+import {
+  isCompleteTransactionPin,
+  normalizeTransactionPin,
+  TRANSACTION_PIN_INPUT_MAX_LENGTH,
+} from '@/features/security/transaction-pin';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -236,14 +241,14 @@ export default function CardOrderScreen() {
             icon="keypad-outline"
             keyboardType="number-pad"
             label="Transaction PIN"
-            maxLength={6}
-            onChangeText={(value) => setPin(value.replace(/\D/g, '').slice(0, 6))}
-            placeholder="6 digits"
+            maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
+            onChangeText={(value) => setPin(normalizeTransactionPin(value))}
+            placeholder="4 digits"
             secureTextEntry
             value={pin}
           />
           <AppButton
-            disabled={pin.length !== 6}
+            disabled={!isCompleteTransactionPin(pin)}
             icon="lock-open-outline"
             label="Reveal card details"
             loading={revealing}

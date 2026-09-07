@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as WebBrowser from 'expo-web-browser';
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/button';
 import { AuthShell } from '@/components/ui/auth-shell';
@@ -14,6 +14,7 @@ import {
 } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { friendlyAuthError } from '@/features/auth/form-utils';
+import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -40,13 +41,15 @@ export default function LegalConsentScreen() {
     try {
       await acceptCurrentLegalDocuments();
       const { profile } = await getMyAccountState();
-      const step = profile?.onboarding_step;
+      const destination = setupDestinationForStep(profile?.onboarding_step, {
+        supportsBiometrics: Platform.OS !== 'web',
+      });
 
-      if (!profile || step === 'profile') {
+      if (destination === '/(setup)/profile') {
         replaceFlowRoute('/(setup)/profile', '/profile');
-      } else if (step === 'pin') {
+      } else if (destination === '/(setup)/pin') {
         replaceFlowRoute('/(setup)/pin', '/pin');
-      } else if (step === 'biometrics') {
+      } else if (destination === '/(setup)/biometrics') {
         replaceFlowRoute('/(setup)/biometrics', '/biometrics');
       } else {
         router.replace('/(app)/home');

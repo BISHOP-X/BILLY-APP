@@ -15,6 +15,15 @@ describe('onboarding routing', () => {
     expect(setupDestinationForStep(step)).toBe(destination);
   });
 
+  it('skips the mobile-only biometric phase on web', () => {
+    expect(
+      setupDestinationForStep('biometrics', { supportsBiometrics: false }),
+    ).toBe('/(app)/home');
+    expect(
+      setupDestinationForStep('biometrics', { supportsBiometrics: true }),
+    ).toBe('/(setup)/biometrics');
+  });
+
   it('allows a user to revisit completed setup pages', () => {
     expect(canVisitSetupPath('pin', '/profile')).toBe(true);
     expect(canVisitSetupPath('biometrics', '/profile')).toBe(true);

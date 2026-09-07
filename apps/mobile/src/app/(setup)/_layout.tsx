@@ -145,7 +145,9 @@ export default function SetupLayout() {
   }
 
   const step = profileState.profile?.onboarding_step;
-  const destination = setupDestinationForStep(step);
+  const destination = setupDestinationForStep(step, {
+    supportsBiometrics: Platform.OS !== 'web',
+  });
 
   if (
     destination === '/(app)/home' ||

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import PinSetupScreen from '@/app/(setup)/pin';
 import { getMyProfile, updateMyProfile } from '@/features/auth/auth-api';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
+import type { Profile } from '@/lib/supabase/database.types';
 
 jest.mock('@/features/auth/auth-api', () => ({
   getMyProfile: jest.fn(),
@@ -31,7 +32,7 @@ jest.mock('@/lib/supabase/client', () => ({
   },
 }));
 
-const profile = {
+const profile: Profile = {
   avatar_url: null,
   country_code: 'NG',
   created_at: '2026-09-06T00:00:00.000Z',
@@ -39,12 +40,12 @@ const profile = {
   display_name: 'Innocent Wisdom',
   first_name: 'WISDOM',
   id: 'test-user',
-  kyc_status: 'unverified',
   last_name: 'INNOCENT',
   onboarding_step: 'pin',
+  onboarding_completed_at: null,
   phone: '+2349067679407',
   preferred_currency: 'NGN',
-  transaction_pin_set_at: null,
+  profile_completed_at: '2026-09-06T00:00:00.000Z',
   updated_at: '2026-09-06T00:00:00.000Z',
 };
 

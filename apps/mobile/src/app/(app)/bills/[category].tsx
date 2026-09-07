@@ -8,7 +8,6 @@ import { AppButton } from '@/components/ui/button';
 import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide } from '@/components/ui/motion';
-import { PinEntry } from '@/components/ui/pin-entry';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
@@ -34,6 +33,11 @@ import {
 } from '@/features/services/queries';
 import { createBillyOperationKey } from '@/features/services/idempotency';
 import { isBillyDevDemo } from '@/features/main/repository';
+import {
+  isCompleteTransactionPin,
+  normalizeTransactionPin,
+  TRANSACTION_PIN_INPUT_MAX_LENGTH,
+} from '@/features/security/transaction-pin';
 import {
   formatFullDate,
   formatMinorUnits,
@@ -236,7 +240,7 @@ function BillJourney({
       !canTransact ||
       !quote ||
       !operationKey ||
-      pin.length !== 6 ||
+      !isCompleteTransactionPin(pin) ||
       purchaseGuard.current
     ) {
       return;
@@ -661,29 +665,34 @@ function BillJourney({
               </Text>
               <Text
                 style={[styles.pinSubtitle, { color: theme.colors.textMuted }]}>
-                Enter your 6-digit Billy transaction PIN. Billy support will
-                never ask you to share it.
+                Enter your Billy transaction PIN. Billy support will never ask
+                you to share it.
               </Text>
-              <PinEntry
+              <TextField
                 autoFocus
                 disabled={purchase.isPending}
-                onChange={(value) => {
+                inputMode="numeric"
+                label="Transaction PIN"
+                maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
+                onChangeText={(value) => {
                   if (purchase.isPending) return;
-                  setPin(value);
+                  setPin(normalizeTransactionPin(value));
                   purchase.reset();
                 }}
+                placeholder="4 digits"
+                secureTextEntry
                 testID="bill-transaction-pin"
                 value={pin}
               />
               {isBillyDevDemo ? (
-                <FeedbackBanner message="Development preview: use any 6-digit PIN. No live funds or provider order will move." />
+                <FeedbackBanner message="Development preview: use any 4-digit PIN. No live funds or provider order will move." />
               ) : null}
               {purchase.isError ? (
                 <FeedbackBanner message={purchase.error.message} tone="error" />
               ) : null}
             </View>
             <AppButton
-              disabled={pin.length !== 6 || purchase.isPending}
+              disabled={!isCompleteTransactionPin(pin) || purchase.isPending}
               icon="shield-checkmark-outline"
               label="Pay securely"
               loading={purchase.isPending}

@@ -36,6 +36,11 @@ import {
   useSocialBoostSubmit,
 } from '@/features/social-boost/queries';
 import { socialBoostRepository } from '@/features/social-boost/repository';
+import {
+  isCompleteTransactionPin,
+  normalizeTransactionPin,
+  TRANSACTION_PIN_INPUT_MAX_LENGTH,
+} from '@/features/security/transaction-pin';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
@@ -462,15 +467,15 @@ export default function SocialBoostScreen() {
               />
               <TextField
                 inputMode="numeric"
-                label="6-digit transaction PIN"
-                maxLength={6}
-                onChangeText={(value) => setPin(value.replace(/\D/g, ''))}
-                placeholder="••••••"
+                label="Transaction PIN"
+                maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
+                onChangeText={(value) => setPin(normalizeTransactionPin(value))}
+                placeholder="4 digits"
                 secureTextEntry
                 value={pin}
               />
               <AppButton
-                disabled={!form.target.trim() || pin.length !== 6}
+                disabled={!form.target.trim() || !isCompleteTransactionPin(pin)}
                 icon="arrow-forward"
                 label="Place order securely"
                 loading={submit.isPending}

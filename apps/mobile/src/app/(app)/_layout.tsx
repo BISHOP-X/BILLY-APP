@@ -1,8 +1,10 @@
 import { Redirect, Stack } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { isBillyDevDemo } from '@/features/main/repository';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
@@ -19,16 +21,10 @@ type ProfileState =
     };
 
 function setupDestination(profile: Profile | null) {
-  if (!profile || profile.onboarding_step === 'profile') {
-    return '/(setup)/profile' as const;
-  }
-  if (profile.onboarding_step === 'pin') {
-    return '/(setup)/pin' as const;
-  }
-  if (profile.onboarding_step === 'biometrics') {
-    return '/(setup)/biometrics' as const;
-  }
-  return null;
+  const destination = setupDestinationForStep(profile?.onboarding_step, {
+    supportsBiometrics: Platform.OS !== 'web',
+  });
+  return destination === '/(app)/home' ? null : destination;
 }
 
 export default function AppLayout() {

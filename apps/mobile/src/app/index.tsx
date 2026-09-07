@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import { AppBootScreen } from '@/components/ui/app-boot-screen';
 import { BillyLogo } from '@/components/ui/billy-logo';
@@ -8,6 +8,7 @@ import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { isBillyDevDemo } from '@/features/main/repository';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
@@ -50,11 +51,11 @@ export default function EntryScreen() {
           setDestination('/(auth)/legal-consent');
           return;
         }
-        const step = profile?.onboarding_step;
-        if (!profile || step === 'profile') setDestination('/(setup)/profile');
-        else if (step === 'pin') setDestination('/(setup)/pin');
-        else if (step === 'biometrics') setDestination('/(setup)/biometrics');
-        else setDestination('/(app)/home');
+        setDestination(
+          setupDestinationForStep(profile?.onboarding_step, {
+            supportsBiometrics: Platform.OS !== 'web',
+          }),
+        );
       } catch {
         if (active) {
           setError(

@@ -20,10 +20,13 @@ const onboardingStepRanks: Record<Exclude<OnboardingStep, 'complete'>, number> =
 
 export function setupDestinationForStep(
   step: OnboardingStep | null | undefined,
+  { supportsBiometrics = true }: { supportsBiometrics?: boolean } = {},
 ): SetupDestination {
   if (!step || step === 'profile') return '/(setup)/profile';
   if (step === 'pin') return '/(setup)/pin';
-  if (step === 'biometrics') return '/(setup)/biometrics';
+  if (step === 'biometrics') {
+    return supportsBiometrics ? '/(setup)/biometrics' : '/(app)/home';
+  }
   return '/(app)/home';
 }
 

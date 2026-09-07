@@ -17,6 +17,7 @@ import { radii, spacing, typography } from '@/theme/tokens';
 
 export default function SecurityScreen() {
   const theme = useBillyTheme();
+  const supportsBiometrics = Platform.OS === 'android' || Platform.OS === 'ios';
   const {
     disableBiometricLock,
     enableBiometricLock,
@@ -25,11 +26,16 @@ export default function SecurityScreen() {
     lockNow,
   } = useAppLock();
   const [available, setAvailable] = useState(false);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(supportsBiometrics);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let active = true;
+    if (!supportsBiometrics) {
+      return () => {
+        active = false;
+      };
+    }
     void inspectBiometricAvailability()
       .then((result) => {
         if (active) setAvailable(result.available);
@@ -43,7 +49,7 @@ export default function SecurityScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [supportsBiometrics]);
 
   async function toggleBiometric(enabled: boolean) {
     setBusy(true);
@@ -80,45 +86,47 @@ export default function SecurityScreen() {
         <FeedbackBanner message={error || initializationError || ''} tone="error" />
       ) : null}
 
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        ]}>
-        <View style={styles.setting}>
-          <View style={[styles.icon, { backgroundColor: theme.colors.brandMist }]}>
-            <Ionicons
-              accessible={false}
-              color={theme.colors.brand}
-              name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'}
-              size={23}
+      {supportsBiometrics ? (
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+          ]}>
+          <View style={styles.setting}>
+            <View style={[styles.icon, { backgroundColor: theme.colors.brandMist }]}>
+              <Ionicons
+                accessible={false}
+                color={theme.colors.brand}
+                name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print-outline'}
+                size={23}
+              />
+            </View>
+            <View style={styles.copy}>
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                Biometric app lock
+              </Text>
+              <Text style={[styles.body, { color: theme.colors.textMuted }]}>
+                Unlock an existing Billy session with device biometrics. This never replaces
+                transaction authorization.
+              </Text>
+            </View>
+            <Switch
+              accessibilityLabel="Biometric app lock"
+              accessibilityState={{ checked: isBiometricLockEnabled, disabled: busy }}
+              disabled={busy}
+              onValueChange={(enabled) => void toggleBiometric(enabled)}
+              thumbColor={
+                isBiometricLockEnabled ? theme.colors.brand : theme.colors.textSoft
+              }
+              trackColor={{
+                false: theme.colors.border,
+                true: theme.colors.brandMist,
+              }}
+              value={isBiometricLockEnabled}
             />
           </View>
-          <View style={styles.copy}>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Biometric app lock
-            </Text>
-            <Text style={[styles.body, { color: theme.colors.textMuted }]}>
-              Unlock an existing Billy session with device biometrics. This never replaces
-              transaction authorization.
-            </Text>
-          </View>
-          <Switch
-            accessibilityLabel="Biometric app lock"
-            accessibilityState={{ checked: isBiometricLockEnabled, disabled: busy }}
-            disabled={busy}
-            onValueChange={(enabled) => void toggleBiometric(enabled)}
-            thumbColor={
-              isBiometricLockEnabled ? theme.colors.brand : theme.colors.textSoft
-            }
-            trackColor={{
-              false: theme.colors.border,
-              true: theme.colors.brandMist,
-            }}
-            value={isBiometricLockEnabled}
-          />
         </View>
-      </View>
+      ) : null}
 
       <View
         style={[

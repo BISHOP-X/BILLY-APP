@@ -1,4 +1,5 @@
 import { billyDemoScenario } from '@/features/main/repository';
+import { isCompleteTransactionPin } from '@/features/security/transaction-pin';
 
 import { billCategories, findBillCategory } from './catalog';
 import {
@@ -484,10 +485,10 @@ export function createDemoServiceRepository(): BillyServiceRepository {
     },
     async purchaseBill({ idempotencyKey, pin, quoteId }) {
       await demoDelay();
-      if (!/^[0-9]{6}$/.test(pin)) {
+      if (!isCompleteTransactionPin(pin)) {
         throw new ServiceApiError(
           'invalid_request',
-          'Enter your complete 6-digit transaction PIN.',
+          'Enter your complete transaction PIN.',
         );
       }
       if (idempotencyKey.length < 16) {
