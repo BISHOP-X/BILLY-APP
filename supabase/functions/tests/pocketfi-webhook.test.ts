@@ -84,6 +84,7 @@ async function request(
   handler: (request: Request) => Promise<Response>,
   bodyValue: Record<string, unknown>,
   signatureOverride?: string,
+  signatureHeader = "x-pocketfi-signature",
 ): Promise<Response> {
   const body = JSON.stringify(bodyValue);
   const signature = signatureOverride ?? await sign(body, SECRET);
@@ -92,12 +93,25 @@ async function request(
       body,
       headers: {
         "content-type": "application/json",
-        "x-pocketfi-signature": signature,
+        [signatureHeader]: signature,
       },
       method: "POST",
     }),
   );
 }
+
+Deno.test("PocketFi webhook accepts the provider-documented signature header", async () => {
+  const { calls, handler } = setup();
+  const response = await request(
+    handler,
+    payload(),
+    undefined,
+    "http_pocketfi_signature",
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(calls.length, 1);
+});
 
 Deno.test("PocketFi webhook verifies HMAC and normalizes a confirmed transfer", async () => {
   const { calls, handler } = setup();

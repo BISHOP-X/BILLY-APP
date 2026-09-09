@@ -45,17 +45,28 @@ HTTP 401 before parsing or database access.
 
 ## Contract confirmation checklist
 
+PocketFi's current public documentation confirms Bearer-token authentication,
+HMAC SHA-512 signing over the unmodified request body, and the signature header
+name `HTTP_POCKETFI_SIGNATURE`. Billy accepts that documented name (HTTP header
+matching is case-insensitive) as well as previously observed aliases.
+
+The documented webhook example currently includes an amount and transaction
+reference, but does not include a destination account number or an explicit
+terminal payment status. That example is not sufficient evidence for automatic
+wallet crediting. Keep `POCKETFI_WEBHOOK_MODE=disabled` until a real sandbox or
+controlled callback, dashboard evidence, or written provider confirmation
+establishes the missing routing and settlement fields below.
+
 Obtain written or dashboard evidence for all of the following before enabling
 the callback:
 
-1. Signature algorithm is HMAC SHA-512 over the unmodified request body.
-2. Exact signature header name and whether its value has a `sha512=` prefix.
-3. A stable, unique provider transaction reference is present.
-4. `order.amount` is the gross received NGN amount, expressed in naira.
-5. The destination account is a 10-digit Paga account number.
-6. The exact terminal-success status values and retry behavior for non-2xx
+1. Whether the documented signature value has a `sha512=` prefix in production.
+2. A stable, unique provider transaction reference is present.
+3. `order.amount` is the gross received NGN amount, expressed in naira.
+4. The destination account is a 10-digit Paga account number.
+5. The exact terminal-success status values and retry behavior for non-2xx
    responses.
-7. Whether Billy absorbs PocketFi fees or must credit a net amount. Current
+6. Whether Billy absorbs PocketFi fees or must credit a net amount. Current
    behavior credits the received amount in full with a zero customer fee.
 
 Configure `POCKETFI_WEBHOOK_CREDITABLE_STATUSES` as a comma-separated list only

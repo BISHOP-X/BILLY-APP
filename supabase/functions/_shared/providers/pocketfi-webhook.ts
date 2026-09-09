@@ -223,6 +223,7 @@ async function hasValidSignature(
 function signatureFrom(request: Request): string {
   for (
     const name of [
+      "http_pocketfi_signature",
       "pocketfi_signature",
       "x-pocketfi-signature",
       "x-webhook-signature",
