@@ -122,3 +122,29 @@ entries, accounts, or migration history as a rollback.
 After fixing the cause, reconcile each non-terminal inbox record against the
 PocketFi dashboard before any manual credit. Re-enable testers first and repeat
 the controlled-transfer evidence chain before expanding the rollout.
+
+## Activation evidence
+
+### 2026-09-09 — Billy production tester activation
+
+- The project owner confirmed that the Billy callback URL was registered in
+  the PocketFi dashboard.
+- Billy's PocketFi account adapter and callback processor were enabled in live
+  mode while the customer rollout remained restricted to three internal
+  testers.
+- All three tester profiles had the name, email, and normalized international
+  phone fields required for account provisioning.
+- A read-only `Fetch Virtual Accounts` request authenticated successfully with
+  HTTP 200, matched Billy's PocketFi business ID, and returned no existing
+  accounts. Billy's database also contained no funding accounts at that point.
+- An unsigned production callback probe returned HTTP 401
+  `invalid_signature`.
+- A correctly HMAC-SHA512-signed, intentionally incomplete callback using the
+  documented `HTTP_POCKETFI_SIGNATURE` header passed signature verification
+  and returned HTTP 400 `invalid_account_number` at payload validation.
+- The probes created no funding account, webhook inbox entry, transaction,
+  ledger posting, or wallet balance change.
+
+The next gate is one tester-created permanent account through Billy's Add Money
+screen. Verify the saved provider/account mapping before making the first
+controlled bank transfer.
