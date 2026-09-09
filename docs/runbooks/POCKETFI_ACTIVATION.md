@@ -148,3 +148,26 @@ the controlled-transfer evidence chain before expanding the rollout.
 The next gate is one tester-created permanent account through Billy's Add Money
 screen. Verify the saved provider/account mapping before making the first
 controlled bank transfer.
+
+### 2026-09-09 — First controlled transfer incident
+
+- A tester created the first live permanent Paga account successfully through
+  Billy. The provider account and Billy database mapping were active and not
+  marked as test data.
+- PocketFi delivered one signed callback after the bank transfer. Billy
+  returned HTTP 422 because the callback did not provide one of the configured
+  terminal-success status values. No inbox row, transaction, ledger posting,
+  or wallet credit was created.
+- This matches PocketFi's published webhook example, which contains a payment
+  reference and amounts but no terminal status. It also matches the established
+  FirstOption behavior of treating a valid signed callback for a known funding
+  account as the positive payment event unless it explicitly carries a
+  negative status.
+- `POCKETFI_WEBHOOK_ALLOW_STATUSLESS` was enabled for Billy's tester rollout.
+  HMAC verification, known-account matching, positive integer-kobo validation,
+  provider-reference idempotency, conflict detection, and atomic settlement
+  remain mandatory.
+- PocketFi did not automatically retry the original HTTP 422 during the
+  observation window. The original event must be resent from the Billy merchant
+  webhook-events view or reconciled from provider evidence before any manual
+  credit. Never ask the tester to send a second transfer as a retry.
