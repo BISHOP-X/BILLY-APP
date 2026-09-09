@@ -43,7 +43,6 @@ export type PocketFiWebhookDatabase = {
 };
 
 export type PocketFiWebhookDependencies = {
-  allowStatusless: boolean;
   creditableStatuses?: ReadonlySet<string>;
   database: PocketFiWebhookDatabase;
   mode: "disabled" | "live";
@@ -297,10 +296,13 @@ export function createPocketFiWebhookHandler(
     if (isNegativeStatus(event.providerStatus)) {
       return json(200, { code: "non_creditable_event", ok: true });
     }
+    // PocketFi's documented funding callback omits a terminal status. The
+    // signed callback itself is the positive payment event for a known virtual
+    // account, matching the established FirstOption production contract.
+    // Explicit unknown statuses still fail closed; explicit negative statuses
+    // were acknowledged above without crediting.
     if (
-      event.providerStatus
-        ? !creditableStatuses.has(event.providerStatus)
-        : !dependencies.allowStatusless
+      event.providerStatus && !creditableStatuses.has(event.providerStatus)
     ) {
       return json(422, { code: "unconfirmed_event_status", ok: false });
     }

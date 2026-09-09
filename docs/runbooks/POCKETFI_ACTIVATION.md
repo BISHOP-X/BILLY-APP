@@ -73,9 +73,11 @@ Configure `POCKETFI_WEBHOOK_CREDITABLE_STATUSES` as a comma-separated list only
 if PocketFi confirms values different from the built-in terminal set:
 `completed,paid,settled,success,successful,verified`.
 
-Do not enable `POCKETFI_WEBHOOK_ALLOW_STATUSLESS` unless PocketFi explicitly
-confirms that every correctly signed callback to this endpoint is a settled
-credit notification. The default is false.
+PocketFi's documented funding callback has no status field. Billy therefore
+treats a correctly signed, statusless callback for a known PocketFi virtual
+account as the positive payment event, matching the established FirstOption
+production contract. Explicit negative statuses are acknowledged without a
+credit, while unknown non-empty statuses fail closed for investigation.
 
 ## Controlled rollout
 
@@ -163,8 +165,9 @@ controlled bank transfer.
   FirstOption behavior of treating a valid signed callback for a known funding
   account as the positive payment event unless it explicitly carries a
   negative status.
-- `POCKETFI_WEBHOOK_ALLOW_STATUSLESS` was enabled for Billy's tester rollout.
-  HMAC verification, known-account matching, positive integer-kobo validation,
+- Billy's PocketFi webhook contract was corrected so signed statusless funding
+  callbacks are processed automatically without an environment toggle. HMAC
+  verification, known-account matching, positive integer-kobo validation,
   provider-reference idempotency, conflict detection, and atomic settlement
   remain mandatory.
 - PocketFi did not automatically retry the original HTTP 422 during the

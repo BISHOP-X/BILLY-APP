@@ -66,9 +66,6 @@ const serviceClient = createClient(supabaseUrl, secretKey, {
 });
 
 const handler = createPocketFiWebhookHandler({
-  allowStatusless:
-    Deno.env.get("POCKETFI_WEBHOOK_ALLOW_STATUSLESS")?.trim().toLowerCase() ===
-      "true",
   creditableStatuses: creditableStatuses(),
   database: {
     async processTransfer(input) {

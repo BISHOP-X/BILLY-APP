@@ -58,11 +58,10 @@ function payload(
 
 function setup(
   outcome: PocketFiWebhookOutcome = "credited",
-  options: { allowStatusless?: boolean; mode?: "disabled" | "live" } = {},
+  options: { mode?: "disabled" | "live" } = {},
 ) {
   const calls: Parameters<PocketFiWebhookDatabase["processTransfer"]>[0][] = [];
   const handler = createPocketFiWebhookHandler({
-    allowStatusless: options.allowStatusless ?? false,
     database: {
       async processTransfer(input) {
         calls.push(input);
@@ -169,17 +168,18 @@ Deno.test("PocketFi webhook remains disabled without explicit live mode", async 
   assertEquals(calls.length, 0);
 });
 
-Deno.test("statusless live payloads require an explicit provider-contract switch", async () => {
+Deno.test("statusless signed funding callbacks credit automatically", async () => {
   const statusless = payload({ status: undefined });
-  const blocked = setup();
-  const blockedResponse = await request(blocked.handler, statusless);
-  assertEquals(blockedResponse.status, 422);
-  assertEquals(blocked.calls.length, 0);
+  const { calls, handler } = setup();
+  const response = await request(handler, statusless);
 
-  const allowed = setup("credited", { allowStatusless: true });
-  const allowedResponse = await request(allowed.handler, statusless);
-  assertEquals(allowedResponse.status, 200);
-  assertEquals(allowed.calls.length, 1);
+  assertEquals(response.status, 200);
+  assertEquals(await response.json(), { code: "credited", ok: true });
+  assertEquals(calls.length, 1);
+  assertEquals(calls[0].accountNumber, "2751234567");
+  assertEquals(calls[0].amountMinor, 150_025);
+  assertEquals(calls[0].providerReference, "PFI|BILLY|0001");
+  assertEquals(calls[0].providerStatus, "");
 });
 
 Deno.test("negative provider statuses are acknowledged without credit", async () => {
@@ -193,6 +193,21 @@ Deno.test("negative provider statuses are acknowledged without credit", async ()
   assertEquals(await response.json(), {
     code: "non_creditable_event",
     ok: true,
+  });
+  assertEquals(calls.length, 0);
+});
+
+Deno.test("unknown explicit provider statuses fail closed without credit", async () => {
+  const { calls, handler } = setup();
+  const response = await request(
+    handler,
+    payload({ status: "processing" }),
+  );
+
+  assertEquals(response.status, 422);
+  assertEquals(await response.json(), {
+    code: "unconfirmed_event_status",
+    ok: false,
   });
   assertEquals(calls.length, 0);
 });
