@@ -32,6 +32,24 @@ function WebBootstrapController() {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
 
+    const visualViewport = window.visualViewport;
+    const syncViewportHeight = () => {
+      const viewportBottom = visualViewport
+        ? visualViewport.height + visualViewport.offsetTop
+        : window.innerHeight;
+      document.documentElement.style.setProperty(
+        '--billy-app-height',
+        `${Math.max(1, Math.ceil(viewportBottom))}px`,
+      );
+    };
+
+    syncViewportHeight();
+    window.addEventListener('orientationchange', syncViewportHeight);
+    window.addEventListener('pageshow', syncViewportHeight);
+    window.addEventListener('resize', syncViewportHeight);
+    visualViewport?.addEventListener('resize', syncViewportHeight);
+    visualViewport?.addEventListener('scroll', syncViewportHeight);
+
     let secondFrame = 0;
     const firstFrame = requestAnimationFrame(() => {
       secondFrame = requestAnimationFrame(() => {
@@ -42,6 +60,11 @@ function WebBootstrapController() {
     return () => {
       cancelAnimationFrame(firstFrame);
       if (secondFrame) cancelAnimationFrame(secondFrame);
+      window.removeEventListener('orientationchange', syncViewportHeight);
+      window.removeEventListener('pageshow', syncViewportHeight);
+      window.removeEventListener('resize', syncViewportHeight);
+      visualViewport?.removeEventListener('resize', syncViewportHeight);
+      visualViewport?.removeEventListener('scroll', syncViewportHeight);
     };
   }, []);
 
