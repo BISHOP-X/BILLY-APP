@@ -54,6 +54,7 @@ export type SocialBoostServiceRuntime = {
   exchangeRateMinorPerUsd: number;
   inputCipher: SecretPayloadCipher;
   markupBps: number;
+  pricingConfigured?: boolean;
   tokens: ServiceTokenCodec;
 };
 
@@ -173,12 +174,12 @@ function operationKey(value: unknown): string {
 }
 
 function pin(value: unknown): string {
-  const candidate = text(value, "Transaction PIN", 6, 6);
-  if (!/^\d{6}$/.test(candidate)) {
+  const candidate = text(value, "Transaction PIN", 4, 4);
+  if (!/^\d{4}$/.test(candidate)) {
     throw new SocialBoostServiceError(
       400,
       "invalid_request",
-      "Transaction PIN must contain six digits.",
+      "Transaction PIN must contain four digits.",
     );
   }
   return candidate;
@@ -395,6 +396,20 @@ function validateDynamicInput(
     ? undefined
     : integer(input.intervalMinutes, "Interval", 1, 100_000);
 
+  if(runs!==undefined || intervalMinutes!==undefined || ["package","subscriptions"].includes(claims.inputKind)) {
+    throw new SocialBoostServiceError(400,"invalid_request","Choose a one-time service. Recurring orders are not available.");
+  }
+  const serviceType=claims.type.trim().toLowerCase();
+  const unexpected = (comments && claims.inputKind!=="comments") ||
+    (usernames && !["usernames","hashtags"].includes(claims.inputKind)) ||
+    (hashtags && claims.inputKind!=="hashtags") || (keywords && claims.inputKind!=="seo") ||
+    (groupLink && claims.inputKind!=="group_invites") || (answerNumber!==undefined && claims.inputKind!=="poll") ||
+    (username && !["comment likes","comment replies"].includes(serviceType));
+  if(unexpected) throw new SocialBoostServiceError(400,"invalid_request","This service does not accept the additional fields supplied.");
+  if(["comment likes","comment replies"].includes(serviceType) && !username) {
+    throw new SocialBoostServiceError(400,"invalid_request","The comment author's username is required.");
+  }
+
   if (claims.inputKind === "comments" && lines(comments).length !== claims.quantity) {
     throw new SocialBoostServiceError(
       400,
@@ -409,11 +424,11 @@ function validateDynamicInput(
       `Enter exactly ${claims.quantity} usernames for this quote.`,
     );
   }
-  if (claims.inputKind === "hashtags" && !hashtags) {
+  if (claims.inputKind === "hashtags" && (!hashtags || !usernames)) {
     throw new SocialBoostServiceError(
       400,
       "invalid_request",
-      "Hashtags are required for this service.",
+      "Hashtags and usernames are required for this service.",
     );
   }
   if (claims.inputKind === "poll" && answerNumber === undefined) {
@@ -466,6 +481,10 @@ async function applyProviderStatus(
   orderId: string,
   result: SocialBoostStatusResult,
 ) {
+  if(result.currency && result.currency!=="USD") {
+    return runtime.database.applyStatus({orderId,message:"This order needs a status review.",
+      responseDigest:await runtime.digest(JSON.stringify(result)),state:"unknown"});
+  }
   return runtime.database.applyStatus({
     message: safeMessage(result.message, "Social Boost status refreshed."),
     orderId,
@@ -495,7 +514,16 @@ export async function handleSocialBoostAction(
       "Social Boost is not configured.",
     );
   }
+  // Owner history is accessible even while new purchases are unavailable.
+  if(action==="social.orders") return {data:(await runtime.database.listOrders(user.id)).map(publicOrder)};
+  if(action==="social.refills") {
+    const input=record(value ?? {});
+    return {data:(await runtime.database.listRefills(user.id,input.orderId===undefined?undefined:uuid(input.orderId,"Order ID"))).map(publicRefill)};
+  }
   const provider = active(runtime.adapter);
+  if(["social.catalog","social.quote","social.order.submit"].includes(action) && runtime.pricingConfigured===false) {
+    throw new SocialBoostServiceError(503,"configuration","Social Boost pricing is not configured yet.");
+  }
 
   if (action === "social.catalog") {
     const input = record(value ?? {});
@@ -583,6 +611,11 @@ export async function handleSocialBoostAction(
       "social_service",
       user.id,
     );
+    const current=(await provider.adapter.getServices()).find(s=>s.providerServiceId===selection.providerServiceId);
+    if(!current || !(await runtime.database.syncCatalog([current])).has(current.providerServiceId)) {
+      throw new SocialBoostServiceError(409,"conflict","This service is no longer available. Refresh the catalogue.");
+    }
+    Object.assign(selection,current);
     const quantity = integer(
       input.quantity,
       "Quantity",
@@ -611,7 +644,7 @@ export async function handleSocialBoostAction(
         platform: selection.platform,
         productTitle: selection.name,
         quantity,
-        quoteId: await runtime.tokens.issueSigned(
+        quoteId: await runtime.tokens.issueOpaque(
           "social_quote",
           user.id,
           claims,
@@ -639,11 +672,17 @@ export async function handleSocialBoostAction(
       "username",
       "usernames",
     ]);
-    const claims = await runtime.tokens.readSigned<QuoteClaims>(
+    const claims = await runtime.tokens.readOpaque<QuoteClaims>(
       input.quoteId,
       "social_quote",
       user.id,
     );
+    const current=(await provider.adapter.getServices()).find(s=>s.providerServiceId===claims.providerServiceId);
+    if(!current || current.rateMicroUsdPerThousand!==claims.rateMicroUsdPerThousand || current.type!==claims.type ||
+      claims.quantity<current.minimumQuantity || claims.quantity>current.maximumQuantity ||
+      !(await runtime.database.syncCatalog([current])).has(current.providerServiceId)) {
+      throw new SocialBoostServiceError(409,"conflict","This service changed. Refresh the catalogue for a new quote.");
+    }
     const target = normalizeTarget(
       claims.platform,
       input.target,
@@ -708,17 +747,14 @@ export async function handleSocialBoostAction(
         throw new Error("Stored Social Boost input failed integrity checks.");
       }
       result = await provider.adapter.createOrder(restored);
-    } catch (error) {
-      if (error instanceof SocialBoostUncertainError) {
+    } catch (_error) {
         const pending = await runtime.database.failDispatch({
           message:
-            "The provider outcome is uncertain. Billy has not retried or released the hold; support will reconcile it.",
+            "We are confirming your order. Your payment is held safely; please do not place a replacement order.",
           orderId: created.id,
           uncertain: true,
         });
         return { data: publicOrder(pending), status: 202 };
-      }
-      throw error;
     }
 
     const responseDigest = await runtime.digest(JSON.stringify(result));
@@ -731,6 +767,7 @@ export async function handleSocialBoostAction(
         orderId: created.id,
         providerStatus: result.providerStatus,
         responseDigest,
+        uncertain: result.state !== "failed",
       });
       return { data: publicOrder(failed), status: 409 };
     }
@@ -822,7 +859,7 @@ export async function handleSocialBoostAction(
       orderId,
       provider.mode,
     );
-    if (!claim.providerOrderId) {
+    if (claim.action !== "acquired" || !claim.providerOrderId) {
       throw new SocialBoostServiceError(
         409,
         "conflict",
@@ -929,11 +966,11 @@ export async function handleSocialBoostAction(
     if (["succeeded", "failed"].includes(found.status)) {
       return { data: publicRefill(found) };
     }
-    const claim = await runtime.database.claimRefill(user.id, refillId);
-    if (!claim.providerRefillId) {
+    const providerRefillId = await runtime.database.claimRefillRequery(user.id, refillId);
+    if (!providerRefillId) {
       return { data: publicRefill(found), status: 202 };
     }
-    const result = await provider.adapter.getRefill(claim.providerRefillId);
+    const result = await provider.adapter.getRefill(providerRefillId);
     const updated = await runtime.database.applyRefill({
       message: safeMessage(result.message, "Refill status refreshed."),
       providerRefillId: result.providerRefillId,

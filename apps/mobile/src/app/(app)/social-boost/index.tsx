@@ -1,9 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -99,12 +98,19 @@ export default function SocialBoostScreen() {
   const [tab, setTab] = useState<'browse' | 'orders'>('browse');
   const [platform, setPlatform] = useState('all');
   const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const requestKey = useRef('');
+  const refillKeys = useRef<Record<string,string>>({});
+  const [feedback,setFeedback] = useState<{title:string;message:string;buttons?:{text:string;onPress?:()=>void;style?:string}[]}|null>(null);
+  function notify(title:string,message:string,buttons?:{text:string;onPress?:()=>void;style?:string}[]) { setFeedback({title,message,buttons}); }
+  useEffect(()=>{const timer=setTimeout(()=>{setQuery(search.trim());setPage(1);},300);return()=>clearTimeout(timer);},[search]);
   const [selected, setSelected] = useState<SocialBoostService | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [quote, setQuote] = useState<SocialBoostQuote | null>(null);
   const [pin, setPin] = useState('');
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const catalog = useSocialBoostCatalog(platform, search);
+  const catalog = useSocialBoostCatalog(platform, query, page);
   const orders = useSocialBoostOrders();
   const refills = useSocialBoostRefills();
   const submit = useSocialBoostSubmit();
@@ -141,19 +147,20 @@ export default function SocialBoostScreen() {
       quantity < selected.minimumQuantity ||
       quantity > selected.maximumQuantity
     ) {
-      Alert.alert(
+      notify(
         'Check quantity',
         `Choose between ${selected.minimumQuantity.toLocaleString()} and ${selected.maximumQuantity.toLocaleString()}.`,
       );
       return;
     }
     setQuoteBusy(true);
+    requestKey.current = `mobile-social-${Crypto.randomUUID()}`;
     try {
       setQuote(
         await socialBoostRepository.quote(selected.selectionToken, quantity),
       );
     } catch (error) {
-      Alert.alert(
+      notify(
         'Quote unavailable',
         error instanceof Error ? error.message : 'Please try again safely.',
       );
@@ -163,7 +170,7 @@ export default function SocialBoostScreen() {
   }
 
   async function placeOrder() {
-    if (!quote) return;
+    if (!quote || submit.isPending) return;
     try {
       const parseOptionalInteger = (value: string) => {
         const parsed = Number(value);
@@ -174,7 +181,7 @@ export default function SocialBoostScreen() {
         comments: form.comments.trim() || undefined,
         groupLink: form.groupLink.trim() || undefined,
         hashtags: form.hashtags.trim() || undefined,
-        idempotencyKey: `mobile-social-${Crypto.randomUUID()}`,
+        idempotencyKey: requestKey.current,
         intervalMinutes: parseOptionalInteger(form.intervalMinutes),
         keywords: form.keywords.trim() || undefined,
         pin,
@@ -184,14 +191,14 @@ export default function SocialBoostScreen() {
         username: form.username.trim() || undefined,
         usernames: form.usernames.trim() || undefined,
       });
-      Alert.alert('Order received', order.statusMessage);
+      notify('Order received', order.statusMessage);
       setSelected(null);
       setQuote(null);
       setPin('');
       setForm(emptyForm);
       setTab('orders');
     } catch (error) {
-      Alert.alert(
+      notify(
         'Order stopped safely',
         error instanceof Error
           ? error.message
@@ -219,6 +226,10 @@ export default function SocialBoostScreen() {
         title="Social Boost"
       />
       <DemoDataBanner />
+      {feedback ? <View accessibilityLiveRegion="polite" style={[styles.quote,{backgroundColor:theme.colors.surface,borderColor:theme.colors.border}]}>
+        <Text style={[styles.cardTitle,{color:theme.colors.text}]}>{feedback.title}</Text>
+        <Text style={[styles.helper,{color:theme.colors.textMuted}]}>{feedback.message}</Text>
+        {(feedback.buttons??[{text:'Dismiss'}]).map(button=><AppButton key={button.text} label={button.text} variant="ghost" onPress={()=>{setFeedback(null);button.onPress?.();}}/>)}</View>:null}
 
       <LinearGradient
         colors={['#071E14', '#124D31', '#2B8D5A']}
@@ -237,7 +248,7 @@ export default function SocialBoostScreen() {
         </View>
         <Text style={styles.heroBody}>
           Browse the current service catalog, confirm an exact target and follow
-          delivery without exposing provider details.
+          every step of delivery in one place.
         </Text>
         <View style={styles.heroNotice}>
           <Ionicons color="#B8F3CF" name="eye-outline" size={17} />
@@ -313,6 +324,7 @@ export default function SocialBoostScreen() {
                   key={item}
                   onPress={() => {
                     setPlatform(item);
+                    setPage(1);
                     setSelected(null);
                     setQuote(null);
                   }}
@@ -406,6 +418,11 @@ export default function SocialBoostScreen() {
             />
           )}
 
+          {catalog.data && catalog.data.pages>1 ? <View style={styles.scheduleRow}>
+            <AppButton label="Previous" disabled={page===1} variant="ghost" onPress={()=>setPage(p=>p-1)}/>
+            <Text style={{color:theme.colors.textMuted}}>Page {page} of {catalog.data.pages}</Text>
+            <AppButton label="Next" disabled={page>=catalog.data.pages} variant="ghost" onPress={()=>setPage(p=>p+1)}/>
+          </View>:null}
           {selected ? (
             <OrderBuilder
               busy={quoteBusy}
@@ -496,7 +513,7 @@ export default function SocialBoostScreen() {
         <OrdersPanel
           actionBusy={refresh.isPending || cancel.isPending || refill.isPending}
           onCancel={(order) => {
-            Alert.alert(
+            notify(
               'Request cancellation?',
               'Cancellation eligibility comes from the service. Any refund follows the provider-confirmed undelivered quantity.',
               [
@@ -504,7 +521,7 @@ export default function SocialBoostScreen() {
                 {
                   onPress: () =>
                     void cancel.mutateAsync(order.id).catch((error) =>
-                      Alert.alert(
+                      notify(
                         'Cancellation unavailable',
                         error instanceof Error
                           ? error.message
@@ -520,14 +537,14 @@ export default function SocialBoostScreen() {
           onRefill={(order) =>
             void refill
               .mutateAsync({
-                idempotencyKey: `mobile-social-refill-${Crypto.randomUUID()}`,
+                idempotencyKey: refillKeys.current[order.id] ?? (refillKeys.current[order.id]=`mobile-social-refill-${Crypto.randomUUID()}`),
                 orderId: order.id,
               })
               .then((result) =>
-                Alert.alert('Refill requested', result.statusMessage),
+                notify('Refill requested', result.statusMessage),
               )
               .catch((error) =>
-                Alert.alert(
+                notify(
                   'Refill unavailable',
                   error instanceof Error
                     ? error.message
@@ -539,10 +556,10 @@ export default function SocialBoostScreen() {
             void refresh
               .mutateAsync(order.id)
               .then((result) =>
-                Alert.alert('Status refreshed', result.statusMessage),
+                notify('Status refreshed', result.statusMessage),
               )
               .catch((error) =>
-                Alert.alert(
+                notify(
                   'Status unavailable',
                   error instanceof Error
                     ? error.message
@@ -716,30 +733,7 @@ function OrderBuilder({
         inputKind={selected.inputKind}
         onChange={onChange}
       />
-      {selected.inputKind === 'default' ? (
-        <View style={styles.scheduleRow}>
-          <View style={styles.scheduleField}>
-            <TextField
-              inputMode="numeric"
-              label="Runs (optional)"
-              onChangeText={(value) => onChange('runs', value.replace(/\D/g, ''))}
-              placeholder="1"
-              value={form.runs}
-            />
-          </View>
-          <View style={styles.scheduleField}>
-            <TextField
-              inputMode="numeric"
-              label="Interval mins"
-              onChangeText={(value) =>
-                onChange('intervalMinutes', value.replace(/\D/g, ''))
-              }
-              placeholder="Optional"
-              value={form.intervalMinutes}
-            />
-          </View>
-        </View>
-      ) : null}
+      {['comment likes','comment replies'].includes(selected.type.toLowerCase()) ? <TextField label="Comment author's username" value={form.username} autoCapitalize="none" onChangeText={value=>onChange('username',value)}/>:null}
       <AppButton
         disabled={!form.target.trim() || !form.quantity.trim()}
         icon="receipt-outline"
@@ -791,6 +785,7 @@ function DynamicFields({
   }
   if (inputKind === 'hashtags') {
     return (
+      <>
       <TextField
         autoCapitalize="none"
         label="Hashtags"
@@ -798,6 +793,8 @@ function DynamicFields({
         placeholder="#billy #growth"
         value={form.hashtags}
       />
+      <TextField label="Usernames — one per line" value={form.usernames} multiline autoCapitalize="none" onChangeText={value=>onChange('usernames',value)}/>
+      </>
     );
   }
   if (inputKind === 'poll') {

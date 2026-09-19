@@ -388,6 +388,9 @@ deno_version = 2
 [functions.service-api]
 verify_jwt = true
 
+[functions.provider-reconcile]
+verify_jwt = true
+
 [functions.account-deletion]
 verify_jwt = true
 

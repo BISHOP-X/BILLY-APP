@@ -187,6 +187,7 @@ export default function ServiceDetailScreen() {
             'gift_cards',
             'prepaid_cards',
             'social_boost',
+            'foreign_numbers',
           ].includes(service.key) ||
           !service.canTransact
         }
@@ -199,6 +200,7 @@ export default function ServiceDetailScreen() {
               ? 'Explore gift cards'
               : service.key === 'prepaid_cards'
                 ? 'Explore prepaid cards'
+                : service.key === 'foreign_numbers' ? 'Explore US numbers'
                 : service.key === 'social_boost'
                   ? 'Explore Social Boost'
             : service.state === 'maintenance'
@@ -208,6 +210,7 @@ export default function ServiceDetailScreen() {
               : 'Live transactions are off'
         }
         onPress={() => {
+          if(service.key==='foreign_numbers') {router.push('/(app)/foreign-numbers');return;}
           if (service.key === 'bills' && service.canTransact) {
             router.push('/(app)/bills');
           } else if (service.key === 'crypto' && service.canTransact) {

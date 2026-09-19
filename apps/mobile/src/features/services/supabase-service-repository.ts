@@ -40,6 +40,7 @@ function isApiFailure(value: unknown): value is ApiFailure {
 function serviceErrorFromFailure(data: ApiFailure) {
   const code = String(data.error.code ?? 'unavailable');
   const supportedCodes = new Set([
+    'forbidden',
     'configuration',
     'conflict',
     'feature_disabled',

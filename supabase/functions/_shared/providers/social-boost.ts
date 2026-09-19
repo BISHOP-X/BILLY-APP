@@ -191,17 +191,12 @@ export function socialBoostInputKind(type: string): SocialBoostInputKind | null 
     "comment likes": "default",
     "comment replies": "comments",
     "custom comments": "comments",
-    "custom comments package": "comments",
     "default": "default",
     "invites from groups": "group_invites",
-    "mentions": "default",
     "mentions custom list": "usernames",
     "mentions with hashtags": "hashtags",
-    "package": "package",
     "poll": "poll",
     "seo": "seo",
-    "subscriptions": "subscriptions",
-    "web traffic": "default",
   };
   return mapping[normalized] ?? null;
 }
@@ -219,7 +214,8 @@ export function normalizeSocialBoostServices(
     const providerServiceId = text(candidate.service);
     const name = text(candidate.name);
     const category = text(candidate.category);
-    const type = text(candidate.type) ?? "Default";
+    const type = text(candidate.type);
+    if (!type) continue;
     const minimumQuantity = integer(candidate.min);
     const maximumQuantity = integer(candidate.max);
     const rateMicroUsdPerThousand = decimalToMicros(candidate.rate);
@@ -290,11 +286,15 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
   readonly #apiKey: string;
   readonly #baseUrl: string;
   readonly #timeoutMs: number;
+  readonly #fetch: typeof fetch;
+  #catalog?: {until:number;services:SocialBoostService[]};
+  #catalogRequest?: Promise<SocialBoostService[]>;
 
   constructor(input: {
     apiKey: string;
     baseUrl: string;
     timeoutMs?: number;
+    request?: typeof fetch;
   }) {
     this.#apiKey = input.apiKey.trim();
     const parsed = new URL(input.baseUrl);
@@ -306,6 +306,7 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
     }
     this.#baseUrl = parsed.toString();
     this.#timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.#fetch = input.request ?? fetch;
     if (!this.#apiKey || this.#apiKey.length > 4096) {
       throw new Error("SOCIAL_BOOST_API_KEY is invalid.");
     }
@@ -321,12 +322,13 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
     }
     let response: Response;
     try {
-      response = await fetch(this.#baseUrl, {
+      response = await this.#fetch(this.#baseUrl, {
         body,
         headers: {
           "content-type": "application/x-www-form-urlencoded",
         },
         method: "POST",
+        redirect: "error",
         signal: AbortSignal.timeout(this.#timeoutMs),
       });
     } catch {
@@ -336,7 +338,7 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
       );
     }
     if (!response.ok) {
-      if (uncertainOnNetwork && response.status >= 500) {
+      if (uncertainOnNetwork) {
         throw new SocialBoostUncertainError();
       }
       throw new SocialBoostValidationError(
@@ -356,9 +358,17 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
   }
 
   async getServices() {
-    return normalizeSocialBoostServices(await this.#call({
-      action: "services",
-    }));
+    if(this.#catalog && this.#catalog.until>Date.now()) return this.#catalog.services;
+    if(!this.#catalogRequest) this.#catalogRequest=(async()=>{
+      try {
+        const balance=await this.getBalance();
+        if(balance.currency!=="USD") throw new SocialBoostValidationError("Social Boost account currency must be USD.");
+        const services=normalizeSocialBoostServices(await this.#call({action:"services"}));
+        this.#catalog={until:Date.now()+60_000,services};
+        return services;
+      } finally {this.#catalogRequest=undefined;}
+    })();
+    return this.#catalogRequest;
   }
 
   async createOrder(input: SocialBoostOrderInput) {
@@ -371,7 +381,7 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
     const optional = {
       answer_number: input.answerNumber,
       comments: input.comments,
-      group_link: input.groupLink,
+      groups: input.groupLink,
       hashtags: input.hashtags,
       interval: input.intervalMinutes,
       keywords: input.keywords,

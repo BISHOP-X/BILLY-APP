@@ -96,6 +96,7 @@ export default function ServicesScreen() {
             <ServiceTile
               key={service.key}
               onPress={() => {
+                if(service.key==='foreign_numbers') {router.push('/(app)/foreign-numbers');return;}
                 if (service.key === 'bills') {
                   router.push('/(app)/bills');
                   return;

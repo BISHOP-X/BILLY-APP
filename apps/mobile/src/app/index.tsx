@@ -10,6 +10,7 @@ import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { isBillyDevDemo } from '@/features/main/repository';
+import { invokeAction } from '@/features/services/supabase-service-repository';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -45,8 +46,18 @@ export default function EntryScreen() {
       }
 
       try {
-        const { hasCurrentLegalAcceptance, profile } = await getMyAccountState();
+        const [{ hasCurrentLegalAcceptance, profile }, capabilities] = await Promise.all([
+          getMyAccountState(),
+          // An operations outage must not block ordinary customer sign-in.
+          // Failure never grants access; /admin always verifies again server-side.
+          invokeAction<{ admin: boolean }>('admin.session', {}).catch(() => ({ admin: false })),
+        ]);
         if (!active) return;
+        // Staff use the same landing page and explicitly switch workspaces.
+        if (capabilities.admin) {
+          setDestination('/(app)/home');
+          return;
+        }
         if (!hasCurrentLegalAcceptance) {
           setDestination('/(auth)/legal-consent');
           return;

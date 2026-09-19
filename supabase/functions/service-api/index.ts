@@ -38,7 +38,9 @@ import type { PrestmitServiceRuntime } from "../_shared/service-api/prestmit-ser
 import { createQuidaxDatabase } from "../_shared/service-api/quidax-database.ts";
 import type { QuidaxServiceRuntime } from "../_shared/service-api/quidax-service.ts";
 import { createSocialBoostDatabase } from "../_shared/service-api/social-boost-database.ts";
-import type { SocialBoostServiceRuntime } from "../_shared/service-api/social-boost-service.ts";
+import { handleSocialBoostAction, type SocialBoostServiceRuntime } from "../_shared/service-api/social-boost-service.ts";
+import { GetatextAdapter } from "../_shared/providers/getatext.ts";
+import { createNumberDatabase, refreshNumber, type NumberRuntime } from "../_shared/service-api/number-service.ts";
 import {
   createServiceApiHandler,
   type ProviderRuntime,
@@ -516,8 +518,32 @@ function positiveMinor(
   return parsed;
 }
 
-function socialBoostRuntime(): SocialBoostServiceRuntime {
-  const mode = providerMode("SOCIAL_BOOST_MODE");
+type PricingRow = {service_key:string;exchange_rate_minor_per_usd:number|null;markup_bps:number|null};
+async function pricingRows(): Promise<PricingRow[]> {
+  const {data,error}=await serviceClient.rpc("internal_provider_pricing");
+  if(error) throw new Error("Provider pricing is unavailable.");
+  return data as PricingRow[];
+}
+const socialAdapter = env("SOCIAL_BOOST_API_KEY") ? new SocialBoostHttpAdapter({
+  apiKey:requiredEnv("SOCIAL_BOOST_API_KEY"),baseUrl:"https://thelordofthepanels.com/api/v2",
+}) : undefined;
+const numberAdapter = env("GETATEXT_API_KEY") ? new GetatextAdapter(requiredEnv("GETATEXT_API_KEY"),fetch,
+  oneOf("GETATEXT_API_TIER",env("GETATEXT_API_TIER"),["premium","standard"] as const,"premium")) : undefined;
+async function numberRuntime(): Promise<NumberRuntime> {
+  const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
+  return {adapter:numberAdapter,database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+    exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
+}
+async function readyServices() {
+  const prices=await pricingRows();
+  const priced=(key:string)=>prices.some(p=>p.service_key===key && p.exchange_rate_minor_per_usd!==null && p.markup_bps!==null);
+  return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter)&&priced("foreign_numbers"),
+    wallet_funding:providerMode("POCKETFI_MODE")==="live",bills:providerMode("VTPASS_MODE")==="live",
+    crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:providerMode("PRESTMIT_MODE")==="live",
+    prepaid_cards:providerMode("PRESTMIT_MODE")==="live"};
+}
+function socialBoostRuntime(pricing?: PricingRow): SocialBoostServiceRuntime {
+  const mode = socialAdapter ? "live" : providerMode("SOCIAL_BOOST_MODE");
   const scenario = oneOf(
     "SOCIAL_BOOST_MOCK_SCENARIO",
     env("SOCIAL_BOOST_MOCK_SCENARIO"),
@@ -540,10 +566,7 @@ function socialBoostRuntime(): SocialBoostServiceRuntime {
       mode,
     } as const
     : {
-      adapter: new SocialBoostHttpAdapter({
-        apiKey: requiredEnv("SOCIAL_BOOST_API_KEY"),
-        baseUrl: requiredEnv("SOCIAL_BOOST_BASE_URL"),
-      }),
+      adapter: socialAdapter!,
       mode,
     } as const;
   return {
@@ -552,13 +575,11 @@ function socialBoostRuntime(): SocialBoostServiceRuntime {
     digest: digestEvidence,
     exchangeRateMinorPerUsd: positiveMinor(
       "SOCIAL_BOOST_USD_NGN_RATE_MINOR",
-      env("SOCIAL_BOOST_USD_NGN_RATE_MINOR"),
-      mode === "live" ? undefined : 160_000,
+      pricing?.exchange_rate_minor_per_usd != null ? String(pricing.exchange_rate_minor_per_usd) : env("SOCIAL_BOOST_USD_NGN_RATE_MINOR"),
+      mode === "live" ? 1 : 160_000,
     ),
     inputCipher: new SecretPayloadCipher(
-      mode === "live"
-        ? requiredEnv("SOCIAL_BOOST_INPUT_SECRET")
-        : env("SOCIAL_BOOST_INPUT_SECRET") ?? serviceApiSigningSecret,
+      env("SOCIAL_BOOST_INPUT_SECRET") ?? serviceApiSigningSecret,
       {
         additionalData: "billy-social-boost:v1",
         context: "social-boost-input",
@@ -567,11 +588,19 @@ function socialBoostRuntime(): SocialBoostServiceRuntime {
     ),
     markupBps: basisPoints(
       "SOCIAL_BOOST_MARKUP_BPS",
-      env("SOCIAL_BOOST_MARKUP_BPS"),
-      mode === "live" ? undefined : 3_000,
+      pricing?.markup_bps != null ? String(pricing.markup_bps) : env("SOCIAL_BOOST_MARKUP_BPS"),
+      mode === "live" ? 0 : 3_000,
     ),
     tokens: tokenCodec,
   };
+}
+
+async function resolvedSocialRuntime() {
+  const pricing=(await pricingRows()).find(p=>p.service_key==="social_boost");
+  const runtime=socialBoostRuntime(pricing);
+  // Allow history/reconciliation without prices; catalogue/checkout fail closed.
+  runtime.pricingConfigured=runtime.adapter.mode!=="live" || (pricing?.exchange_rate_minor_per_usd!=null && pricing.markup_bps!=null);
+  return runtime;
 }
 
 const handler = createServiceApiHandler({
@@ -591,7 +620,12 @@ const handler = createServiceApiHandler({
   prembly: premblyRuntime(),
   prestmit: prestmitRuntime(),
   quidax: quidaxRuntime(),
-  socialBoost: socialBoostRuntime(),
+  resolveSocialBoost: resolvedSocialRuntime,
+  resolveNumbers: numberRuntime,
+  admin: {client:serviceClient,readyServices,async refreshOrder(service,userId,orderId) {
+    return service==="numbers" ? refreshNumber(await numberRuntime(),userId,orderId)
+      : handleSocialBoostAction("social.order.refresh",{orderId},{id:userId},await resolvedSocialRuntime());
+  }},
   tokens: tokenCodec,
   vtpass: vtpassRuntime(),
 });

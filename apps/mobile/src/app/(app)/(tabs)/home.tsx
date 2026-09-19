@@ -19,6 +19,7 @@ import { useDashboardQuery, useSetHideBalance } from '@/features/main/queries';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { layout, radii, spacing } from '@/theme/tokens';
 import { usesDesktopWebLayout } from '@/constants/web-layout';
+import { AdminPanelLink } from '@/features/admin/admin-panel-link';
 
 export default function HomeScreen() {
   const theme = useBillyTheme();
@@ -36,6 +37,7 @@ export default function HomeScreen() {
       );
 
   function openService(service: ServiceSummary) {
+    if(service.key==='foreign_numbers') {router.push('/(app)/foreign-numbers');return;}
     if (service.key === 'bills' && service.canTransact) {
       router.push('/(app)/bills');
       return;
@@ -87,6 +89,7 @@ export default function HomeScreen() {
       <View style={[styles.primary, { minHeight: primaryMinHeight }]} testID="home-primary-fold">
         <DemoDataBanner />
 
+        <AdminPanelLink />
         <FadeSlide>
           <HomeHeader
             onAccount={() => router.push('/(app)/(tabs)/account')}

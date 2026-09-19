@@ -36,6 +36,8 @@ import {
   type SocialBoostServiceRuntime,
 } from "./social-boost-service.ts";
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
+import { handleNumberAction, OperationsError, type NumberRuntime } from "./number-service.ts";
+import { handleAdminAction, type AdminRuntime } from "./admin-service.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
@@ -342,6 +344,9 @@ export type ServiceApiDependencies = {
   prestmit?: PrestmitServiceRuntime;
   quidax?: QuidaxServiceRuntime;
   socialBoost?: SocialBoostServiceRuntime;
+  resolveSocialBoost?: () => Promise<SocialBoostServiceRuntime>;
+  resolveNumbers?: () => Promise<NumberRuntime>;
+  admin?: AdminRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -419,6 +424,7 @@ type ActionResult = {
 };
 
 type ApiErrorCode =
+  | "forbidden"
   | "configuration"
   | "conflict"
   | "feature_disabled"
@@ -2945,12 +2951,16 @@ export function createServiceApiHandler(
       if (!/^[a-z]+(?:[.-][a-z]+)*$/.test(action)) {
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
-      const result = isSocialBoostAction(action)
+      const result = action.startsWith("admin.")
+        ? await handleAdminAction(action, body.input ?? {}, user, dependencies.admin)
+        : action.startsWith("numbers.")
+        ? await handleNumberAction(action, body.input ?? {}, user, await dependencies.resolveNumbers?.())
+        : isSocialBoostAction(action)
         ? await handleSocialBoostAction(
           action,
           body.input ?? {},
           user,
-          dependencies.socialBoost,
+          dependencies.resolveSocialBoost ? await dependencies.resolveSocialBoost() : dependencies.socialBoost,
         )
         : isQuidaxAction(action)
         ? await handleQuidaxAction(
@@ -2978,7 +2988,9 @@ export function createServiceApiHandler(
         requestId,
       }, result.status ?? 200);
     } catch (error) {
-      const normalized = error instanceof ApiError
+      const normalized = error instanceof OperationsError
+        ? new ApiError(error.status, error.code, error.message, error.retryable)
+        : error instanceof ApiError
         ? error
         : error instanceof PrestmitServiceError
         ? new ApiError(

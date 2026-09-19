@@ -121,6 +121,7 @@ export interface SocialBoostDatabase {
     userId: string,
     refillId: string,
   ): Promise<SocialBoostRefillClaim>;
+  claimRefillRequery(userId:string,refillId:string):Promise<string|null>;
   claimRequery(
     userId: string,
     orderId: string,
@@ -307,6 +308,10 @@ export function createSocialBoostDatabase(
       };
     },
 
+    async claimRefillRequery(userId,refillId) {
+      const response=await client.rpc("internal_social_refill_requery",{p_user_id:userId,p_refill_id:refillId});
+      return result({data:response.data,error:response.error}) as string|null;
+    },
     async claimRefill(userId, refillId) {
       const response = await client.rpc(
         "internal_claim_social_boost_refill",
@@ -475,7 +480,6 @@ export function createSocialBoostDatabase(
       const rows = services.map((service) => ({
         cancel_available: service.cancelAvailable,
         category: service.category,
-        enabled: true,
         input_kind: service.inputKind satisfies SocialBoostInputKind,
         last_seen_at: seenAt,
         maximum_quantity: service.maximumQuantity,
@@ -487,28 +491,14 @@ export function createSocialBoostDatabase(
         refill_available: service.refillAvailable,
         service_type: service.type,
       }));
+      const enabled = new Set<string>();
       for (let index = 0; index < rows.length; index += 500) {
-        const response = await client
-          .schema("private")
-          .from("social_boost_catalog")
-          .upsert(rows.slice(index, index + 500), {
-            onConflict: "provider_service_id",
-          });
-        result({ data: response.data, error: response.error });
+        const response = await client.rpc("internal_social_catalog_sync", {p_rows:rows.slice(index,index+500)});
+        const enabledRows=result({data:response.data,error:response.error});
+        if(!Array.isArray(enabledRows)) throw new SocialBoostDatabaseError();
+        for(const row of enabledRows) enabled.add(requiredText((row as JsonRecord).provider_service_id));
       }
-      const response = await client
-        .schema("private")
-        .from("social_boost_catalog")
-        .select("provider_service_id")
-        .eq("enabled", true);
-      const enabledRows = result({
-        data: response.data,
-        error: response.error,
-      });
-      if (!Array.isArray(enabledRows)) throw new SocialBoostDatabaseError();
-      return new Set(enabledRows.map((row) =>
-        requiredText((row as JsonRecord).provider_service_id)
-      ));
+      return enabled;
     },
   };
 }

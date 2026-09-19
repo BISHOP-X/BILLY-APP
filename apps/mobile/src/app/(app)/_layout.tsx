@@ -6,6 +6,7 @@ import { getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { isBillyDevDemo } from '@/features/main/repository';
+import { invokeAction } from '@/features/services/supabase-service-repository';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
 import type { Profile } from '@/lib/supabase/database.types';
@@ -15,6 +16,7 @@ type ProfileState =
   | { error: string; status: 'error'; userId: string }
   | {
       hasCurrentLegalAcceptance: boolean;
+      isAdmin: boolean;
       profile: Profile | null;
       status: 'ready';
       userId: string;
@@ -45,10 +47,19 @@ export default function AppLayout() {
       };
     }
 
-    void getMyAccountState()
-      .then(({ hasCurrentLegalAcceptance, profile }) => {
+    void Promise.all([
+      getMyAccountState(),
+      invokeAction<{ admin: boolean }>('admin.session', {}).catch(() => ({ admin: false })),
+    ])
+      .then(([{ hasCurrentLegalAcceptance, profile }, capabilities]) => {
         if (active) {
-          setProfileState({ hasCurrentLegalAcceptance, profile, status: 'ready', userId });
+          setProfileState({
+            hasCurrentLegalAcceptance,
+            isAdmin: capabilities.admin,
+            profile,
+            status: 'ready',
+            userId,
+          });
         }
       })
       .catch(() => {
@@ -127,7 +138,9 @@ export default function AppLayout() {
   }
 
   const setupRoute = setupDestination(profileState.profile);
-  if (setupRoute) {
+  // Operations-only staff can view their own dashboard without consumer setup.
+  // Payment/PIN and KYC authorization remain independently enforced by the server.
+  if (setupRoute && !profileState.isAdmin) {
     return <Redirect href={setupRoute} />;
   }
 

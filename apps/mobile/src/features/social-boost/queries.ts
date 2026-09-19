@@ -3,21 +3,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { socialBoostRepository } from './repository';
 
 export const socialBoostKeys = {
-  catalog: (platform: string, query: string) =>
-    ['social-boost', 'catalog', platform, query] as const,
+  catalog: (platform: string, query: string, page: number) =>
+    ['social-boost', 'catalog', platform, query, page] as const,
   orders: ['social-boost', 'orders'] as const,
   refills: ['social-boost', 'refills'] as const,
 };
 
-export function useSocialBoostCatalog(platform: string, query: string) {
+export function useSocialBoostCatalog(platform: string, query: string, page = 1) {
   return useQuery({
     queryFn: () =>
       socialBoostRepository.catalog({
         limit: 100,
+        page,
         platform,
         query: query.trim() || undefined,
       }),
-    queryKey: socialBoostKeys.catalog(platform, query.trim().toLowerCase()),
+    queryKey: socialBoostKeys.catalog(platform, query.trim().toLowerCase(), page),
+    staleTime: 30_000,
   });
 }
 
@@ -37,6 +39,7 @@ export function useSocialBoostRefills() {
 
 function invalidateSocialBoost(queryClient: ReturnType<typeof useQueryClient>) {
   return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['main'] }),
     queryClient.invalidateQueries({ queryKey: socialBoostKeys.orders }),
     queryClient.invalidateQueries({ queryKey: socialBoostKeys.refills }),
   ]);

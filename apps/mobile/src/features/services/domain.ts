@@ -1,6 +1,7 @@
 import type { AppIconName, ActivityStatus } from '@/features/main/domain';
 
 export type ServiceApiErrorCode =
+  | 'forbidden'
   | 'configuration'
   | 'conflict'
   | 'feature_disabled'

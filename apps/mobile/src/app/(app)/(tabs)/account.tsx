@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Alert, Platform, StyleSheet, Text, View } from 'react-native';
 
@@ -12,13 +12,21 @@ import { StatePanel } from '@/components/ui/state-panel';
 import { AccountRow } from '@/features/account/components/account-row';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useDashboardQuery } from '@/features/main/queries';
+import { invokeAction } from '@/features/services/supabase-service-repository';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 export default function AccountScreen() {
   const theme = useBillyTheme();
   const dashboard = useDashboardQuery();
-  const { signOut } = useAuth();
+  const { signOut, user, status } = useAuth();
+  const capabilities = useQuery({
+    queryKey: ['admin', user?.id, 'session'],
+    queryFn: () => invokeAction<{ admin: boolean }>('admin.session', {}),
+    enabled: status === 'authenticated',
+    retry: false,
+    staleTime: 60_000,
+  });
   const queryClient = useQueryClient();
 
   async function performSignOut() {
@@ -114,6 +122,14 @@ export default function AccountScreen() {
           onPress={() => router.push('/(app)/account/profile')}
           subtitle="Name, phone, and personal details"
         />
+        {capabilities.data?.admin === true ? (
+          <AccountRow
+            icon="options-outline"
+            label="Admin Panel"
+            subtitle="Switch to Billy Operations"
+            onPress={() => router.push('/admin')}
+          />
+        ) : null}
         <AccountRow
           icon="shield-checkmark-outline"
           label="Verification"
