@@ -1,5 +1,56 @@
 # US SMS numbers and Social Boost — 2026-09-19
 
+## Activation update — 2026-09-22
+
+This section supersedes the historical missing-key/off-state notes below.
+
+- Billy-only server secrets now include `GETATEXT_API_KEY`,
+  `GETATEXT_API_TIER=premium`, and `SOCIAL_BOOST_API_KEY`. No provider key is
+  included in the client or this document.
+- Owner-approved pricing is **140,000 kobo per USD (NGN 1,400), zero markup**
+  for each service. Saved through authenticated `admin.change`, including
+  optimistic version checks and audit reasons, then read back from live tables.
+- Both services moved through tester mode for safe catalogue/quote probes and
+  then to owner-requested `all`, with availability `available`, execution mode
+  `live`, and no KYC requirement. This is not a claim of paid fulfilment testing.
+- Active Store's active admin routes/settings were inspected read-only:
+  `AdminSocialBoost.tsx` offers percentage markup; `AdminVerifySettings.tsx`
+  offers an exchange rate and per-provider flat USD SMS profit. Billy retains
+  independent **percentage** markup and exchange-rate controls per service,
+  rather than silently copying a different pricing formula or reference rates.
+  In Billy Admin Panel settings, `NGN per USD` and `Markup (%)` remain editable;
+  entering zero resets markup. Changes require review and an audit reason.
+
+Live, non-purchasing probe results (catalogue counts are time-sensitive):
+
+- GetAText `prices-info`: HTTP 200, 456 raw entries. Billy `numbers.catalog`:
+  HTTP 200, 447 eligible in-stock services, 40 on page one. First quote was
+  22,400 kobo (NGN 224).
+- Premium `rental-status-premium` with an empty body: HTTP 404, `Rental not
+  found`. This checks route/validation reachability, **not** successful rental
+  status retrieval, fulfilment, or a 200 requests/second load test. Unit tests
+  verify premium rent/status/cancel paths and no ambiguous-request fallback.
+- Lord catalogue: 9,938 raw entries; Billy returned 9,594 supported services,
+  `isPreview: false`. A minimum-quantity quote returned amount/total 3,920 kobo
+  and fee zero. Unsupported service/billing models remain filtered.
+- Lord reported a balance of USD 0.0000785: effectively unfunded. The provider
+  wallet must be funded before paid Social Boost fulfilment can be expected.
+- This balance exposed a parser defect: sub-micro USD precision blocked the
+  entire catalogue. Informational balances now conservatively truncate only
+  sub-micro dust using integer arithmetic. Catalogue prices and settlement
+  charges retain their strict precision checks; no customer money was changed.
+- All 108 backend tests passed, including malformed/unsafe balance checks and
+  a catalogue regression using seven-decimal balance precision. Deno entrypoint
+  checking passed. `service-api` v15 is ACTIVE with `verify_jwt: true`, verified
+  after deploying the fix. Existing reconciler/JWT settings were not changed.
+
+No live rental, social order, cancellation, refund, or wallet debit was created
+by this activation pass. Paid end-to-end fulfilment remains unverified. An
+attempt to inspect aggregate non-admin service access via read-only MCP was
+denied function-execute permission; no permissions were weakened to bypass it.
+Recovery is to disable new purchases through audited Admin Panel service
+controls while leaving reconciliation active for any outstanding orders.
+
 ## Evidence
 
 - Current provider contracts: https://getatext.com/api-docs and

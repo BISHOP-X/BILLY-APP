@@ -4,8 +4,47 @@ import {
   normalizeSocialBoostOrderState,
   normalizeSocialBoostServices,
   SocialBoostMockAdapter,
+  SocialBoostHttpAdapter,
   socialBoostInputKind,
 } from "../_shared/providers/social-boost.ts";
+
+Deno.test("Social Boost accepts sub-micro balance dust without rounding funds up", async () => {
+  for (const [balance, expected] of [["0.0000785", 78], ["0.0000009", 0], ["12.3456789", 12_345_678], ["0", 0]] as const) {
+    const adapter = new SocialBoostHttpAdapter({
+      apiKey: "synthetic-test-key", baseUrl: "https://provider.example/api/v2",
+      request: (() => Promise.resolve(Response.json({balance, currency: "USD"}))) as typeof fetch,
+    });
+    assert.deepEqual(await adapter.getBalance(), {balanceMicroUsd: expected, currency: "USD"});
+  }
+});
+
+Deno.test("Social Boost rejects malformed or unsafe provider balances", async () => {
+  for (const balance of ["-1", "NaN", "1e-7", "1.2.3", "9007199254740992", null]) {
+    const adapter = new SocialBoostHttpAdapter({
+      apiKey: "synthetic-test-key", baseUrl: "https://provider.example/api/v2",
+      request: (() => Promise.resolve(Response.json({balance, currency: "USD"}))) as typeof fetch,
+    });
+    await assert.rejects(() => adapter.getBalance(), /Provider balance is invalid/);
+  }
+});
+
+Deno.test("Social Boost can load its catalogue with a sub-micro balance remainder", async () => {
+  const actions: string[] = [];
+  const adapter = new SocialBoostHttpAdapter({
+    apiKey: "synthetic-test-key", baseUrl: "https://provider.example/api/v2",
+    request: ((_url: unknown, init?: RequestInit) => {
+      const action = new URLSearchParams(String(init?.body)).get("action")!;
+      actions.push(action);
+      return Promise.resolve(Response.json(action === "balance"
+        ? {balance: "0.0000785", currency: "USD"}
+        : [{service: 1, name: "Followers", category: "Instagram", type: "Default",
+          rate: "0.901234", min: "50", max: "10000"}]));
+    }) as typeof fetch,
+  });
+  const services = await adapter.getServices();
+  assert.equal(services[0].rateMicroUsdPerThousand, 901_234);
+  assert.deepEqual(actions, ["balance", "services"]);
+});
 
 Deno.test("Social Boost normalizes the provider-owned catalog without floating money", () => {
   const services = normalizeSocialBoostServices([

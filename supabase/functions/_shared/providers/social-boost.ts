@@ -156,6 +156,18 @@ function decimalToMicros(value: unknown): number | undefined {
   return Number.isSafeInteger(result) ? result : undefined;
 }
 
+// Provider balances can contain sub-micro USD dust. Round down only this
+// informational balance; catalogue prices and settlement charges stay strict.
+function balanceToMicros(value: unknown): number | undefined {
+  if (typeof value !== "string" && typeof value !== "number") return undefined;
+  const raw = String(value).trim();
+  if (raw.length > 128 || !/^\d+(?:\.\d+)?$/.test(raw)) return undefined;
+  const [whole, fraction = ""] = raw.split(".");
+  const micros = BigInt(whole) * 1_000_000n +
+    BigInt(fraction.slice(0, 6).padEnd(6, "0"));
+  return micros <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(micros) : undefined;
+}
+
 function providerBoolean(value: unknown): boolean {
   if (value === true || value === 1) return true;
   return ["true", "1", "yes"].includes(String(value).toLowerCase());
@@ -504,7 +516,7 @@ export class SocialBoostHttpAdapter implements SocialBoostAdapter {
     if (!isRecord(payload)) {
       throw new SocialBoostValidationError("Provider balance is invalid.");
     }
-    const balanceMicroUsd = decimalToMicros(payload.balance);
+    const balanceMicroUsd = balanceToMicros(payload.balance);
     const currency = text(payload.currency)?.toUpperCase();
     if (balanceMicroUsd === undefined || !currency) {
       throw new SocialBoostValidationError("Provider balance is invalid.");
