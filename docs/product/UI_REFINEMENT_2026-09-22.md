@@ -12,7 +12,7 @@ Read-only inspection followed Active Store's `src/App.tsx` admin route into `src
 - Details and existing admin actions remain available by expanding a compact record. The ordinary sign-in page and server-confirmed admin membership remain the only entry mechanism.
 - Service status comes from the existing authorized settings read, not the overview counters. Overview queries run concurrently after the membership check. Errors remain visible; no invented metrics or charts are shown.
 - Customer navigation uses five aligned, equal-height touch targets. Removed the raised Services launcher, surrounding ring and clipped label. Preserved the existing web dock anchoring and safe-area behavior.
-- Quick actions have flatter tiles and lighter borders. Identity verification is a quiet notice below activity, hidden after verification; pending checks show progress instead of asking the customer to start again.
+- Quick actions have flatter tiles and lighter borders. Equal-height wallet/quick-action panes apply only on desktop, avoiding empty mobile spacing. Identity verification is a quiet notice below activity, hidden after verification; pending checks show progress instead of asking the customer to start again.
 - Shortened customer copy across profile setup, Account, services, funding, bills, crypto, gift cards, card orders, receipts and support. Explicit tester warnings, identity consent, payment status and refund safeguards remain intact.
 - Admin summary and detail amounts use the same exact minor-unit formatter, including fees. This is display-only; ledger and transaction behavior are unchanged.
 

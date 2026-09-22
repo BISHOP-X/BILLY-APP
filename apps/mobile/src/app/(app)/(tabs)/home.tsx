@@ -96,7 +96,13 @@ export default function HomeScreen() {
         <AdminPanelLink />
 
         <View style={[styles.summary, desktopWeb && styles.summaryDesktop]}>
-          <FadeSlide delay={50} style={styles.summaryPane}>
+          <FadeSlide
+            delay={50}
+            style={[
+              styles.summaryPane,
+              desktopWeb && styles.summaryPaneDesktop,
+            ]}
+          >
             <WalletCard
               onAddMoney={() => router.push('/(app)/wallet/add-money')}
               onToggleVisibility={() => {
@@ -118,7 +124,13 @@ export default function HomeScreen() {
             ) : null}
           </FadeSlide>
 
-          <FadeSlide delay={90} style={styles.summaryPane}>
+          <FadeSlide
+            delay={90}
+            style={[
+              styles.summaryPane,
+              desktopWeb && styles.summaryPaneDesktop,
+            ]}
+          >
             <View style={styles.quickCard}>
               <SectionHeader title="Quick actions" />
               <QuickActionsGrid
@@ -216,8 +228,10 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
   },
   summaryPane: {
-    flex: 1,
     minWidth: 0,
     width: '100%',
+  },
+  summaryPaneDesktop: {
+    flex: 1,
   },
 });
