@@ -97,7 +97,7 @@ export default function ProfileSetupScreen() {
       <SetupShell
         eyebrow="MAKE IT YOURS"
         step={1}
-        subtitle="We’re securely preparing the details already connected to your account."
+        subtitle="Loading your saved details."
         title="Tell us about you">
         <View style={styles.hydrating}>
           <ActivityIndicator color={theme.colors.brand} size="large" />
@@ -195,7 +195,7 @@ export default function ProfileSetupScreen() {
       <View style={[styles.note, { backgroundColor: theme.colors.brandMist }]}>
         <Ionicons color={theme.colors.brand} name="lock-closed" size={17} />
         <Text style={[styles.noteText, { color: theme.colors.brand }]}>
-          Your information stays protected and is never used as an authorization shortcut.
+          You can update these details in Account.
         </Text>
       </View>
       <AppButton

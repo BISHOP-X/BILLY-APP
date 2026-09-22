@@ -263,7 +263,7 @@ export function BuyCardJourney({
             value={pin}
           />
           <FeedbackBanner
-            message="Billy reserves the total first. A failed order releases it; an uncertain provider result remains pending for reconciliation."
+            message="This amount is held until your order is confirmed. If the order fails, it’s returned to your wallet."
             tone="info"
           />
           <AppButton

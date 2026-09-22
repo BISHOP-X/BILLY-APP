@@ -140,7 +140,7 @@ export function KycCheckCard({
       {canRefresh ? (
         <View style={styles.refresh}>
           <AppButton
-            accessibilityHint="Checks the saved provider reference without sending your identity number again."
+            accessibilityHint="Checks for an update without submitting your details again."
             icon="refresh"
             label="Check status"
             loading={refreshing}

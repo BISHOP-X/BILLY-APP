@@ -1,13 +1,16 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { usesDesktopWebLayout } from '@/constants/web-layout';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { layout, radii, spacing, typography } from '@/theme/tokens';
-
-const SERVICES_ROUTE = 'services';
 
 export function BillyTabBar({
   descriptors,
@@ -22,13 +25,14 @@ export function BillyTabBar({
   function renderRoute(route: (typeof state.routes)[number], index: number) {
     const options = descriptors[route.key]?.options;
     const focused = state.index === index;
-    const central = route.name === SERVICES_ROUTE;
     const label =
       typeof options?.tabBarLabel === 'string'
         ? options.tabBarLabel
         : (options?.title ?? route.name);
     const activeColor = theme.colors.brandDeep;
-    const inactiveColor = desktop ? 'rgba(255,255,255,0.72)' : theme.colors.textMuted;
+    const inactiveColor = desktop
+      ? 'rgba(255,255,255,0.72)'
+      : theme.colors.textMuted;
     const color = focused ? activeColor : inactiveColor;
 
     const onPress = () => {
@@ -51,7 +55,9 @@ export function BillyTabBar({
       return (
         <Pressable
           accessibilityHint={`Opens the ${label} section`}
-          accessibilityLabel={options?.tabBarAccessibilityLabel ?? `${label} tab`}
+          accessibilityLabel={
+            options?.tabBarAccessibilityLabel ?? `${label} tab`
+          }
           accessibilityRole="tab"
           accessibilityState={{ selected: focused }}
           key={route.key}
@@ -62,7 +68,8 @@ export function BillyTabBar({
             focused && styles.desktopItemActive,
             pressed && styles.pressed,
           ]}
-          testID={options?.tabBarButtonTestID}>
+          testID={options?.tabBarButtonTestID}
+        >
           {options?.tabBarIcon?.({ color, focused, size: 19 })}
           <Text
             numberOfLines={1}
@@ -70,7 +77,8 @@ export function BillyTabBar({
               styles.desktopLabel,
               { color },
               focused && styles.desktopLabelActive,
-            ]}>
+            ]}
+          >
             {label}
           </Text>
         </Pressable>
@@ -86,64 +94,43 @@ export function BillyTabBar({
         key={route.key}
         onLongPress={onLongPress}
         onPress={onPress}
-        style={({ pressed }) => [
-          styles.mobileItem,
-          central && styles.centralItem,
-          pressed && styles.pressed,
-        ]}
-        testID={options?.tabBarButtonTestID}>
-        {central ? (
-          <>
-            <View style={[styles.launcherRing, { backgroundColor: theme.colors.surfaceRaised }]}>
-              <View
-                style={[
-                  styles.launcher,
-                  {
-                    backgroundColor: focused ? theme.colors.accent : theme.colors.brand,
-                    borderColor: focused ? theme.colors.white : theme.colors.accent,
-                  },
-                ]}>
-                <Ionicons
-                  accessible={false}
-                  color={focused ? theme.colors.brandDeep : theme.colors.white}
-                  name={focused ? 'grid' : 'grid-outline'}
-                  size={25}
-                />
-              </View>
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.centralLabel,
-                { color: focused ? theme.colors.accent : theme.colors.textMuted },
-              ]}>
-              {label}
-            </Text>
-          </>
-        ) : (
-          <>
-            <View
-              style={[
-                styles.iconWell,
-                focused && { backgroundColor: theme.colors.surfaceMuted },
-              ]}>
-              {options?.tabBarIcon?.({
-                color: focused ? theme.colors.accent : theme.colors.textMuted,
-                focused,
-                size: 22,
-              })}
-            </View>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.mobileLabel,
-                { color: focused ? theme.colors.accent : theme.colors.textMuted },
-                focused && styles.mobileLabelActive,
-              ]}>
-              {label}
-            </Text>
-          </>
-        )}
+        style={({ pressed }) => [styles.mobileItem, pressed && styles.pressed]}
+        testID={options?.tabBarButtonTestID}
+      >
+        <View
+          style={[
+            styles.iconWell,
+            focused && { backgroundColor: theme.colors.brandMist },
+          ]}
+        >
+          {options?.tabBarIcon?.({
+            color: focused
+              ? theme.dark
+                ? theme.colors.accent
+                : theme.colors.brandDeep
+              : theme.colors.textMuted,
+            focused,
+            size: 22,
+          })}
+        </View>
+        <Text
+          allowFontScaling
+          maxFontSizeMultiplier={1.3}
+          numberOfLines={1}
+          style={[
+            styles.mobileLabel,
+            {
+              color: focused
+                ? theme.dark
+                  ? theme.colors.accent
+                  : theme.colors.brandDeep
+                : theme.colors.textMuted,
+            },
+            focused && { fontWeight: '700' },
+          ]}
+        >
+          {label}
+        </Text>
       </Pressable>
     );
   }
@@ -153,7 +140,8 @@ export function BillyTabBar({
       <View
         accessibilityLabel="Primary navigation"
         accessibilityRole="tablist"
-        style={styles.desktopWrap}>
+        style={styles.desktopWrap}
+      >
         <View style={styles.desktopBar}>
           <Pressable
             accessibilityLabel="Billy home"
@@ -162,20 +150,12 @@ export function BillyTabBar({
             style={({ pressed }) => [
               styles.brand,
               pressed && styles.brandInteractive,
-            ]}>
+            ]}
+          >
             <BillyLogo variant="wordmark" size={92} />
           </Pressable>
           <View style={styles.desktopItems}>
             {state.routes.map(renderRoute)}
-          </View>
-          <View style={styles.securePill}>
-            <Ionicons
-              accessible={false}
-              color="#B8F3CF"
-              name="shield-checkmark"
-              size={15}
-            />
-            <Text style={styles.secureText}>Protected</Text>
           </View>
         </View>
       </View>
@@ -190,19 +170,21 @@ export function BillyTabBar({
       style={[
         styles.mobileWrap,
         {
-          backgroundColor: theme.colors.canvas,
+          backgroundColor: 'transparent',
           paddingBottom: safeBottom,
           pointerEvents: 'box-none',
         },
-      ]}>
+      ]}
+    >
       <View
         style={[
           styles.mobileBar,
           {
-            backgroundColor: theme.colors.surfaceRaised,
-            borderColor: 'rgba(133, 227, 173, 0.2)',
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
           },
-        ]}>
+        ]}
+      >
         {state.routes.map(renderRoute)}
       </View>
     </View>
@@ -220,20 +202,10 @@ const styles = StyleSheet.create({
   brandInteractive: {
     backgroundColor: 'rgba(255,255,255,0.07)',
   },
-  centralItem: {
-    overflow: 'visible',
-  },
-  centralLabel: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '800',
-    marginTop: -13,
-    maxWidth: '100%',
-  },
   desktopBar: {
     alignItems: 'center',
     alignSelf: 'center',
-    backgroundColor: '#0B4829',
+    backgroundColor: '#12241A',
     borderColor: 'rgba(184,243,207,0.18)',
     borderRadius: radii.xl,
     borderWidth: 1,
@@ -283,33 +255,17 @@ const styles = StyleSheet.create({
   },
   iconWell: {
     alignItems: 'center',
-    borderRadius: radii.pill,
-    height: 31,
+    borderRadius: 12,
+    height: 32,
     justifyContent: 'center',
-    width: 39,
-  },
-  launcher: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  launcherRing: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    height: 64,
-    justifyContent: 'center',
-    transform: [{ translateY: -15 }],
-    width: 64,
+    width: 42,
   },
   mobileBar: {
     alignItems: 'center',
     alignSelf: 'center',
-    borderRadius: radii.pill,
+    borderRadius: 24,
     borderWidth: 1,
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.26)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
     flexDirection: 'row',
     height: layout.bottomTabBarHeight,
     maxWidth: 640,
@@ -326,36 +282,19 @@ const styles = StyleSheet.create({
   },
   mobileLabel: {
     fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: '500',
     maxWidth: '100%',
-  },
-  mobileLabelActive: {
-    fontWeight: '800',
   },
   mobileWrap: {
     alignSelf: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
     width: '100%',
   },
   pressed: {
     opacity: 0.72,
     transform: [{ scale: 0.97 }],
-  },
-  securePill: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(184,243,207,0.1)',
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 38,
-    paddingHorizontal: spacing.md,
-  },
-  secureText: {
-    color: '#D8F9E5',
-    fontFamily: typography.familyRounded,
-    fontSize: 11,
-    fontWeight: '800',
   },
 });

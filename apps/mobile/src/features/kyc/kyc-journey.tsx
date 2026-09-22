@@ -50,7 +50,7 @@ function statusSummary(
       icon: 'cloud-offline-outline' as const,
       label: 'Status unavailable',
       message:
-        'Funding, bills, and gift-card browsing and buying remain available while protected actions stay disabled.',
+        'You can still add money, pay bills and buy gift cards.',
     };
   }
 
@@ -92,7 +92,7 @@ function statusSummary(
       color: 'success' as const,
       icon: 'checkmark-circle' as const,
       label: 'Identity verified',
-      message: 'Billy has a completed identity check on your profile.',
+      message: 'You’re ready to use crypto and sell gift cards.',
     };
   }
 
@@ -102,7 +102,7 @@ function statusSummary(
       icon: 'time' as const,
       label: 'Check in review',
       message:
-        'Funding, bills, and gift-card browsing and buying stay available while crypto transactions and gift-card sales wait for review.',
+        'We’re reviewing your details. You can still add money, pay bills and buy gift cards.',
     };
   }
 
@@ -112,7 +112,7 @@ function statusSummary(
       icon: 'alert-circle' as const,
       label: 'Not verified',
       message:
-        'Retry before making crypto transactions or selling gift cards. Funding, bills, and gift-card browsing and buying remain available.',
+        'Check your details and try again. Your other services are unaffected.',
     };
   }
 
@@ -331,12 +331,10 @@ export function KycJourney({
             <Text
               accessibilityRole="header"
               style={[styles.heroTitle, { color: theme.colors.white }]}>
-              Verify for protected transactions.
+              Verify your identity
             </Text>
             <Text style={[styles.heroMessage, { color: '#D6EBDD' }]}>
-              Identity verification is required for crypto transactions and
-              selling gift cards. It does not block wallet funding, bills, or
-              browsing and buying gift cards.
+              A quick identity check to use crypto and sell gift cards.
             </Text>
           </View>
           <View
@@ -351,8 +349,7 @@ export function KycJourney({
               size={16}
             />
             <Text style={[styles.privacyText, { color: '#E7F4EC' }]}>
-              Your complete number is used for this check, then kept out of
-              your app history.
+              Your identity number won’t appear in your history.
             </Text>
           </View>
         </View>

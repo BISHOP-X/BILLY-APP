@@ -39,7 +39,7 @@ export default function BillsScreen() {
         <StatePanel
           actionLabel="Try again"
           icon="cloud-offline-outline"
-          message="Billy could not confirm whether bill payments are available. No provider catalog was opened."
+          message="Bill payments couldn’t load. Please try again."
           onAction={() => void dashboard.refetch()}
           title="Bill access unavailable"
           tone="danger"
@@ -87,10 +87,9 @@ export default function BillsScreen() {
           </View>
           <View style={styles.heroCopy}>
             <Text style={styles.eyebrow}>EVERYDAY PAYMENTS</Text>
-            <Text style={styles.heroTitle}>Quick, clear and trackable.</Text>
+            <Text style={styles.heroTitle}>Your everyday bills.</Text>
             <Text style={styles.heroBody}>
-              Current products load securely. Billy shows the complete debit
-              before your transaction PIN is requested.
+              Choose a service, enter your details and pay.
             </Text>
           </View>
         </LinearGradient>
@@ -111,10 +110,10 @@ export default function BillsScreen() {
         <View style={styles.safety}>
           <Ionicons color="#146237" name="shield-checkmark-outline" size={23} />
           <View style={styles.safetyCopy}>
-            <Text style={styles.safetyTitle}>Protected at every step</Text>
+            <Text style={styles.safetyTitle}>Track your payment</Text>
             <Text style={styles.safetyText}>
-              Uncertain provider responses stay pending for reconciliation.
-              Billy never silently repeats a purchase or charges twice.
+              Check progress in Activity. If a payment is pending, wait for
+              an update before trying again.
             </Text>
           </View>
         </View>

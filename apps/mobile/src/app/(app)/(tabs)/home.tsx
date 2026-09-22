@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/layout/app-screen';
 import { DemoDataBanner } from '@/components/ui/demo-data-banner';
@@ -17,27 +16,23 @@ import { WalletCard } from '@/features/home/components/wallet-card';
 import type { ServiceSummary } from '@/features/main/domain';
 import { useDashboardQuery, useSetHideBalance } from '@/features/main/queries';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { layout, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
 import { usesDesktopWebLayout } from '@/constants/web-layout';
 import { AdminPanelLink } from '@/features/admin/admin-panel-link';
 
 export default function HomeScreen() {
   const theme = useBillyTheme();
-  const insets = useSafeAreaInsets();
-  const { fontScale, height, width } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
   const desktopWeb =
     Platform.OS === 'web' && usesDesktopWebLayout(width, fontScale);
   const dashboard = useDashboardQuery();
   const privacyMutation = useSetHideBalance();
-  const primaryMinHeight = desktopWeb
-    ? 0
-    : Math.max(
-        0,
-        height - insets.top - layout.bottomTabDockReserve - spacing.xs,
-      );
 
   function openService(service: ServiceSummary) {
-    if(service.key==='foreign_numbers') {router.push('/(app)/foreign-numbers');return;}
+    if (service.key === 'foreign_numbers') {
+      router.push('/(app)/foreign-numbers');
+      return;
+    }
     if (service.key === 'bills' && service.canTransact) {
       router.push('/(app)/bills');
       return;
@@ -70,10 +65,10 @@ export default function HomeScreen() {
           icon="cloud-offline-outline"
           message={
             dashboard.error?.message ??
-            'Billy could not load your financial overview. No demo data was substituted.'
+            'Your balance and activity couldn’t load. Please try again.'
           }
           onAction={() => void dashboard.refetch()}
-          title="Your overview is unavailable"
+          title="Couldn’t load your dashboard"
           tone="danger"
         />
       </AppScreen>
@@ -85,11 +80,11 @@ export default function HomeScreen() {
     <AppScreen
       onRefresh={() => void dashboard.refetch()}
       refreshing={dashboard.isRefetching}
-      testID="home-screen">
-      <View style={[styles.primary, { minHeight: primaryMinHeight }]} testID="home-primary-fold">
+      testID="home-screen"
+    >
+      <View style={styles.primary} testID="home-primary-fold">
         <DemoDataBanner />
 
-        <AdminPanelLink />
         <FadeSlide>
           <HomeHeader
             onAccount={() => router.push('/(app)/(tabs)/account')}
@@ -98,6 +93,7 @@ export default function HomeScreen() {
             unreadCount={snapshot.unreadNotificationCount}
           />
         </FadeSlide>
+        <AdminPanelLink />
 
         <View style={[styles.summary, desktopWeb && styles.summaryDesktop]}>
           <FadeSlide delay={50} style={styles.summaryPane}>
@@ -115,7 +111,7 @@ export default function HomeScreen() {
             {privacyMutation.isError ? (
               <View style={styles.feedback}>
                 <FeedbackBanner
-                  message="Billy could not save your balance privacy preference. Your previous setting was restored."
+                  message="Couldn’t save this setting. Please try again."
                   tone="error"
                 />
               </View>
@@ -123,18 +119,8 @@ export default function HomeScreen() {
           </FadeSlide>
 
           <FadeSlide delay={90} style={styles.summaryPane}>
-            <View
-              style={[
-                styles.quickCard,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}>
-              <SectionHeader
-                subtitle="Everything you need, in one calm place."
-                title="Quick actions"
-              />
+            <View style={styles.quickCard}>
+              <SectionHeader title="Quick actions" />
               <QuickActionsGrid
                 onMore={() => router.push('/(app)/(tabs)/services')}
                 onService={openService}
@@ -143,21 +129,6 @@ export default function HomeScreen() {
             </View>
           </FadeSlide>
         </View>
-
-        <FadeSlide delay={130}>
-          <ServiceBanner
-            compact
-            kyc={snapshot.kyc}
-            onPress={() =>
-              router.push(
-                snapshot.services.some((service) => service.state === 'maintenance')
-                  ? '/(app)/(tabs)/services'
-                  : '/(app)/kyc',
-              )
-            }
-            services={snapshot.services}
-          />
-        </FadeSlide>
       </View>
 
       <FadeSlide delay={170}>
@@ -175,7 +146,8 @@ export default function HomeScreen() {
                   backgroundColor: theme.colors.surface,
                   borderColor: theme.colors.border,
                 },
-              ]}>
+              ]}
+            >
               {snapshot.activity.slice(0, 4).map((item) => (
                 <ActivityRow
                   item={item}
@@ -193,12 +165,23 @@ export default function HomeScreen() {
             <StatePanel
               compact
               icon="receipt-outline"
-              message="Your completed and pending Billy activity will appear here."
+              message="Your payments and deposits will appear here."
               title="No activity yet"
             />
           )}
         </View>
       </FadeSlide>
+      <ServiceBanner
+        kyc={snapshot.kyc}
+        onPress={() =>
+          router.push(
+            snapshot.services.some((service) => service.state === 'maintenance')
+              ? '/(app)/(tabs)/services'
+              : '/(app)/kyc',
+          )
+        }
+        services={snapshot.services}
+      />
     </AppScreen>
   );
 }
@@ -215,13 +198,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   quickCard: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
     gap: spacing.md,
-    padding: spacing.md,
+    paddingVertical: spacing.xs,
   },
   primary: {
-    gap: spacing.md,
+    gap: spacing.xl,
   },
   section: {
     gap: spacing.md,

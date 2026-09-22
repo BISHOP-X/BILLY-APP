@@ -191,7 +191,7 @@ export default function CryptoScreen() {
       }
       testID="crypto-screen"
     >
-      <ScreenHeader title="Crypto" subtitle="Powered securely through Billy" />
+      <ScreenHeader title="Crypto" />
       <DemoDataBanner />
 
       <LinearGradient
@@ -214,8 +214,8 @@ export default function CryptoScreen() {
           </View>
         </View>
         <Text style={styles.heroBody}>
-          Buy and sell to your Billy wallet, or receive and send on supported
-          networks. Assets and fees refresh from the provider.
+          Buy, sell, send and receive crypto. Review the rate and fees before
+          you confirm.
         </Text>
         <View style={styles.balanceRow}>
           {(portfolio.data?.assets ?? []).slice(0, 3).map((item) => (
@@ -523,7 +523,7 @@ export default function CryptoScreen() {
                   label="Copy address"
                   onPress={() => {
                     void Clipboard.setStringAsync(receiveAddress.address!);
-                    Alert.alert('Copied', 'Receive address copied securely.');
+                    Alert.alert('Copied', 'Address copied.');
                   }}
                   variant="secondary"
                 />

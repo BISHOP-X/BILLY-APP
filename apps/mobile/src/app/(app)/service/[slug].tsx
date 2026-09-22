@@ -138,15 +138,11 @@ export default function ServiceDetailScreen() {
               Verification required
             </Text>
             <Text style={[styles.body, { color: theme.colors.textMuted }]}>
-              Tier {service.requiredKycTier} with{' '}
-              {service.requiredVerificationMode === 'live'
-                ? 'live verification'
-                : 'preview or live verification'}{' '}
-              is required. {service.message}
+              Verify your identity to continue.
             </Text>
           </View>
           <AppButton
-            label="Review verification"
+            label="Verify identity"
             onPress={() => router.push('/(app)/kyc')}
             variant="secondary"
           />
@@ -159,23 +155,23 @@ export default function ServiceDetailScreen() {
           { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
         ]}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-          What the complete flow will include
+          How it works
         </Text>
         <Expectation
           icon="search-outline"
-          text="Current availability, products, and pricing loaded through Billy’s server."
+          text="Choose a product or service."
         />
         <Expectation
           icon="document-text-outline"
-          text="A clear review showing amount, fees, delivery expectation, and refund rules."
+          text="Review the price and delivery details."
         />
         <Expectation
           icon="lock-closed-outline"
-          text="Secure transaction-PIN confirmation before any value can move."
+          text="Confirm with your PIN."
         />
         <Expectation
           icon="receipt-outline"
-          text="Status tracking, reconciliation, support reference, and eligible receipt."
+          text="Track your order in Activity."
         />
       </View>
 

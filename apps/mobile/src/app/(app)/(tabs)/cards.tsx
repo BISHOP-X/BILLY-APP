@@ -140,7 +140,7 @@ export default function CardsScreen() {
 
       <FadeSlide delay={45} style={styles.section}>
         <SectionHeader
-          subtitle="Choose a provider-current prepaid product, value, and secure delivery."
+          subtitle="Choose a prepaid card and amount."
           title="Get a prepaid card"
         />
         {catalog.isLoading ? (
@@ -174,7 +174,7 @@ export default function CardsScreen() {
       {orders.data?.length ? (
         <FadeSlide delay={80} style={styles.section}>
           <SectionHeader
-            subtitle="Delivered details remain encrypted until you enter your PIN."
+            subtitle="Enter your PIN to view card details."
             title="Your prepaid orders"
           />
           {orders.data.slice(0, 5).map((order) => (

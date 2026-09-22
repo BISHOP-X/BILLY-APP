@@ -12,7 +12,7 @@ import { radii, spacing, typography } from '@/theme/tokens';
 const questions = [
   {
     answer:
-      'Open Activity, choose the item, and keep its Billy reference. Pending transactions stay visible while Billy reconciles their final state.',
+      'Open Activity and select your payment to see its status and reference.',
     question: 'Where can I check a transaction?',
   },
   {
@@ -34,7 +34,7 @@ export default function SupportScreen() {
   return (
     <AppScreen bottomSafe testID="support-screen">
       <ScreenHeader
-        subtitle="Guidance without exposing sensitive account information."
+        subtitle="How can we help?"
         title="Help and support"
       />
       <DemoDataBanner />

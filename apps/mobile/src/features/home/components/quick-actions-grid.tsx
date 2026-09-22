@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Platform, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
 import type { ServiceKey, ServiceSummary } from '@/features/main/domain';
@@ -22,11 +22,15 @@ type QuickActionsGridProps = {
 
 const THREE_COLUMN_MIN_TILE_WIDTH = 88;
 
-export function getQuickActionColumnCount(viewportWidth: number, fontScale: number) {
+export function getQuickActionColumnCount(
+  viewportWidth: number,
+  fontScale: number,
+) {
   const constrainedWidth = Math.min(viewportWidth, 720);
   const estimatedGridWidth = Math.max(0, constrainedWidth - spacing.lg * 4 - 2);
   const threeColumnTileWidth = (estimatedGridWidth - spacing.sm * 2) / 3;
-  const scaledMinimum = THREE_COLUMN_MIN_TILE_WIDTH * Math.min(Math.max(fontScale, 1), 1.2);
+  const scaledMinimum =
+    THREE_COLUMN_MIN_TILE_WIDTH * Math.min(Math.max(fontScale, 1), 1.2);
 
   return threeColumnTileWidth >= scaledMinimum ? 3 : 2;
 }
@@ -46,14 +50,19 @@ export function QuickActionsGrid({
     ...quickServices.map((service) => ({ kind: 'service' as const, service })),
     { kind: 'more' as const },
   ];
-  const rows = Array.from({ length: Math.ceil(actions.length / columns) }, (_, index) =>
-    actions.slice(index * columns, (index + 1) * columns),
+  const rows = Array.from(
+    { length: Math.ceil(actions.length / columns) },
+    (_, index) => actions.slice(index * columns, (index + 1) * columns),
   );
 
   return (
     <View style={styles.grid}>
       {rows.map((row, rowIndex) => (
-        <View key={`row-${rowIndex}`} style={styles.row} testID={`quick-actions-row-${rowIndex}`}>
+        <View
+          key={`row-${rowIndex}`}
+          style={styles.row}
+          testID={`quick-actions-row-${rowIndex}`}
+        >
           {row.map((action) => {
             if (action.kind === 'more') {
               return (
@@ -66,21 +75,31 @@ export function QuickActionsGrid({
                   onPress={onMore}
                   style={[
                     styles.tile,
-                    styles.tileShadow,
                     {
-                      backgroundColor: theme.dark
-                        ? theme.colors.surfaceMuted
-                        : theme.colors.brandMist,
+                      backgroundColor: theme.colors.surface,
                       borderColor: theme.dark
                         ? 'rgba(133, 227, 173, 0.16)'
                         : theme.colors.border,
                     },
                   ]}
-                  testID="quick-more">
-                  <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
-                    <Ionicons accessible={false} color={theme.colors.brand} name="grid" size={25} />
+                  testID="quick-more"
+                >
+                  <View
+                    style={[
+                      styles.iconCircle,
+                      { backgroundColor: theme.colors.surface },
+                    ]}
+                  >
+                    <Ionicons
+                      accessible={false}
+                      color={theme.colors.brand}
+                      name="grid"
+                      size={25}
+                    />
                   </View>
-                  <Text style={[styles.label, { color: theme.colors.text }]}>More</Text>
+                  <Text style={[styles.label, { color: theme.colors.text }]}>
+                    More
+                  </Text>
                 </ScalePressable>
               );
             }
@@ -100,18 +119,21 @@ export function QuickActionsGrid({
                 onPress={() => onService(service)}
                 style={[
                   styles.tile,
-                  styles.tileShadow,
                   {
-                    backgroundColor: theme.dark
-                      ? theme.colors.surfaceMuted
-                      : theme.colors.brandMist,
+                    backgroundColor: theme.colors.surface,
                     borderColor: theme.dark
                       ? 'rgba(133, 227, 173, 0.16)'
                       : theme.colors.border,
                   },
                 ]}
-                testID={`quick-${service.key}`}>
-                <View style={[styles.iconCircle, { backgroundColor: theme.colors.surface }]}>
+                testID={`quick-${service.key}`}
+              >
+                <View
+                  style={[
+                    styles.iconCircle,
+                    { backgroundColor: theme.colors.surface },
+                  ]}
+                >
                   <Ionicons
                     accessible={false}
                     color={theme.colors.brand}
@@ -123,11 +145,17 @@ export function QuickActionsGrid({
                   adjustsFontSizeToFit
                   minimumFontScale={0.8}
                   numberOfLines={2}
-                  style={[styles.label, { color: theme.colors.text }]}>
+                  style={[styles.label, { color: theme.colors.text }]}
+                >
                   {service.label}
                 </Text>
                 {service.state === 'maintenance' ? (
-                  <View style={[styles.dot, { backgroundColor: theme.colors.warning }]} />
+                  <View
+                    style={[
+                      styles.dot,
+                      { backgroundColor: theme.colors.warning },
+                    ]}
+                  />
                 ) : null}
               </ScalePressable>
             );
@@ -170,15 +198,15 @@ const styles = StyleSheet.create({
   iconCircle: {
     alignItems: 'center',
     borderRadius: radii.pill,
-    height: 48,
+    height: 40,
     justifyContent: 'center',
-    width: 48,
+    width: 40,
   },
   label: {
     flexShrink: 1,
     fontFamily: typography.familyRounded,
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 16,
     textAlign: 'center',
   },
@@ -189,21 +217,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.xs,
     justifyContent: 'center',
-    minHeight: 96,
+    minHeight: 92,
+    maxHeight: 120,
     minWidth: 0,
     padding: spacing.sm,
     width: '100%',
   },
-  tileShadow: Platform.select({
-    web: {
-      boxShadow: '0 8px 20px rgba(0, 0, 0, 0.12)',
-    },
-    default: {
-      elevation: 2,
-      shadowColor: '#000000',
-      shadowOffset: { height: 4, width: 0 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-    },
-  }),
 });

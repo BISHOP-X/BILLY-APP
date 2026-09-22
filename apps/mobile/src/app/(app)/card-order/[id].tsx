@@ -203,8 +203,8 @@ export default function CardOrderScreen() {
             isSell
               ? 'Wallet after approval'
               : order.fulfilmentAvailable
-                ? 'Ready securely'
-                : 'Waiting for provider'
+                ? 'Ready to view'
+                : 'Processing'
           }
         />
       </View>
@@ -214,8 +214,8 @@ export default function CardOrderScreen() {
           <FeedbackBanner
             message={
               isSell
-                ? 'No payout is created until provider approval. Refreshing checks the original order; it does not submit another card.'
-                : 'Reserved funds stay protected while Billy reconciles the original provider order.'
+                ? 'Your card is being reviewed. Payment goes to your wallet after approval.'
+                : 'Your order is processing. The amount is held until it’s confirmed.'
             }
             tone="warning"
           />
@@ -310,7 +310,7 @@ export default function CardOrderScreen() {
             </View>
           ))}
           {copied ? (
-            <FeedbackBanner message={`${copied} copied securely.`} tone="success" />
+            <FeedbackBanner message={`${copied} copied.`} tone="success" />
           ) : null}
         </FadeSlide>
       ) : null}

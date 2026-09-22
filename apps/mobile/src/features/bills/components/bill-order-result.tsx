@@ -81,7 +81,7 @@ export function BillOrderResult({
           {succeeded
             ? `${order.serviceLabel} was completed successfully.`
             : pending
-              ? 'Billy is checking the final provider status. Do not repeat this payment.'
+              ? 'Your payment is being confirmed. Please don’t pay again.'
               : 'No successful payment was recorded. Review Activity before trying again.'}
         </Text>
       </View>

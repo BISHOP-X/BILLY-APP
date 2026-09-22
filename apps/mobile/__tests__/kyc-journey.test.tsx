@@ -76,7 +76,7 @@ describe('KycJourney', () => {
 
     expect(
       screen.getByText(
-        'Identity verification is required for crypto transactions and selling gift cards. It does not block wallet funding, bills, or browsing and buying gift cards.',
+        'A quick identity check to use crypto and sell gift cards.',
       ),
     ).toBeTruthy();
     expect(

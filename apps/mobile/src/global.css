@@ -65,6 +65,20 @@ textarea:-webkit-autofill:focus {
   caret-color: #146237;
 }
 
+#billy-admin input,
+#billy-admin textarea {
+  color-scheme: dark;
+  caret-color: #96e0b4;
+}
+
+#billy-admin input:-webkit-autofill,
+#billy-admin input:-webkit-autofill:hover,
+#billy-admin input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0c1711 inset !important;
+  -webkit-text-fill-color: #f0f5f1 !important;
+  caret-color: #96e0b4;
+}
+
 button,
 [role='button'],
 [role='tab'],

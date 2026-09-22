@@ -162,7 +162,7 @@ export function ProfileDetailsForm({
       />
       <View style={[styles.note, { backgroundColor: theme.colors.brandMist }]}>
         <Ionicons color={theme.colors.brand} name="lock-closed" size={17} />
-        <Text style={[styles.noteText, { color: theme.colors.brand }]}>Your information stays protected and is never used as an authorization shortcut.</Text>
+        <Text style={[styles.noteText, { color: theme.colors.brand }]}>You can update these details in Account.</Text>
       </View>
       <AppButton
         icon="arrow-forward"

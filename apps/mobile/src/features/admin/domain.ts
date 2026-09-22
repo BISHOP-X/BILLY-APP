@@ -38,6 +38,17 @@ export function adminMoney(value: unknown): string {
   const absolute = minor < 0n ? -minor : minor;
   return `${minor < 0n ? '-' : ''}₦${(absolute / 100n).toLocaleString('en-NG')}.${String(absolute % 100n).padStart(2, '0')}`;
 }
+/** Keep summary and expanded rows consistent, including fees, without rounding. */
+export function adminRecordAmount(row: AdminRow): string {
+  if (row.total_minor !== undefined && row.total_minor !== null)
+    return adminMoney(row.total_minor);
+  if (row.amount_minor === undefined || row.amount_minor === null)
+    return adminMoney(row.balance_minor);
+  const amount = String(row.amount_minor);
+  const fee = String(row.fee_minor ?? 0);
+  if (!/^-?\d+$/.test(amount) || !/^-?\d+$/.test(fee)) return '—';
+  return adminMoney(BigInt(amount) + BigInt(fee));
+}
 export const adminSections = [
   ['overview', 'Overview', 'grid-outline'],
   ['transactions', 'Transactions', 'swap-horizontal-outline'],

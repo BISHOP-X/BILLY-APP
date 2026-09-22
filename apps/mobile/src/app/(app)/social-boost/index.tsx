@@ -494,7 +494,7 @@ export default function SocialBoostScreen() {
               <AppButton
                 disabled={!form.target.trim() || !isCompleteTransactionPin(pin)}
                 icon="arrow-forward"
-                label="Place order securely"
+                label="Place order"
                 loading={submit.isPending}
                 onPress={() => void placeOrder()}
               />
@@ -515,7 +515,7 @@ export default function SocialBoostScreen() {
           onCancel={(order) => {
             notify(
               'Request cancellation?',
-              'Cancellation eligibility comes from the service. Any refund follows the provider-confirmed undelivered quantity.',
+              'Cancellation depends on the order’s progress. Any confirmed refund goes to your wallet.',
               [
                 { style: 'cancel', text: 'Keep order' },
                 {
@@ -901,7 +901,7 @@ function OrdersPanel({
             Delivery history
           </Text>
           <Text style={[styles.sectionBody, { color: theme.colors.textMuted }]}>
-            Refresh only checks the existing provider order.
+            Refresh checks this order. It won’t place a new one.
           </Text>
         </View>
         <StatusChip status="pending" />

@@ -25,7 +25,7 @@ export default function KycScreen() {
       refreshing={dashboardQuery.isRefetching || checksQuery.isRefetching}
       testID="kyc-screen">
       <ScreenHeader
-        subtitle="Private, clear, and required only for protected services."
+        subtitle="For crypto and selling gift cards."
         title="Identity check"
       />
       <DemoDataBanner />

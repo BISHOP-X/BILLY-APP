@@ -92,8 +92,8 @@ export function FundingAccountIntro({
             Ready when you are
           </Text>
           <Text style={[styles.createBody, { color: theme.colors.textMuted }]}>
-            Billy will securely create or retrieve your personal Paga funding
-            account. You do not need to enter an amount first.
+            Get your personal bank account number, then transfer money to add
+            funds to Billy.
           </Text>
         </View>
         {creationPending && creationMessage ? (

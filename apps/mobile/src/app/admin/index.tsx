@@ -23,6 +23,7 @@ import {
 } from '@/features/admin/components';
 import {
   adminMoney,
+  adminRecordAmount,
   adminSections,
   inputTwoDecimals,
   parseTwoDecimals,
@@ -33,10 +34,12 @@ import {
   type Pricing,
 } from '@/features/admin/domain';
 import { invokeAction } from '@/features/services/supabase-service-repository';
+import { AdminNavigation } from '@/features/admin/navigation';
+import { AdminOverview } from '@/features/admin/overview';
 
 const sectionDetails: Record<AdminSection, string> = {
-  overview: 'A clear view of Billy, from payments to customer support.',
-  transactions: 'Follow the ledger. Every movement has a reference.',
+  overview: 'Your business, at a glance.',
+  transactions: 'Payments, deposits and refunds.',
   users: 'Customer accounts, wallet access and onboarding progress.',
   numbers: 'Number allocation, code delivery and confirmed refunds.',
   social: 'Track delivery, cancellation and order reconciliation.',
@@ -98,6 +101,28 @@ export default function BillyAdmin() {
     enabled: access.data?.admin === true,
     retry: false,
   });
+  const recent = useQuery({
+    queryKey: ['admin', auth.user?.id, 'recent-transactions'],
+    queryFn: () =>
+      invokeAction<AdminPage>('admin.read', {
+        section: 'transactions',
+        page: 1,
+      }),
+    enabled: access.data?.admin === true && section === 'overview',
+    retry: false,
+  });
+  const serviceStatus = useQuery({
+    queryKey: ['admin', auth.user?.id, 'settings', 1, '', ''],
+    queryFn: () =>
+      invokeAction<AdminSettings>('admin.read', {
+        section: 'settings',
+        page: 1,
+        query: '',
+        status: '',
+      }),
+    enabled: access.data?.admin === true && section === 'overview',
+    retry: false,
+  });
   const mutation = useMutation({
     mutationFn: (input: Record<string, unknown>) =>
       invokeAction('admin.change', input),
@@ -151,28 +176,6 @@ export default function BillyAdmin() {
     }
   }
   const title = adminSections.find((s) => s[0] === section)![1];
-  const navigation = adminSections.map(([id, label, icon]) => (
-    <Pressable
-      key={id}
-      accessibilityRole="button"
-      accessibilityState={{ selected: section === id }}
-      onPress={() => navigate(id)}
-      style={[
-        styles.navItem,
-        section === id && styles.navActive,
-        !wide && styles.navMobile,
-      ]}
-    >
-      <Ionicons
-        name={icon}
-        size={18}
-        color={section === id ? '#DAF3CB' : '#ADC2B5'}
-      />
-      <Text style={[styles.navText, section === id && { color: '#F5F8F1' }]}>
-        {label}
-      </Text>
-    </Pressable>
-  ));
   if (
     auth.status === 'loading' ||
     (auth.status === 'authenticated' && access.isPending)
@@ -180,7 +183,7 @@ export default function BillyAdmin() {
     return (
       <SafeAreaView style={styles.loading}>
         <ActivityIndicator color={c.green} />
-        <AdminText>Opening Billy Operations…</AdminText>
+        <AdminText>Loading…</AdminText>
       </SafeAreaView>
     );
   if (auth.status !== 'authenticated')
@@ -189,68 +192,18 @@ export default function BillyAdmin() {
     return <Redirect href="/(app)/home" />;
   return (
     <SafeAreaView
+      nativeID="billy-admin"
       edges={['top', 'left', 'right', 'bottom']}
       style={styles.root}
     >
       <View style={[styles.workspace, wide && { flexDirection: 'row' }]}>
-        {wide ? (
-          <View style={styles.sidebar}>
-            <View style={styles.brand}>
-              <View style={styles.smallMark}>
-                <Ionicons name="layers-outline" size={22} color="#DCF9CE" />
-              </View>
-              <View>
-                <Text style={styles.brandName}>billy</Text>
-                <Text style={styles.brandSub}>OPERATIONS</Text>
-              </View>
-            </View>
-            <ScrollView contentContainerStyle={styles.navList}>
-              {navigation}
-            </ScrollView>
-            <View style={styles.sidebarFooter}>
-              <Text style={styles.adminEmail}>support@billyapp.org</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void logout()}
-                style={styles.navItem}
-              >
-                <Ionicons name="log-out-outline" size={18} color="#CDE0D1" />
-                <Text style={styles.navText}>Sign out</Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.mobileTop}>
-            <View style={styles.mobileBrand}>
-              <Text style={styles.brandName}>
-                billy{' '}
-                <Text style={{ fontSize: 13, color: '#ADBFAC' }}>
-                  {' '}
-                  / operations
-                </Text>
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Sign out"
-                onPress={() => void logout()}
-                style={{ padding: 10 }}
-              >
-                <Ionicons name="log-out-outline" color="#E4F1E2" size={23} />
-              </Pressable>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                gap: 5,
-                paddingHorizontal: 12,
-                paddingBottom: 12,
-              }}
-            >
-              {navigation}
-            </ScrollView>
-          </View>
-        )}
+        <AdminNavigation
+          wide={wide}
+          section={section}
+          onNavigate={navigate}
+          onUserSection={() => router.replace('/(app)/home')}
+          onSignOut={() => void logout()}
+        />
         <ScrollView
           style={styles.main}
           keyboardShouldPersistTaps="handled"
@@ -259,16 +212,11 @@ export default function BillyAdmin() {
             !wide && { padding: 16, gap: 20 },
           ]}
         >
-          <View style={styles.actions}>
-            <AdminButton
-              label="User Section"
-              secondary
-              onPress={() => router.replace('/(app)/home')}
-            />
-          </View>
           <View style={styles.header}>
             <View style={{ flex: 1, gap: 7 }}>
-              <Text style={styles.eyebrow}>BILLY / {title.toUpperCase()}</Text>
+              <Text style={styles.eyebrow}>
+                WORKSPACE / {title.toUpperCase()}
+              </Text>
               <Text
                 accessibilityRole="header"
                 style={[styles.title, !wide && { fontSize: 28 }]}
@@ -281,7 +229,13 @@ export default function BillyAdmin() {
               label="Refresh"
               secondary
               busy={view.isFetching}
-              onPress={() => void view.refetch()}
+              onPress={() => {
+                void view.refetch();
+                if (section === 'overview') {
+                  void recent.refetch();
+                  void serviceStatus.refetch();
+                }
+              }}
             />
           </View>
           {message ? (
@@ -342,87 +296,22 @@ export default function BillyAdmin() {
             </Panel>
           ) : null}
           {view.data && section === 'overview' ? (
-            <>
-              <View style={styles.metrics}>
-                {[
-                  ['Customers', view.data.users],
-                  [
-                    'Wallet balances',
-                    adminMoney(view.data.wallet_balance_minor),
-                  ],
-                  [
-                    'Reserved funds',
-                    adminMoney(view.data.wallet_reserved_minor),
-                  ],
-                  [
-                    'Settled service volume',
-                    adminMoney(view.data.settled_volume_minor),
-                  ],
-                  [
-                    'Settled service fees',
-                    adminMoney(view.data.settled_fees_minor),
-                  ],
-                  ['Pending transactions', view.data.pending_transactions],
-                ].map(([label, value]) => (
-                  <View
-                    key={String(label)}
-                    style={[styles.metric, { minWidth: wide ? 240 : 135 }]}
-                  >
-                    <Text style={styles.metricLabel}>{String(label)}</Text>
-                    <Text style={styles.metricValue}>{valueText(value)}</Text>
-                  </View>
-                ))}
-              </View>
-              <Panel>
-                <Text style={styles.eyebrow}>NEEDS ATTENTION</Text>
-                <AdminText large>Keep the customer journey moving.</AdminText>
-                <View style={styles.attention}>
-                  {[
-                    ['support', 'Open support cases', view.data.open_support],
-                    [
-                      'numbers',
-                      'SMS orders to review',
-                      view.data.number_reviews,
-                    ],
-                    [
-                      'social',
-                      'Social orders to review',
-                      view.data.social_reviews,
-                    ],
-                  ].map(([id, label, value]) => (
-                    <Pressable
-                      key={String(id)}
-                      accessibilityRole="button"
-                      onPress={() => navigate(id as AdminSection)}
-                      style={styles.attentionItem}
-                    >
-                      <Text style={styles.attentionCount}>
-                        {valueText(value)}
-                      </Text>
-                      <AdminText>{String(label)}</AdminText>
-                      <Ionicons
-                        name="arrow-forward"
-                        color={c.green}
-                        size={18}
-                      />
-                    </Pressable>
-                  ))}
-                </View>
-              </Panel>
-              <Panel>
-                <AdminText>
-                  Wallet balances are customer funds, not revenue. Service fees
-                  shown here are settled fees, not net profit; provider costs,
-                  refunds and operating expenses must also be reconciled.
-                </AdminText>
-              </Panel>
-            </>
+            <AdminOverview
+              data={view.data}
+              wide={wide}
+              recent={recent.data?.rows}
+              recentError={recent.isError}
+              services={serviceStatus.data?.services}
+              servicesError={serviceStatus.isError}
+              onNavigate={navigate}
+              onRetryRecent={() => void recent.refetch()}
+            />
           ) : null}
           {view.data && section === 'settings' ? (
             <>
               <Panel>
                 <Text style={styles.eyebrow}>SELLING PRICES</Text>
-                <AdminText large>Explicit rates. No hidden defaults.</AdminText>
+                <AdminText large>Rates & margins</AdminText>
                 <AdminText muted>
                   NGN per US dollar converts the provider cost; markup is added
                   on top. New quotes use saved settings. Provider keys stay in
@@ -519,8 +408,7 @@ export default function BillyAdmin() {
                 <Panel>
                   <AdminText large>No matching records</AdminText>
                   <AdminText muted>
-                    Try another search or clear your filters. This view uses
-                    actual Billy records only.
+                    Try another search or clear your filters.
                   </AdminText>
                 </Panel>
               ) : null}
@@ -669,6 +557,36 @@ function RecordCard({
     row.status ??
     row.wallet_status ??
     (row.enabled !== undefined ? (row.enabled ? 'active' : 'off') : null);
+  if (!expanded)
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`View details for ${valueText(title)}`}
+        onPress={onExpand}
+        style={({ pressed }) => [
+          styles.compactRecord,
+          pressed && { backgroundColor: c.raised },
+        ]}
+      >
+        <View style={{ flex: 1, minWidth: 0, gap: 6 }}>
+          <Text numberOfLines={1} style={styles.compactTitle}>
+            {valueText(title)}
+          </Text>
+          <Text numberOfLines={1} style={styles.recordMeta}>
+            {valueText(row.email ?? row.reference ?? row.id)}
+          </Text>
+        </View>
+        <View style={{ alignItems: 'flex-end', gap: 6, maxWidth: '45%' }}>
+          {row.total_minor !== undefined ||
+          row.amount_minor !== undefined ||
+          row.balance_minor !== undefined ? (
+            <Text style={styles.compactTitle}>{adminRecordAmount(row)}</Text>
+          ) : null}
+          {status ? <Badge value={status} /> : null}
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.muted} />
+      </Pressable>
+    );
   return (
     <Panel>
       <View style={styles.recordTitle}>
@@ -687,12 +605,7 @@ function RecordCard({
       </View>
       <View style={styles.recordSummary}>
         {row.total_minor !== undefined || row.amount_minor !== undefined ? (
-          <AdminText>
-            {adminMoney(
-              row.total_minor ??
-                Number(row.amount_minor ?? 0) + Number(row.fee_minor ?? 0),
-            )}
-          </AdminText>
+          <AdminText>{adminRecordAmount(row)}</AdminText>
         ) : null}
         {row.balance_minor !== undefined ? (
           <AdminText>Balance {adminMoney(row.balance_minor)}</AdminText>
@@ -810,63 +723,6 @@ const styles = StyleSheet.create({
     padding: 24,
     gap: 16,
   },
-  sidebar: { width: 252, backgroundColor: c.nav, paddingTop: 32 },
-  brand: {
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingBottom: 30,
-  },
-  smallMark: {
-    height: 42,
-    width: 42,
-    backgroundColor: '#244631',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  brandName: {
-    color: '#FFF',
-    fontSize: 29,
-    fontWeight: '800',
-    letterSpacing: -1,
-  },
-  brandSub: {
-    color: '#94B19D',
-    fontSize: 9,
-    letterSpacing: 2.5,
-    fontWeight: '700',
-  },
-  navList: { paddingHorizontal: 14, gap: 5 },
-  navItem: {
-    minHeight: 46,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  navActive: { backgroundColor: '#284D37' },
-  navText: { fontSize: 13, color: '#C1D1C5', fontWeight: '500' },
-  navMobile: { borderRadius: 24, paddingVertical: 9, minHeight: 44 },
-  sidebarFooter: {
-    padding: 18,
-    borderTopWidth: 1,
-    borderTopColor: '#284333',
-    gap: 10,
-  },
-  adminEmail: { fontSize: 11, color: '#9CB6A3' },
-  mobileTop: { backgroundColor: c.nav },
-  mobileBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 12,
-  },
   main: { flex: 1 },
   mainContent: {
     padding: 36,
@@ -876,46 +732,34 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingBottom: 50,
   },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingBottom: 8,
+  },
   eyebrow: {
     fontSize: 10,
     letterSpacing: 2,
     color: c.green,
     fontWeight: '700',
   },
-  title: { fontSize: 36, fontWeight: '700', letterSpacing: -1.1, color: c.ink },
-  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  metric: {
-    flexBasis: '30%',
-    flexGrow: 1,
-    padding: 22,
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: c.line,
-    gap: 16,
-  },
-  metricLabel: { fontSize: 12, color: c.muted },
-  metricValue: {
-    fontSize: 27,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-    color: c.ink,
-  },
-  attention: { gap: 4 },
-  attentionItem: {
+  title: { fontSize: 34, fontWeight: '600', letterSpacing: -1.1, color: c.ink },
+  compactRecord: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: c.line,
+    gap: 14,
+    padding: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: c.line,
+    backgroundColor: c.paper,
   },
-  attentionCount: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: c.green,
-    minWidth: 32,
+  compactTitle: {
+    color: c.ink,
+    fontSize: 14,
+    fontWeight: '500',
+    fontVariant: ['tabular-nums'],
   },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

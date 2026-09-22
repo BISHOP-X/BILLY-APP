@@ -359,7 +359,7 @@ function BillJourney({
         onBack={goBack}
         subtitle={
           step === 0
-            ? 'Current products and limits load securely.'
+            ? 'Choose a plan to continue.'
             : step === 1
               ? 'Check every detail before confirming.'
               : step === 2
@@ -392,7 +392,7 @@ function BillJourney({
         <StatePanel
           actionLabel="Refresh catalog"
           icon="receipt-outline"
-          message="No current services were returned for this category. Billy will not guess provider products or prices."
+          message="No plans are available right now. Please try again later."
           onAction={() => void catalog.refetch()}
           title="No services available"
           tone="warning"
@@ -694,7 +694,7 @@ function BillJourney({
             <AppButton
               disabled={!isCompleteTransactionPin(pin) || purchase.isPending}
               icon="shield-checkmark-outline"
-              label="Pay securely"
+              label="Pay now"
               loading={purchase.isPending}
               onPress={() => void confirmPayment()}
             />
@@ -835,7 +835,7 @@ function QuoteReview({
         </View>
       </View>
 
-      <FeedbackBanner message="A provider timeout will remain pending for reconciliation. Billy will not repeat the purchase automatically." />
+      <FeedbackBanner message="If your payment is pending, check Activity before paying again." />
 
       <AppButton
         icon="arrow-forward"

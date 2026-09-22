@@ -77,9 +77,53 @@ test('an access-check error never exposes the admin workspace', async () => {
 });
 test('ordinary user has no Admin Panel switch', async () => {
   mockInvoke.mockResolvedValue({ admin: false });
-  await render(<AdminPanelLink />, { wrapper });
-  await waitFor(() => expect(mockInvoke).toHaveBeenCalled());
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
+  await render(
+    <QueryClientProvider client={client}>
+      <AdminPanelLink />
+    </QueryClientProvider>,
+  );
+  await waitFor(() => expect(client.isFetching()).toBe(0));
+  expect(mockInvoke).toHaveBeenCalledWith('admin.session', {});
   expect(screen.queryByText('Admin Panel')).toBeNull();
+});
+
+test('authorized overview loads service status from settings rather than assuming overview contains it', async () => {
+  mockInvoke.mockImplementation((action, input) => {
+    if (action === 'admin.session') return Promise.resolve({ admin: true });
+    if (input.section === 'settings')
+      return Promise.resolve({
+        pricing: [],
+        services: [
+          {
+            service_key: 'example',
+            label: 'Example service',
+            status: 'available',
+            rollout_mode: 'testers',
+            enabled: true,
+          },
+        ],
+        readyServices: {},
+      });
+    if (input.section === 'transactions')
+      return Promise.resolve({ rows: [], page: 1, hasMore: false });
+    return Promise.resolve({
+      users: 0,
+      wallet_balance_minor: '0',
+      wallet_reserved_minor: '0',
+    });
+  });
+  await render(<BillyAdmin />, { wrapper });
+  expect(await screen.findByText('Example service')).toBeTruthy();
+  expect(screen.getByText('testers')).toBeTruthy();
+  expect(mockInvoke).toHaveBeenCalledWith('admin.read', {
+    section: 'settings',
+    page: 1,
+    query: '',
+    status: '',
+  });
 });
 test('only server-confirmed membership reveals Admin Panel switch', async () => {
   mockInvoke.mockResolvedValue({ admin: true });

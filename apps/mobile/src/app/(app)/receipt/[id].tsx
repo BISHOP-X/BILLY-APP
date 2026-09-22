@@ -86,8 +86,7 @@ export default function ReceiptScreen() {
           <ReceiptRow label="Issued" value={formatFullDate(query.data.receipt.issuedAt)} />
           <View style={[styles.divider, { borderColor: theme.colors.border }]} />
           <Text style={[styles.note, { color: theme.colors.textMuted }]}>
-            Keep the Billy reference when requesting support. This receipt contains no
-            provider credentials or private payment details.
+            Keep this reference if you need help with your payment.
           </Text>
         </View>
       ) : (

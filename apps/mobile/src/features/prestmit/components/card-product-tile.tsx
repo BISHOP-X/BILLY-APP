@@ -63,7 +63,7 @@ export function CardProductTile({
           <Ionicons color={theme.colors.brand} name="arrow-forward" size={18} />
         </View>
         <Text style={[styles.meta, { color: theme.colors.textMuted }]}>
-          {product.regions[0] ?? 'Current provider region'} ·{' '}
+          {product.regions[0] ?? 'Check region before buying'} ·{' '}
           {product.isPreOrder ? 'Pre-order' : 'Digital delivery'}
         </Text>
         <View style={[styles.range, { backgroundColor: theme.colors.brandMist }]}>

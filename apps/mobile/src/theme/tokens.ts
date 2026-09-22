@@ -96,7 +96,7 @@ export const radii = {
 } as const;
 
 export const layout = {
-  bottomTabBarHeight: 64,
+  bottomTabBarHeight: 72,
   bottomTabDockReserve: 112,
 } as const;
 
@@ -130,14 +130,14 @@ export const shadows = {
   }),
   button: Platform.select({
     web: {
-      boxShadow: '0 12px 24px rgba(20, 98, 55, 0.24)',
+      boxShadow: '0 3px 10px rgba(20, 98, 55, 0.12)',
     },
     default: {
       shadowColor: '#146237',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.22,
-      shadowRadius: 16,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 2,
     },
   }),
 } as const;

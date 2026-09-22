@@ -85,7 +85,7 @@ export default function AccountScreen() {
       refreshing={dashboard.isRefetching}
       testID="account-screen">
       <DemoDataBanner />
-      <SectionHeader subtitle="Profile, privacy, security, and support." title="Account" />
+      <SectionHeader title="Account" />
 
       <View
         style={[
@@ -105,7 +105,7 @@ export default function AccountScreen() {
               size={15}
             />
             <Text style={[styles.tierText, { color: theme.colors.textMuted }]}>
-              Tier {kyc.tier} · {kyc.status.replace('_', ' ')}
+              {kyc.accessCode === 'verified' ? 'Identity verified' : kyc.status === 'pending' || kyc.status === 'in_progress' ? 'Verification in progress' : 'Identity not verified'}
             </Text>
           </View>
         </View>
@@ -132,7 +132,7 @@ export default function AccountScreen() {
         ) : null}
         <AccountRow
           icon="shield-checkmark-outline"
-          label="Verification"
+          label="Identity verification"
           onPress={() => router.push('/(app)/kyc')}
           value={kyc.status.replace('_', ' ')}
         />
@@ -142,8 +142,8 @@ export default function AccountScreen() {
           onPress={() => router.push('/(app)/security')}
           subtitle={
             Platform.OS === 'web'
-              ? 'PIN and protected access'
-              : 'PIN, biometrics, and protected access'
+              ? 'Transaction PIN'
+              : 'Transaction PIN and biometrics'
           }
         />
         <AccountRow
@@ -163,19 +163,19 @@ export default function AccountScreen() {
           icon="help-buoy-outline"
           label="Help and support"
           onPress={() => router.push('/(app)/support')}
-          subtitle="Guidance and support requests"
+          subtitle="Get help with your account"
         />
         <AccountRow
           icon="document-text-outline"
           label="Legal and privacy"
           onPress={() => router.push('/(app)/account/legal')}
-          subtitle="Terms, privacy, and accepted versions"
+          subtitle="Terms and privacy policy"
         />
       </View>
 
       <AppButton label="Sign out" onPress={confirmSignOut} variant="ghost" />
       <Text style={[styles.version, { color: theme.colors.textSoft }]}>
-        {Platform.OS === 'web' ? 'Billy web' : 'Billy mobile'} · secure preview
+        Billy
       </Text>
     </AppScreen>
   );

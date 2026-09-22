@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import type { BottomTabBarProps } from 'expo-router/tabs';
 import { useEffect, useState } from 'react';
 import {
@@ -11,9 +10,7 @@ import {
 } from 'react-native';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { layout, radii, spacing, typography } from '@/theme/tokens';
-
-const SERVICES_ROUTE = 'services';
+import { layout, spacing, typography } from '@/theme/tokens';
 
 export function BillyTabBar({
   descriptors,
@@ -53,10 +50,11 @@ export function BillyTabBar({
       style={[
         styles.safeWrap,
         {
-          backgroundColor: theme.colors.canvas,
+          backgroundColor: 'transparent',
           paddingBottom: safeBottom,
         },
-      ]}>
+      ]}
+    >
       <View
         accessibilityLabel={
           Platform.OS === 'web' ? 'Primary navigation' : undefined
@@ -71,11 +69,11 @@ export function BillyTabBar({
               ? 'rgba(184, 243, 207, 0.18)'
               : 'rgba(20, 98, 55, 0.13)',
           },
-        ]}>
+        ]}
+      >
         {state.routes.map((route, index) => {
           const options = descriptors[route.key]?.options;
           const focused = state.index === index;
-          const central = route.name === SERVICES_ROUTE;
           const label =
             typeof options?.tabBarLabel === 'string'
               ? options.tabBarLabel
@@ -112,82 +110,29 @@ export function BillyTabBar({
               key={route.key}
               onLongPress={onLongPress}
               onPress={onPress}
-              style={({ pressed }) => [
-                styles.item,
-                central && styles.centralItem,
-                pressed && styles.pressed,
-              ]}
-              testID={options?.tabBarButtonTestID}>
-              {central ? (
-                <>
-                  <View
-                    style={[
-                      styles.launcherRing,
-                      { backgroundColor: barBackground },
-                    ]}>
-                    <View
-                      style={[
-                        styles.launcher,
-                        {
-                          backgroundColor: focused
-                            ? theme.colors.accent
-                            : theme.colors.brand,
-                          borderColor: focused
-                            ? theme.colors.white
-                            : theme.colors.accent,
-                        },
-                      ]}>
-                      <Ionicons
-                        accessible={false}
-                        color={
-                          focused
-                            ? theme.colors.brandDeep
-                            : theme.colors.white
-                        }
-                        name={focused ? 'grid' : 'grid-outline'}
-                        size={25}
-                      />
-                    </View>
-                  </View>
-                  <Text
-                    allowFontScaling
-                    numberOfLines={1}
-                    style={[
-                      styles.centralLabel,
-                      { color: focused ? activeColor : inactiveColor },
-                    ]}>
-                    {label}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View
-                    style={[
-                      styles.iconWell,
-                      focused && {
-                        backgroundColor: theme.dark
-                          ? theme.colors.surfaceMuted
-                          : theme.colors.brandMist,
-                      },
-                    ]}>
-                    {options?.tabBarIcon?.({
-                      color,
-                      focused,
-                      size: 22,
-                    })}
-                  </View>
-                  <Text
-                    allowFontScaling
-                    numberOfLines={1}
-                    style={[
-                      styles.label,
-                      { color },
-                      focused && styles.focusedLabel,
-                    ]}>
-                    {label}
-                  </Text>
-                </>
-              )}
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
+              testID={options?.tabBarButtonTestID}
+            >
+              <View
+                style={[
+                  styles.iconWell,
+                  focused && { backgroundColor: theme.colors.brandMist },
+                ]}
+              >
+                {options?.tabBarIcon?.({ color, focused, size: 22 })}
+              </View>
+              <Text
+                allowFontScaling
+                maxFontSizeMultiplier={1.3}
+                numberOfLines={1}
+                style={[
+                  styles.label,
+                  { color },
+                  focused && { fontWeight: '700' },
+                ]}
+              >
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -200,7 +145,7 @@ const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
     alignSelf: 'center',
-    borderRadius: radii.pill,
+    borderRadius: 24,
     borderWidth: 1,
     flexDirection: 'row',
     height: layout.bottomTabBarHeight,
@@ -208,37 +153,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxs,
     width: '100%',
   },
-  centralItem: {
-    overflow: 'visible',
-  },
-  centralLabel: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '800',
-    marginTop: -13,
-    maxWidth: '100%',
-  },
-  focusedLabel: {
-    fontWeight: '800',
-  },
   floatingShadow: Platform.select({
     web: {
-      boxShadow: '0 12px 32px rgba(0, 0, 0, 0.26)',
+      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
     },
     default: {
-      elevation: 12,
+      elevation: 3,
       shadowColor: '#000000',
-      shadowOffset: { height: 10, width: 0 },
-      shadowOpacity: 0.28,
-      shadowRadius: 18,
+      shadowOffset: { height: 3, width: 0 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
     },
   }),
   iconWell: {
     alignItems: 'center',
-    borderRadius: radii.pill,
-    height: 31,
+    borderRadius: 12,
+    height: 32,
     justifyContent: 'center',
-    width: 39,
+    width: 42,
   },
   item: {
     alignItems: 'center',
@@ -250,25 +182,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 15,
+    fontWeight: '500',
     maxWidth: '100%',
-  },
-  launcher: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    height: 54,
-    justifyContent: 'center',
-    width: 54,
-  },
-  launcherRing: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    height: 64,
-    justifyContent: 'center',
-    transform: [{ translateY: -15 }],
-    width: 64,
   },
   pressed: {
     opacity: 0.68,
@@ -277,7 +194,7 @@ const styles = StyleSheet.create({
   safeWrap: {
     alignSelf: 'center',
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
     width: '100%',
   },
 });

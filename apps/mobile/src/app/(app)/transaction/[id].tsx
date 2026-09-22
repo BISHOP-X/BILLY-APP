@@ -87,7 +87,7 @@ export default function TransactionDetailScreen() {
               />
             ) : billOrderQuery.isError ? (
               <FeedbackBanner
-                message="Billy could not load the provider confirmation. Pull down to try again."
+                message="Payment status couldn’t load. Pull down to try again."
                 tone="error"
               />
             ) : null
@@ -136,9 +136,9 @@ function BillReconciliationPanel({
         </Text>
         <Text style={[styles.billMessage, { color: theme.colors.textMuted }]}>
           {pending
-            ? 'This is the original payment. Check it here—Billy will requery the same provider reference and will not buy twice.'
+            ? 'Your payment is being confirmed. Check its status here before paying again.'
             : order.status === 'succeeded'
-              ? 'This payment was delivered. Billy can requery the original provider reference for a later reversal without buying again.'
+              ? 'Payment complete. You can check here for any updates.'
               : `This bill order is ${order.status}. Its Billy reference is ${order.reference}.`}
         </Text>
       </View>
@@ -149,7 +149,7 @@ function BillReconciliationPanel({
       {canReconcile ? (
         <AppButton
           icon="refresh"
-          label={pending ? 'Check payment status' : 'Check latest provider status'}
+          label="Check payment status"
           loading={refreshing}
           onPress={() => onRefresh(order.id)}
           variant="secondary"

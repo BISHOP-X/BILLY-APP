@@ -72,7 +72,7 @@ export default function GiftCardsScreen() {
               Choose a gift card
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-              The list and price are loaded securely at the time you use them.
+              Pick a brand and amount.
             </Text>
           </View>
           {catalog.isLoading ? (
