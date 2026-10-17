@@ -64,6 +64,8 @@ begin
   assert (select count(*)=2 from private.number_order_routes where rental_id='617000000001');
   update private.number_provider_rollouts set mode='off' where provider_key='daisysms';
   assert not public.internal_number_provider_access(owner_id),'Off overrides testers';
+  update private.number_provider_rollouts set mode='all' where provider_key='daisysms';
+  assert public.internal_number_provider_access(other_id),'Open access includes non-admin users without tester membership';
   assert (select provider_key='getatext' from private.number_order_routes where order_id=first_id),'Existing provenance unchanged';
   assert not has_function_privilege('authenticated','public.internal_record_kyc_unfunded(uuid,uuid,text)','execute');
   update public.service_availability set status='available' where service_key='identity_verification';

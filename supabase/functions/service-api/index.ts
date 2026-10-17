@@ -542,7 +542,8 @@ async function readyServices() {
   return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter)&&priced("foreign_numbers"),
     wallet_funding:providerMode("POCKETFI_MODE")==="live",bills:providerMode("VTPASS_MODE")==="live",
     crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:providerMode("PRESTMIT_MODE")==="live",
-    prepaid_cards:providerMode("PRESTMIT_MODE")==="live"};
+    prepaid_cards:providerMode("PRESTMIT_MODE")==="live",
+    identity_verification:providerMode("PREMBLY_MODE")==="live" && Boolean(env("PREMBLY_API_KEY")) && Boolean(env("PREMBLY_BASE_URL"))};
 }
 function socialBoostRuntime(pricing?: PricingRow): SocialBoostServiceRuntime {
   const mode = socialAdapter ? "live" : providerMode("SOCIAL_BOOST_MODE");

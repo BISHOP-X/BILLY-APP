@@ -21,9 +21,9 @@ Implemented in this milestone:
   during a purchase never starts a second-provider purchase.
 - Refresh, cancellation and background reconciliation use the stored provider.
   No provider identifiers or secrets are returned in customer order data.
-- Daisy's initial rollout is `testers`; GetAText remains `all`. The sole admin
-  and the existing foreign-number tester membership can access the new path.
-  Issued orders can still reconcile after new-purchase access is disabled.
+- The owner subsequently approved open testing for every signed-in account:
+  Daisy and GetAText are both `all`. No tester membership is required.
+  Issued orders can still reconcile after an explicitly requested suspension.
 - Prembly operational errors cannot reject a customer's identity. Only an
   explicit insufficient-wallet refusal with `was_charged: false`, outer failure
   and a terminal non-verification result can enter the recoverable error path.
@@ -71,8 +71,10 @@ Live read-only/provider validation evidence (time-sensitive):
   `03` for insufficient balance. The exact error evidence is checked; arbitrary
   code `04` responses are not assumed to be safely retryable.
 - Prembly secret-key REST requests authenticated without an Application ID.
-  `PREMBLY_MODE=live` and the official base URL are configured, but the customer
-  KYC feature remains unavailable until the funded verification test is complete.
+  `PREMBLY_MODE=live` and the official base URL are configured. At the owner's
+  request, identity verification is available to every signed-in account under
+  Account > Identity verification. An unfunded provider response is an error for
+  that attempt, not a reason to disable access. Funded verification is unproven.
 
 Credentials are stored only as Billy Edge secrets, not in this document or the
 client bundle. No customer wallet was credited/debited by these tests.
@@ -140,7 +142,7 @@ already-successful server authentication does not depend on it.
   source history; it is not reported as a current live incident.
 - Post-test live counts remain zero number orders and zero KYC checks. No
   synthetic test records survived rollback.
-- `service-api` v19 and `provider-reconcile` v10 are ACTIVE; both retain
+- `service-api` v20 and `provider-reconcile` v10 are ACTIVE; both retain
   `verify_jwt: true`.
 - Advisors: no new security warning. New private rollout table intentionally has
   RLS and no end-user policy. Existing warnings include four owner-scoped public
@@ -152,7 +154,34 @@ Still required: real paid number allocation -> SMS -> completion and cancellatio
 customer journeys above; mobile/browser acceptance tests for those new journeys.
 Do not describe the whole launch scope as complete or as only waiting on keys.
 
-Recovery: switch Daisy's private rollout to `off` for new purchases while leaving
+Recovery, only for an owner-requested suspension or confirmed security incident:
+switch Daisy's private rollout to `off` for new purchases while leaving
 the adapters and provider provenance in place for outstanding orders. Do not drop
 the migrations or delete order/evidence rows. Roll back the Edge caller before
 considering removal of the new KYC RPC. Source migrations remain append-only.
+
+## Owner-approved open testing
+
+On 17 October 2026 the owner explicitly removed the tester-only requirement.
+`scripts/open-billy-provider-testing.mjs --apply` made these audited configuration
+changes: identity verification enabled/available/all and Daisy provider all.
+GetAText number purchases were already available/all and stay that way. No
+schema, customer balances, credentials, or identity records changed. Other
+unconfigured service verticals were not represented as working integrations.
+
+The admin provider-readiness response now includes configured live Prembly, so
+its control is not incorrectly reported as missing provider configuration.
+Prembly is accessible from Account > Identity verification; it does not need a
+main-grid tile. Funding, bills and number purchases do not acquire a KYC check.
+
+There is no outstanding owner-answerable GetAText question blocking this access.
+The earlier question concerned long-rental refund amounts and renewal price caps.
+Those are provider-contract/implementation matters: preserve explicit consent,
+do not guess refunds, and report unresolved integration limitations. Unfinished
+long-rental/multi-service/reuse screens are implementation work, not disabled
+completed features.
+
+Regression verification uses `scripts/verify-open-provider-access-live.mjs`:
+current non-admin access checks, authenticated live US catalogue, configured KYC
+reaching local input validation, and continued anonymous rejection. The malformed
+KYC input intentionally cannot contact Prembly or write an identity check.

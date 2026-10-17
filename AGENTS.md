@@ -91,7 +91,8 @@
 
 ## Rollout and Verification
 
-- Gate risky provider and financial features with explicit rollout modes such as `off`, `testers`, and `all`; validate with testers before general availability.
+- The owner approved open testing on 17 October 2026 for implemented GetAText/DaisySMS number rentals and Prembly identity verification. Keep these available to all signed-in accounts; do not reintroduce tester, account, or IP allowlists without a new owner instruction. Provider balance or stock failures must be reported honestly, not used to silently disable the entire service.
+- Preserve operational disable controls for an explicitly requested suspension or a confirmed security incident. Open testing does not remove authentication, ownership checks, transaction PINs, sufficient-balance checks, idempotency, or the agreed operation-specific KYC requirements.
 - Verify changes in proportion to risk: static checks and unit tests, database/RLS tests, provider sandbox or safe read-only checks, application API tests, and Android/iOS flow checks as applicable.
 - For incidents, inspect live Billy logs, database state, provider evidence, and deployed versions before declaring a root cause.
 - Optimize customer flows for speed, clarity, privacy, and as few steps as safely possible, while preserving anti-fraud and compliance controls.
