@@ -396,6 +396,13 @@ export function createServiceDatabase(
       requireNoError({ data: result.data, error: result.error });
     },
 
+    async recordKycUnfunded(input) {
+      const result = await client.rpc("internal_record_kyc_unfunded", {
+        p_user_id: input.userId, p_check_id: input.checkId, p_response_digest: input.responseDigest,
+      });
+      return asKycCheck(requireNoError({ data: result.data, error: result.error }));
+    },
+
     async failKycCheck(input) {
       const result = await client.rpc("internal_fail_kyc_check", {
         p_failure_code: input.failureCode,

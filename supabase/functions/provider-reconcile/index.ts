@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
 import { GetatextAdapter } from '../_shared/providers/getatext.ts';
+import { DaisySmsAdapter } from '../_shared/providers/daisysms.ts';
 import { SocialBoostHttpAdapter } from '../_shared/providers/social-boost.ts';
 import {
   createNumberDatabase,
@@ -32,6 +33,8 @@ const tokens = new ServiceTokenCodec(signing);
 const numberKey = Deno.env.get('GETATEXT_API_KEY');
 const socialKey = Deno.env.get('SOCIAL_BOOST_API_KEY');
 const numbers: NumberRuntime = {
+  additionalAdapters: { daisysms: Deno.env.get('DAISYSMS_API_KEY')
+    ? new DaisySmsAdapter(Deno.env.get('DAISYSMS_API_KEY')!) : undefined },
   adapter: numberKey
     ? new GetatextAdapter(
         numberKey,

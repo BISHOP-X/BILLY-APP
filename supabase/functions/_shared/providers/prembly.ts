@@ -79,6 +79,8 @@ export type PremblyIdentity = {
 };
 
 export type PremblyVerificationResult = {
+  /** Only the provider's explicit, uncharged balance refusal permits retry. */
+  definitiveFailure?: "provider_unfunded";
   identity?: PremblyIdentity;
   identityLast4: string;
   method: PremblyVerificationMethod;
@@ -288,15 +290,33 @@ export function normalizePremblyResponse(
   const validatedNumber = validatePremblyIdentityNumber(identityNumber, method);
   const object = isRecord(payload) ? payload : {};
   const explicitStatuses = collectExplicitStatuses(object);
-  const providerCode = normalizeProviderCode(
-    object.response_code ?? object.responseCode,
-    validatedNumber,
-  );
+  const providerCode = consistentProviderCode(object, validatedNumber);
   const providerMessage = extractProviderMessage(object, validatedNumber);
   const classifications = new Set(
     explicitStatuses.map(classifyVerificationStatus),
   );
   const topLevelStatus = normalizeBooleanStatus(object.status);
+
+  // Live Prembly can return NOT-VERIFIED for an unfunded provider wallet.
+  // That is an operational failure, never evidence against the customer's identity.
+  if (isOperationalFailure(object, providerCode)) {
+    return {
+      ...(topLevelStatus === false &&
+          [object.message, object.detail].some((value) => typeof value === "string" &&
+            /^insufficient wallet balance[.!]?$/i.test(value.trim())) &&
+          recordAt(object, "billing_info").was_charged === false &&
+          classifications.size === 1 && classifications.has("rejected")
+        ? { definitiveFailure: "provider_unfunded" as const } : {}),
+      identityLast4: validatedNumber.slice(-4),
+      method,
+      mode,
+      providerCode,
+      providerMessage: defaultMessage("technical_error"),
+      providerReference: extractPremblyReference(object, validatedNumber),
+      retryable: false,
+      status: "technical_error",
+    };
+  }
 
   let status: PremblyVerificationStatus = "pending";
   if (classifications.size === 1) {
@@ -354,11 +374,18 @@ export function normalizePremblyStatusResponse(
   const classifications = new Set(
     explicitStatuses.map(classifyVerificationStatus),
   );
-  const providerCode = normalizeProviderCode(
-    object.response_code ?? object.responseCode,
-    validatedInput.identityLast4,
-  );
+  const providerCode = consistentProviderCode(object, validatedInput.identityLast4);
   const topLevelStatus = normalizeBooleanStatus(object.status);
+  const returnedReference = extractPremblyReference(object);
+
+  if (isOperationalFailure(object, providerCode)) {
+    return technicalStatusErrorResult(validatedInput, defaultMessage("technical_error"), false);
+  }
+  // An explicitly different result must not verify the requested identity.
+  // Older direct responses omit a reference; preserve that existing contract.
+  if (returnedReference && returnedReference !== validatedInput.providerReference) {
+    return technicalStatusErrorResult(validatedInput, "Verification status requires review.", false);
+  }
 
   let status: PremblyVerificationStatus = "pending";
   if (classifications.size === 1) {
@@ -601,6 +628,7 @@ export function createPremblyAdapter(
         ) {
           return {
             ...normalized,
+            definitiveFailure: undefined,
             identity: undefined,
             providerMessage:
               "Identity verification is temporarily unavailable.",
@@ -609,9 +637,11 @@ export function createPremblyAdapter(
           };
         }
 
-        if (!response.ok && normalized.status === "technical_error") {
+        if (!response.ok) {
           return {
             ...normalized,
+            identity: undefined,
+            status: "technical_error",
             providerMessage: "Identity verification could not be completed.",
             retryable: true,
           };
@@ -698,6 +728,7 @@ function collectExplicitStatuses(
     verification.status,
     dataVerification.status,
     payload.verification_status,
+    recordAt(payload, "data").verification_status,
   ];
 
   return values
@@ -787,6 +818,28 @@ function normalizeProviderCode(
 
 function isDocumentedSuccessCode(code: string | undefined): boolean {
   return code === "00";
+}
+
+function consistentProviderCode(payload: Record<string, unknown>, identity: string) {
+  const data = recordAt(payload, "data");
+  const raw = [payload.response_code, payload.responseCode, data.response_code, data.responseCode]
+    .filter((value) => value !== undefined && value !== null);
+  const codes = raw.map((value) => normalizeProviderCode(value, identity));
+  // Do not select a success code while ignoring a contradictory outer code.
+  return codes.length > 0 && codes.every((code) => code !== undefined && code === codes[0])
+    ? codes[0]
+    : undefined;
+}
+
+function isOperationalFailure(payload: Record<string, unknown>, code?: string) {
+  // 02/03 are documented operational codes. The live insufficient-wallet
+  // response uses 04, so require its exact message rather than guessing what
+  // every 04 response means. Do not infer retry safety from was_charged alone.
+  return code === "02" || code === "03" ||
+    (normalizeBooleanStatus(payload.status) === false &&
+      [payload.message, payload.detail].some((value) =>
+        typeof value === "string" && /^insufficient wallet balance[.!]?$/i.test(value.trim())
+      ));
 }
 
 function extractProviderMessage(

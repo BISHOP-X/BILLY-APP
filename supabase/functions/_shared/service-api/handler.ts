@@ -266,6 +266,7 @@ export interface ServiceDatabase {
     outcomeReason: string;
     userId: string;
   }): Promise<KycCheckRow>;
+  recordKycUnfunded(input: { userId: string; checkId: string; responseDigest: string }): Promise<KycCheckRow>;
   deferKycCheckRequery(input: {
     checkId: string;
     failureCode: string;
@@ -2857,10 +2858,17 @@ async function handleAction(
             code: verification.providerCode,
             reference: verification.providerReference,
             status: verification.status,
+            definitiveFailure: verification.definitiveFailure,
           })
         }`,
       );
       if (verification.status === "technical_error") {
+        if (verification.definitiveFailure === "provider_unfunded") {
+          const failed = await database.recordKycUnfunded({
+            userId: user.id, checkId: check.id, responseDigest,
+          });
+          return { data: kycCheckResponse(failed), status: 200 };
+        }
         // HTTP errors and unreadable responses may arrive after provider-side
         // processing. They are unresolved outcomes, not safe retry signals.
         const pending = await database.completeKycCheck({

@@ -51,7 +51,9 @@ export type NumberClaim = {
   order: NumberOrder;
   rentalId?: string;
   claimToken?: string;
+  providerKey?: NumberProviderKey;
 };
+export type NumberProviderKey = 'getatext' | 'daisysms';
 export interface NumberDatabase {
   rpc<T>(name: string, input: Record<string, unknown>): Promise<T>;
   orders(userId: string, page: number): Promise<NumberOrder[]>;
@@ -101,6 +103,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
 }
 export type NumberRuntime = {
   adapter?: NumberAdapter;
+  additionalAdapters?: Partial<Record<NumberProviderKey, NumberAdapter>>;
   database: NumberDatabase;
   exchangeRateMinorPerUsd?: number;
   markupBps?: number;
@@ -108,6 +111,7 @@ export type NumberRuntime = {
   digest(value: string): Promise<string>;
 };
 export type NumberQuote = {
+  providerKey?: NumberProviderKey;
   serviceId: string;
   serviceName: string;
   maximumMicroUsd: number;
@@ -158,14 +162,15 @@ export function requestPage(value: unknown): number {
     throw new OperationsError(400, 'invalid_request', 'Invalid page.');
   return Number(value);
 }
-function provider(runtime: NumberRuntime) {
-  if (!runtime.adapter)
+function provider(runtime: NumberRuntime, key: NumberProviderKey = 'getatext') {
+  const adapter = key === 'getatext' ? runtime.adapter : runtime.additionalAdapters?.[key];
+  if (!adapter)
     throw new OperationsError(
       503,
       'unavailable',
       'US numbers are not available yet.',
     );
-  return runtime.adapter;
+  return adapter;
 }
 function publicOrder(order: NumberOrder) {
   // No routing IDs, evidence, user identity or provider costs are exposed.
@@ -178,20 +183,20 @@ export async function refreshNumber(
   orderId: string,
   cancel = false,
 ) {
-  const adapter = provider(runtime);
   const claim = await runtime.database.rpc<NumberClaim>(
     'internal_number_claim',
     {
       p_user_id: userId,
       p_order_id: orderId,
       p_cancel: cancel,
-      p_premium: adapter.tier !== 'standard',
+      p_premium: runtime.adapter?.tier !== 'standard',
     },
   );
   if (!claim.claimed || !claim.rentalId || !claim.claimToken)
     return claim.order;
   let result: NumberStatus;
   try {
+    const adapter = provider(runtime, claim.providerKey ?? 'getatext');
     result = await adapter.status(claim.rentalId);
     // Always check for a code before attempting cancellation. Unknown isn't cancel proof.
     if (result.state === 'waiting' && claim.order.cancel_requested)
@@ -252,9 +257,20 @@ export async function handleNumberAction(
       { p_service_key: 'foreign_numbers' },
     );
     const unavailable = new Set(disabled.map((row) => row.item_id));
-    const all = (await adapter.services()).filter(
+    const primary = (await adapter.services()).map((s) => ({ ...s, providerKey: 'getatext' as NumberProviderKey }));
+    // Secondary failure must not break the working primary catalogue. Only the
+    // verified US WhatsApp product is considered, never the .io Canada entries.
+    const daisyAllowed = runtime.additionalAdapters?.daisysms && await runtime.database.rpc<boolean>(
+      'internal_number_provider_access', { p_user_id: user.id });
+    const secondary = daisyAllowed ? await runtime.additionalAdapters?.daisysms?.services().catch(() => []) : [];
+    const primaryWhatsApp = unavailable.has('whatsapp') || primary.some((s) =>
+      s.serviceId === 'whatsapp' && s.stock > 0 && !unavailable.has('getatext.whatsapp'));
+    const backup = !primaryWhatsApp ? (secondary ?? []).filter((s) => s.stock > 0)
+      .sort((a, b) => a.priceMicroUsd - b.priceMicroUsd).slice(0, 1)
+      .map((s) => ({ ...s, providerKey: 'daisysms' as NumberProviderKey })) : [];
+    const all = [...primary, ...backup].filter(
       (s) =>
-        !unavailable.has(s.serviceId) &&
+        !unavailable.has(s.serviceId) && !unavailable.has(`${s.providerKey}.${s.serviceId}`) &&
         s.stock > 0 &&
         s.name.toLowerCase().includes(query),
     );
@@ -269,6 +285,7 @@ export async function handleNumberAction(
           'number_quote',
           user.id,
           {
+            providerKey: s.providerKey,
             serviceId: s.serviceId,
             serviceName: s.name,
             maximumMicroUsd: s.priceMicroUsd,
@@ -311,6 +328,7 @@ export async function handleNumberAction(
       'number_quote',
       user.id,
     );
+    const selectedAdapter = provider(runtime, quote.providerKey ?? 'getatext');
     const authorization = await runtime.database.rpc<string | null>(
       'internal_authorize_transaction_pin',
       { p_user_id: user.id, p_pin: pin },
@@ -330,13 +348,13 @@ export async function handleNumberAction(
         ...quote,
         pinAuthorizationId: authorization,
         idempotencyKey: key,
-        apiTier: adapter.tier ?? 'premium',
+        apiTier: selectedAdapter.tier ?? 'premium',
       },
     });
     if (!created.dispatch) return { data: publicOrder(created.order) };
     let allocation: Record<string, unknown>;
     try {
-      const result = await adapter.rent(quote.serviceId, quote.maximumMicroUsd);
+      const result = await selectedAdapter.rent(quote.serviceId, quote.maximumMicroUsd);
       allocation = {
         ...result,
         state: 'allocated',

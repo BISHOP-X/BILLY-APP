@@ -409,6 +409,10 @@ class FakeDatabase implements ServiceDatabase {
     return Promise.resolve();
   }
 
+  recordKycUnfunded(input: { userId: string; checkId: string; responseDigest: string }) {
+    return this.failKycCheck({ ...input, failureCode: 'provider_unfunded', outcomeReason: 'Verification is temporarily unavailable. Please try again later.' });
+  }
+
   failKycCheck(input: {
     checkId: string;
     failureCode: string;
@@ -1523,6 +1527,23 @@ Deno.test("uncertain KYC outcomes stay pending and cannot be redispatched", asyn
   );
   assert.equal(prembly.calls(), 1);
   assert.equal(fixture.database.kycRows.size, 1);
+});
+
+Deno.test("explicit uncharged Prembly refusal is recoverable without rejecting identity", async () => {
+  const prembly = countingPrembly({
+    identityLast4: "8901", method: "bvn_basic", mode: "mock",
+    providerMessage: "Temporarily unavailable.", retryable: false,
+    status: "technical_error", definitiveFailure: "provider_unfunded",
+  });
+  const fixture = dependencies({ prembly });
+  const handler = createServiceApiHandler(fixture.value);
+  const input = { consentVersion: "billy-identity-consent-v1", method: "bvn_basic", number: RAW_IDENTITY, idempotencyKey: "kyc-unfunded-test-0001" };
+  const result = await invoke(handler, "kyc.submit", input);
+  assert.equal((result.body.data as { status: string }).status, "error");
+  await invoke(handler, "kyc.submit", input);
+  assert.equal(prembly.calls(), 1, 'Same-key replay never redispatches');
+  await invoke(handler, "kyc.submit", { ...input, idempotencyKey: "kyc-unfunded-test-0002" });
+  assert.equal(prembly.calls(), 2, 'New user request may retry after an explicit refusal');
 });
 
 Deno.test("mock pending does not block live KYC while live pending blocks live redispatch", async () => {
