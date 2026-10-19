@@ -258,3 +258,52 @@ Recovery: keep the additive tables, receipts, message ownership rules and
 reconciler if reverting UI changes. Never drop issued-rental data or rerun a
 paid allocation to recover an uncertain result. Existing JWT verification
 settings remain enabled for service-api and provider-reconcile.
+
+## 19 October follow-up: PIN-free numbers and catalogue design
+
+The owner explicitly removed the transaction PIN step for numbers. This
+supersedes the PIN requirements in earlier delivery notes above. Short/long
+rentals, multiple-service purchases, paid reuse, renewal and recovery retain
+an explicit displayed-price confirmation but no PIN field or authorization RPC.
+
+Migration `20261019085430_number_purchase_without_pin.sql` changes only the
+`foreign_numbers` + `service_purchase` branch of the locked reservation function.
+Other services and all withdrawals still require a current, unused PIN
+authorization. No fake PIN attempt is created. Wallet state, sufficient funds,
+signed user-bound quotes, ownership, duplicate-request protection, atomic batch
+holds, receipt persistence and reconciliation remain unchanged. The function is
+still callable only by the privileged server, never anon/authenticated clients.
+
+Read-only reference trace: Active Store `src/App.tsx` routes `sms/us` to
+`src/pages/SmsUsNumbers.tsx`, which uses service-logo rows, price badges and
+`src/lib/smsServicePriority.ts`. Its images use Simple Icons/Clearbit URLs,
+not a private asset collection. Billy now uses bundled Font Awesome brand
+glyphs from its existing Expo icon dependency for familiar services, with a
+local monogram for unmapped services. No remote image dependency or new package
+was added. Prices, stock and services still come from live provider responses;
+display ranking only reorders returned offers before pagination.
+
+The screen replaces the generic introduction with a compact US country header,
+evenly sized icon-led rental choices, logo/price rows, and matching checkout and
+order identities. Selection never charges the wallet; the customer must confirm
+the displayed price. Desktop content is bounded to a readable 720px column.
+
+Verification: 136 backend tests, 127 app tests, type-check, lint and web export.
+Rolled-back database assertions passed before and after migration, including
+both short-rental providers, long/shared purchases, cancellation/refund, renewal,
+recovery, ownership, atomic batch failure, replay and PIN isolation for other
+services/withdrawals. Live application probes reached request-key validation
+without a PIN, fetched short/long catalogues and shared quotes, and rejected
+anonymous callers and foreign-order access. No paid provider calls were made.
+The live migration is applied; service-api v23 and provider-reconcile v13 remain
+ACTIVE with JWT verification enabled. No synthetic accounts or orders remain.
+
+Existing unrelated advisor findings remain: authenticated owner-only definer
+RPC warnings, leaked-password protection disabled, and existing index advisories.
+No new finding concerns the modified reserve function. See the
+[database linter](https://supabase.com/docs/guides/database/database-linter) and
+[password protection guidance](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+Recovery: restore the previous reservation function in a new forward migration
+and restore the PIN UI/API together if the owner reverses this decision. Never
+rewrite applied migration history or delete rental/financial records.

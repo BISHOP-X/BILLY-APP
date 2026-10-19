@@ -7,6 +7,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RentalOptions, rentalPeriod } from '@/features/numbers/rental-options';
 import { RentalTools } from '@/features/numbers/rental-tools';
+import ForeignNumbersScreen from '@/app/(app)/foreign-numbers';
 import {
   type NumberOrder,
   numberRepository,
@@ -29,8 +30,15 @@ jest.mock('@/features/numbers/repository', () => ({
     messages: jest.fn(),
     another: jest.fn(),
     finish: jest.fn(),
+    orders: jest.fn(),
+    order: jest.fn(),
+    refresh: jest.fn(),
+    cancel: jest.fn(),
   },
 }));
+jest.mock('expo-clipboard', () => ({ setStringAsync: jest.fn() }));
+jest.mock('@/components/layout/app-screen', () => ({ AppScreen: ({ children }: { children: React.ReactNode }) => children }));
+jest.mock('@/components/ui/screen-header', () => ({ ScreenHeader: () => null }));
 jest.mock(
   'expo-crypto',
   () => ({ randomUUID: () => '11111111-1111-4111-8111-111111111111' }),
@@ -63,6 +71,9 @@ async function mount(ui: React.ReactNode) {
   return client;
 }
 beforeEach(() => {
+  jest.mocked(numberRepository.catalog).mockResolvedValue({ services: [service], page: 1, pages: 1, total: 1 });
+  jest.mocked(numberRepository.orders).mockResolvedValue({ orders: [] });
+  jest.mocked(numberRepository.order).mockResolvedValue({ ...order, status_message: 'Your number is ready.' });
   jest.mocked(numberRepository.longCatalog).mockResolvedValue({
     services: [service],
     page: 1,
@@ -80,26 +91,39 @@ beforeEach(() => {
     }],
   });
 });
+test('short rental shows a price review and pays without a PIN', async () => {
+  await mount(<ForeignNumbersScreen />);
+  await waitFor(() => expect(screen.getByText('Example')).toBeTruthy());
+  await fireEvent.press(screen.getByText('Example'));
+  expect(screen.queryByText('Transaction PIN')).toBeNull();
+  expect(numberRepository.order).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button', { name: 'Pay and get number' }));
+  await waitFor(() => expect(numberRepository.order).toHaveBeenCalledTimes(1));
+  expect(jest.mocked(numberRepository.order).mock.calls[0][0]).toEqual({
+    quoteToken: 'opaque-quote', idempotencyKey: 'number-11111111-1111-4111-8111-111111111111',
+  });
+  await waitFor(() => expect(screen.getByText('Your number is ready.')).toBeTruthy());
+});
 test('dynamic periods are readable without hardcoded available durations', () => {
   expect(rentalPeriod('2d')).toBe('2 days');
   expect(rentalPeriod('1w')).toBe('1 week');
   expect(rentalPeriod('Custom duration')).toBe('Custom duration');
 });
-test('long rental offers lead to one PIN-confirmed purchase with the signed quote', async () => {
+test('long rental price review leads to one purchase without a PIN', async () => {
   const done = jest.fn();
   await mount(<RentalOptions mode='long' onDone={done} />);
   await waitFor(() => expect(screen.getByText('Example')).toBeTruthy());
   await fireEvent.press(screen.getByText('Example'));
   expect(screen.getByRole('button', { name: 'Pay and get number' }))
-    .toBeDisabled();
-  await fireEvent.changeText(screen.getByPlaceholderText('4 digits'), '1234');
+    .toBeEnabled();
+  expect(screen.queryByPlaceholderText('4 digits')).toBeNull();
+  expect(screen.queryByText('Transaction PIN')).toBeNull();
   await fireEvent.press(
     screen.getByRole('button', { name: 'Pay and get number' }),
   );
   await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
   expect(jest.mocked(numberRepository.purchase).mock.calls[0][0]).toEqual({
     quoteToken: 'opaque-quote',
-    pin: '1234',
     idempotencyKey: 'rental-11111111-1111-4111-8111-111111111111',
   });
 });
@@ -110,7 +134,6 @@ test('provider failure stays readable and does not auto retry payment', async ()
   await mount(<RentalOptions mode='long' onDone={jest.fn()} />);
   await waitFor(() => expect(screen.getByText('Example')).toBeTruthy());
   await fireEvent.press(screen.getByText('Example'));
-  await fireEvent.changeText(screen.getByPlaceholderText('4 digits'), '1234');
   await fireEvent.press(
     screen.getByRole('button', { name: 'Pay and get number' }),
   );
@@ -134,7 +157,8 @@ test('shared rental selects compatible services and reviews one combined price b
   expect(screen.getByRole('button', { name: 'Review 1 services' })).toBeDisabled();
   await fireEvent.press(screen.getByText('Second service'));
   await fireEvent.press(screen.getByRole('button', { name: 'Review 2 services' }));
-  await waitFor(() => expect(screen.getByPlaceholderText('4 digits')).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Pay and get number' })).toBeEnabled());
+  expect(screen.queryByText('Transaction PIN')).toBeNull();
   expect(jest.mocked(numberRepository.bundleQuote).mock.calls[0][0]).toEqual(['opaque-quote', 'second-quote']);
   expect(numberRepository.purchase).not.toHaveBeenCalled();
 });

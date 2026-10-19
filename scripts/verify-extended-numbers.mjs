@@ -6,9 +6,11 @@ const migrationFiles = [
   '20261017202255_extended_number_rentals.sql',
   '20261019083807_number_messages_owner_lookup.sql',
   '20261019084017_rental_action_lease_timeout.sql',
+  '20261019085430_number_purchase_without_pin.sql',
 ];
 const selected = process.argv.includes('--preflight') ? migrationFiles
-  : process.argv.includes('--lease-preflight') ? migrationFiles.slice(-1) : [];
+  : process.argv.includes('--lease-preflight') ? [migrationFiles[2]]
+  : process.argv.includes('--no-pin-preflight') ? ['20261019085430_number_purchase_without_pin.sql'] : [];
 const migration = (await Promise.all(selected.map(async file =>
   (await readFile(`supabase/migrations/${file}`, 'utf8'))
     .replace(/^begin;\s*$/gim, '').replace(/^commit;\s*$/gim, '')

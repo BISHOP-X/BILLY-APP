@@ -200,7 +200,7 @@ Deno.test(
   },
 );
 Deno.test(
-  'Number checkout validates four-digit PIN and user-bound encrypted quote before database access',
+  'Number checkout needs no PIN but validates the request key and user-bound quote before database access',
   async () => {
     const owner = 'a9190000-0000-4000-8000-000000000001',
       other = 'a9190000-0000-4000-8000-000000000002';
@@ -222,21 +222,19 @@ Deno.test(
         handleNumberAction(
           'numbers.order',
           {
-            pin: '123456',
             quoteToken: quote,
-            idempotencyKey: 'number-test-123456',
+            idempotencyKey: 'invalid',
           },
           { id: owner },
           r,
         ),
-      /PIN/,
+      /request key/,
     );
     await assert.rejects(
       () =>
         handleNumberAction(
           'numbers.order',
           {
-            pin: '1234',
             quoteToken: quote,
             idempotencyKey: 'number-test-123456',
           },
@@ -251,8 +249,7 @@ Deno.test(
       name: string,
       input: Record<string, unknown>,
     ) => {
-      if (name === 'internal_authorize_transaction_pin')
-        return 'authorization' as T;
+      assert.notEqual(name, 'internal_authorize_transaction_pin');
       if (name === 'internal_number_create')
         return {
           dispatch: dispatch++ === 0,
@@ -262,7 +259,6 @@ Deno.test(
       return { id: 'order', user_id: 'owner', status: 'manual_review' } as T;
     };
     const input = {
-      pin: '1234',
       quoteToken: quote,
       idempotencyKey: 'number-test-123456',
     };

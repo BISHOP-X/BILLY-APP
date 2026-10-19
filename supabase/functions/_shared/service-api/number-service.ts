@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { compareNumberServices } from './number-display.ts';
 import {
   NumberProviderError,
   type NumberAdapter,
@@ -295,7 +296,7 @@ export async function handleNumberAction(
         !unavailable.has(s.serviceId) && !unavailable.has(`${s.providerKey}.${s.serviceId}`) &&
         s.stock > 0 &&
         s.name.toLowerCase().includes(query),
-    );
+    ).sort(compareNumberServices);
     const services = await Promise.all(
       all.slice((page - 1) * 40, page * 40).map(async (s) => {
         const price = numberPrice(
@@ -335,13 +336,6 @@ export async function handleNumberAction(
     };
   }
   if (action === 'numbers.order') {
-    const pin = requestText(input.pin, 'PIN', 4);
-    if (!/^\d{4}$/.test(pin))
-      throw new OperationsError(
-        400,
-        'invalid_request',
-        'Enter your four-digit transaction PIN.',
-      );
     const key = requestText(input.idempotencyKey, 'Request key', 128);
     if (!/^[A-Za-z0-9:_-]{16,128}$/.test(key))
       throw new OperationsError(400, 'invalid_request', 'Invalid request key.');
@@ -351,16 +345,6 @@ export async function handleNumberAction(
       user.id,
     );
     const selectedAdapter = provider(runtime, quote.providerKey ?? 'getatext');
-    const authorization = await runtime.database.rpc<string | null>(
-      'internal_authorize_transaction_pin',
-      { p_user_id: user.id, p_pin: pin },
-    );
-    if (!authorization)
-      throw new OperationsError(
-        403,
-        'forbidden',
-        'That transaction PIN is incorrect. Please try again.',
-      );
     const created = await runtime.database.rpc<{
       dispatch: boolean;
       order: NumberOrder;
@@ -368,7 +352,6 @@ export async function handleNumberAction(
       p_user_id: user.id,
       p_input: {
         ...quote,
-        pinAuthorizationId: authorization,
         idempotencyKey: key,
         apiTier: selectedAdapter.tier ?? 'premium',
       },

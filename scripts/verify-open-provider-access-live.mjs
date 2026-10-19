@@ -83,11 +83,15 @@ try {
   });
   assert.equal(bundle.status, 200, 'Multi-service quote must be live.');
   assert(Number.isSafeInteger(bundle.body.data.totalMinor) && bundle.body.data.totalMinor > 0);
-  const malformedPin = await action('numbers.purchase', {
+  const malformedRequest = await action('numbers.purchase', {
     quoteToken: longCatalog.body.data.services[0].quoteToken,
-    idempotencyKey: 'read-only-validation-no-purchase', pin: 'invalid',
+    idempotencyKey: 'invalid',
   });
-  assert.equal(malformedPin.status, 400, 'Malformed PIN must stop before database/provider dispatch.');
+  assert.equal(malformedRequest.status, 400, 'Malformed request key must stop before database/provider dispatch.');
+  assert.match(malformedRequest.body.error.message, /request key/i, 'No PIN is required before request validation.');
+  const malformedShort = await action('numbers.order', { quoteToken: 'invalid', idempotencyKey: 'invalid' });
+  assert.equal(malformedShort.status, 400);
+  assert.match(malformedShort.body.error.message, /request key/i, 'Short checkout also skips PIN validation.');
   const foreignHistory = await action('numbers.messages', { orderId: 'a6180000-0000-4000-8000-000000000099' });
   assert(foreignHistory.status >= 400, 'An order outside this account cannot expose messages.');
   const history = await action('kyc.history');

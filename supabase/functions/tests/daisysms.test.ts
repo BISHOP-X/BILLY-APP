@@ -246,9 +246,7 @@ Deno.test("Daisy checkout dispatches the quoted provider once and returns the ex
     cancel: async () => ({ state: "cancelled" }),
   };
   r.database.rpc = async <T>(name: string, input: Record<string, unknown>) => {
-    if (name === "internal_authorize_transaction_pin") {
-      return "authorization" as T;
-    }
+    assert.notEqual(name, "internal_authorize_transaction_pin");
     if (name === "internal_number_create") {
       assert.equal(
         (input.p_input as Record<string, unknown>).providerKey,
@@ -272,7 +270,6 @@ Deno.test("Daisy checkout dispatches the quoted provider once and returns the ex
   }, 60000);
   const input = {
     quoteToken,
-    pin: "1234",
     idempotencyKey: "synthetic-checkout-1",
   };
   const first = await handleNumberAction(

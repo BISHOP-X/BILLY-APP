@@ -350,10 +350,8 @@ function testRuntime() {
       ): Promise<T> => {
         if (name === 'internal_catalog_disabled') return [] as T;
         if (name === 'internal_number_record_results') return null as T;
-        if (
-          name === 'internal_authorize_transaction_pin'
-        ) return (input.p_pin === '1234' ? 'pin-id' : null) as T;
         if (name === 'internal_number_extended_create') {
+          assert.equal((input.p_input as Record<string, unknown>).authorizations, undefined);
           const dispatch = !created;
           created = true;
           return { dispatch, orders: [order] } as T;
@@ -370,7 +368,7 @@ function testRuntime() {
   };
   return { runtime, calls: () => calls };
 }
-Deno.test('Long catalog → signed quote → PIN → reserve → provider → settle, replay does not buy twice', async () => {
+Deno.test('Long catalog → signed quote → reserve without PIN → provider → settle, replay does not buy twice', async () => {
   const t = testRuntime();
   const catalog = await handleNumberAction('numbers.long.catalog', {}, {
     id: owner,
@@ -381,7 +379,6 @@ Deno.test('Long catalog → signed quote → PIN → reserve → provider → se
   assert.equal(service.totalMinor, 700000);
   const input = {
     quoteToken: service.quoteToken,
-    pin: '1234',
     idempotencyKey: 'synthetic-request-001',
   };
   const result = await handleNumberAction('numbers.purchase', input, {
@@ -395,7 +392,7 @@ Deno.test('Long catalog → signed quote → PIN → reserve → provider → se
   assert.equal(t.calls(), 1);
   assert(!JSON.stringify(result).includes('user_id'));
 });
-Deno.test('Another user cannot spend a long-rental quote; invalid PIN never reaches provider', async () => {
+Deno.test('Another user cannot spend a long-rental quote; invalid request keys never reach provider', async () => {
   const t = testRuntime();
   const catalog = await handleNumberAction('numbers.long.catalog', {}, {
     id: owner,
@@ -408,7 +405,6 @@ Deno.test('Another user cannot spend a long-rental quote; invalid PIN never reac
       'numbers.purchase',
       {
         quoteToken: token,
-        pin: '1234',
         idempotencyKey: 'synthetic-request-001',
       },
       { id: other },
@@ -420,8 +416,7 @@ Deno.test('Another user cannot spend a long-rental quote; invalid PIN never reac
       'numbers.purchase',
       {
         quoteToken: token,
-        pin: '9999',
-        idempotencyKey: 'synthetic-request-001',
+        idempotencyKey: 'invalid',
       },
       { id: owner },
       t.runtime,

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '@/components/ui/button';
 import { TextField } from '@/components/ui/text-field';
-import { ScalePressable } from '@/components/ui/motion';
+import { NumberServiceCard, ServiceAvatar } from './service-card';
 import { useAuth } from '@/features/auth/auth-provider';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
@@ -34,7 +34,7 @@ export function RentalOptions(
     [page, setPage] = useState(1);
   const [basket, setBasket] = useState<NumberService[]>([]),
     [selected, setSelected] = useState<NumberService | null>(null);
-  const [pin, setPin] = useState(''), [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState('');
   const key = useRef(''), submitting = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,7 +75,6 @@ export function RentalOptions(
   }];
   function choose(s: NumberService) {
     setSelected(s);
-    setPin('');
     setNotice('');
     key.current = `rental-${Crypto.randomUUID()}`;
   }
@@ -86,14 +85,12 @@ export function RentalOptions(
     try {
       await purchase.mutateAsync({
         quoteToken: selected.quoteToken,
-        pin,
         idempotencyKey: key.current,
       });
       await Promise.all([
         qc.invalidateQueries({ queryKey: ['numbers', user?.id] }),
         qc.invalidateQueries({ queryKey: ['main'] }),
       ]);
-      setPin('');
       onDone();
     } catch (error) {
       setNotice(
@@ -135,10 +132,13 @@ export function RentalOptions(
       {selected
         ? (
           <View style={card}>
-            <Text style={[styles.title, text]}>{selected.name}</Text>
-            <Text style={[styles.body, muted]}>
-              {rentalPeriod(selected.periodLabel)}
-            </Text>
+            <View style={styles.row}>
+              <ServiceAvatar name={selected.name} size={52} />
+              <View style={styles.label}>
+                <Text style={[styles.heading, text]}>{selected.name}</Text>
+                <Text style={[styles.body, muted]}>{rentalPeriod(selected.periodLabel)} · US number</Text>
+              </View>
+            </View>
             <Text style={[styles.price, text]}>
               {formatMinorUnits(selected.totalMinor, 'NGN')}
             </Text>
@@ -150,18 +150,8 @@ export function RentalOptions(
                 ? 'Use the number promptly. A service is refunded only after cancellation is confirmed before a code arrives.'
                 : 'Cancellation depends on the rental’s rules and whether messages have arrived. Recovery fees are non-refundable. Any refund must be confirmed.'}
             </Text>
-            <TextField
-              label='Transaction PIN'
-              value={pin}
-              onChangeText={(v) => setPin(v.replace(/\D/g, ''))}
-              inputMode='numeric'
-              maxLength={4}
-              secureTextEntry
-              placeholder='4 digits'
-            />
             <AppButton
               label={selected.actionLabel ?? 'Pay and get number'}
-              disabled={!/^\d{4}$/.test(pin)}
               loading={purchase.isPending}
               onPress={() => void pay()}
             />
@@ -171,7 +161,6 @@ export function RentalOptions(
               disabled={purchase.isPending}
               onPress={() => {
                 setSelected(null);
-                setPin('');
               }}
             />
           </View>
@@ -232,15 +221,14 @@ export function RentalOptions(
             {catalog.data?.services.map((s) => {
               const checked = basket.some((b) => b.name === s.name);
               return (
-                <ScalePressable
+                <NumberServiceCard
                   key={`${s.name}-${s.periodLabel ?? ''}`}
-                  accessibilityRole='button'
-                  accessibilityState={{
-                    disabled: s.available === false,
-                    selected: checked,
-                  }}
+                  name={s.name}
+                  detail={s.available === false ? `${rentalPeriod(s.periodLabel)} · Out of stock`
+                    : `${s.actionLabel ? s.actionLabel + ' · ' : ''}${rentalPeriod(s.periodLabel)}`}
+                  totalMinor={s.totalMinor}
+                  selected={checked}
                   disabled={s.available === false}
-                  style={[...card, styles.row]}
                   onPress={() => {
                     if (mode !== 'shared') choose(s);
                     else if (checked) {
@@ -248,24 +236,7 @@ export function RentalOptions(
                     } else if (basket.length < 5) setBasket((b) => [...b, s]);
                     else setNotice('You can choose up to five services.');
                   }}
-                >
-                  <View style={styles.label}>
-                    <Text style={[styles.heading, text]}>
-                      {checked ? '✓ ' : ''}
-                      {s.name}
-                    </Text>
-                    <Text style={[styles.body, muted]}>
-                      {s.available === false
-                        ? `${rentalPeriod(s.periodLabel)} · Out of stock`
-                        : `${s.actionLabel ? s.actionLabel + ' · ' : ''}${
-                          rentalPeriod(s.periodLabel)
-                        }`}
-                    </Text>
-                  </View>
-                  <Text style={[styles.heading, text]}>
-                    {formatMinorUnits(s.totalMinor, 'NGN')}
-                  </Text>
-                </ScalePressable>
+                />
               );
             })}
             {catalog.data && !catalog.data.services.length
@@ -311,7 +282,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   label: { flex: 1, minWidth: 140 },
-  title: { fontSize: 23, fontWeight: '700' },
+  title: { fontSize: 20, fontWeight: '700' },
   heading: { fontSize: 16, fontWeight: '700' },
   body: { fontSize: 14, lineHeight: 22 },
   price: { fontSize: 30, fontWeight: '700' },

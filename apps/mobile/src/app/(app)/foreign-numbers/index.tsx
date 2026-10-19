@@ -20,6 +20,7 @@ import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { RentalOptions, type RentalMode } from '@/features/numbers/rental-options';
 import { RentalTools } from '@/features/numbers/rental-tools';
+import { NumberServiceCard, ServiceAvatar, USFlag } from '@/features/numbers/service-card';
 
 const terminal = new Set(['received', 'cancelled', 'failed']);
 export default function ForeignNumbersScreen() {
@@ -34,10 +35,10 @@ export default function ForeignNumbersScreen() {
   const [page, setPage] = useState(1);
   const [ordersPage, setOrdersPage] = useState(1);
   const [selection, setSelection] = useState<NumberService | null>(null);
-  const [pin, setPin] = useState('');
   const [notice, setNotice] = useState('');
   const [cancelOrder, setCancelOrder] = useState<NumberOrder | null>(null);
   const key = useRef('');
+  const submitting = useRef(false);
   const busy = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -113,17 +114,16 @@ export default function ForeignNumbersScreen() {
   const text = { color: theme.colors.text };
   const muted = { color: theme.colors.textMuted };
   async function pay() {
-    if (!selection || purchase.isPending) return;
+    if (!selection || submitting.current) return;
+    submitting.current = true;
     setNotice('');
     try {
       const order = await purchase.mutateAsync({
         quoteToken: selection.quoteToken,
-        pin,
         idempotencyKey: key.current,
       });
       setNotice(order.status_message);
       setSelection(null);
-      setPin('');
       setTab('orders');
       setOrdersPage(1);
     } catch (e) {
@@ -132,6 +132,8 @@ export default function ForeignNumbersScreen() {
           ? e.message
           : 'Check your orders before trying again.',
       );
+    } finally {
+      submitting.current = false;
     }
   }
   async function refresh(id: string, cancel = false) {
@@ -163,34 +165,20 @@ export default function ForeignNumbersScreen() {
       }}
       refreshing={catalog.isRefetching || orders.isRefetching}
     >
-      <ScreenHeader
-        title="US numbers"
-        subtitle="US numbers. Your messages, right here."
-      />
-      <View
-        style={[
-          styles.intro,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-          },
-        ]}
-      >
-        <Ionicons
-          name="chatbubble-ellipses-outline"
-          size={30}
-          color={theme.colors.brand}
-        />
-        <Text style={[styles.heading, text]}>A number for your next step.</Text>
-        <Text style={[styles.body, muted]}>
-          Receive SMS with a short rental, keep a number longer, or use one
-          number for several services. No calls or permanent ownership.
-        </Text>
+      <ScreenHeader title="US numbers" />
+      <View style={[styles.country, { borderColor: theme.colors.border }]}>
+        <View style={styles.flag}><USFlag /></View>
+        <View style={styles.serviceText}>
+          <Text style={[styles.heading, text]}>United States</Text>
+          <Text style={[styles.body, muted]}>+1 numbers · Receive SMS in Billy</Text>
+        </View>
+        <Ionicons accessible={false} name="chatbubble-ellipses-outline" size={24} color={theme.colors.brand} />
       </View>
-      <View style={styles.tabs}>
+      <View style={[styles.tabs, styles.segment, { backgroundColor: theme.colors.surfaceMuted }]}>
         {(['browse', 'orders'] as const).map((item) => (
           <ScalePressable
             key={item}
+            containerStyle={styles.flex}
             accessibilityRole="button"
             accessibilityState={{ selected: tab === item }}
             onPress={() => {
@@ -201,14 +189,14 @@ export default function ForeignNumbersScreen() {
               styles.tab,
               {
                 backgroundColor:
-                  tab === item ? theme.colors.brand : theme.colors.surface,
+                  tab === item ? theme.colors.surfaceRaised : 'transparent',
               },
             ]}
           >
             <Text
               style={[
                 styles.tabText,
-                { color: tab === item ? '#07160D' : theme.colors.text },
+                { color: tab === item ? theme.colors.text : theme.colors.textMuted },
               ]}
             >
               {item === 'browse' ? 'Get a number' : 'My numbers'}
@@ -221,11 +209,12 @@ export default function ForeignNumbersScreen() {
           <Text style={[styles.body, text]}>{notice}</Text>
         </View>
       ) : null}
-      {tab === 'browse' && !selection ? <View style={[styles.tabs, { flexWrap: 'wrap' }]}>
-        {([{ key: 'short', label: 'Short rental' }, { key: 'long', label: 'Long rental' }, { key: 'shared', label: 'Multiple services' }] as const).map(item =>
-          <ScalePressable key={item.key} accessibilityRole="button" accessibilityState={{ selected: mode === item.key }}
-            onPress={() => { setMode(item.key); setSourceOrder(undefined); }} style={[styles.tab, { backgroundColor: mode === item.key ? theme.colors.brandMist : theme.colors.surface }]}>
-            <Text style={[styles.tabText, text]}>{item.label}</Text>
+      {tab === 'browse' && !selection ? <View style={styles.tabs}>
+        {([{ key: 'short', label: 'Short rental', icon: 'flash-outline' }, { key: 'long', label: 'Long rental', icon: 'calendar-outline' }, { key: 'shared', label: 'Multiple services', icon: 'layers-outline' }] as const).map(item =>
+          <ScalePressable key={item.key} containerStyle={styles.flex} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: mode === item.key }}
+            onPress={() => { setMode(item.key); setSourceOrder(undefined); }} style={[styles.mode, { borderColor: mode === item.key ? theme.colors.brand : theme.colors.border, backgroundColor: mode === item.key ? theme.colors.brandMist : theme.colors.surface }]}>
+            <Ionicons accessible={false} name={item.icon} size={22} color={mode === item.key ? theme.colors.brand : theme.colors.textMuted} />
+            <Text style={[styles.modeText, { color: mode === item.key ? theme.colors.brand : theme.colors.textMuted }]}>{item.label}</Text>
           </ScalePressable>)}
       </View> : null}
       {tab === 'browse' && mode !== 'short' ? <RentalOptions key={`${mode}-${sourceOrder?.id ?? ''}`} mode={mode} order={sourceOrder} onDone={() => { setTab('orders'); setOrdersPage(1); }} /> : null}
@@ -254,31 +243,17 @@ export default function ForeignNumbersScreen() {
             />
           ) : null}
           {catalog.data?.services.map((s) => (
-            <ScalePressable
+            <NumberServiceCard
               key={s.quoteToken}
-              accessibilityRole="button"
-              accessibilityLabel={`Get ${s.name} number for ${formatMinorUnits(s.totalMinor, 'NGN')}`}
+              name={s.name}
+              detail="Short rental · SMS"
+              totalMinor={s.totalMinor}
               onPress={() => {
                 setSelection(s);
-                setPin('');
                 setNotice('');
                 key.current = `number-${Crypto.randomUUID()}`;
               }}
-              style={[...card, styles.service]}
-            >
-              <View style={styles.serviceText}>
-                <Text style={[styles.heading, text]}>{s.name}</Text>
-                <Text style={[styles.body, muted]}>United States · SMS</Text>
-              </View>
-              <Text style={[styles.price, text]}>
-                {formatMinorUnits(s.totalMinor, 'NGN')}
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                color={theme.colors.brand}
-                size={18}
-              />
-            </ScalePressable>
+            />
           ))}
           {catalog.data && !catalog.data.services.length ? (
             <StatePanel
@@ -313,7 +288,13 @@ export default function ForeignNumbersScreen() {
           <Text style={[styles.eyebrow, { color: theme.colors.brand }]}>
             REVIEW YOUR NUMBER
           </Text>
-          <Text style={[styles.heading, text]}>{selection.name}</Text>
+          <View style={styles.service}>
+            <ServiceAvatar name={selection.name} size={52} />
+            <View style={styles.serviceText}>
+              <Text style={[styles.heading, text]}>{selection.name}</Text>
+              <Text style={[styles.body, muted]}>United States · Short rental</Text>
+            </View>
+          </View>
           <Text style={[styles.total, text]}>
             {formatMinorUnits(selection.totalMinor, 'NGN')}
           </Text>
@@ -326,19 +307,9 @@ export default function ForeignNumbersScreen() {
             is issued only when cancellation is confirmed, before a code
             arrives.
           </Text>
-          <TextField
-            label="Transaction PIN"
-            placeholder="4 digits"
-            secureTextEntry
-            inputMode="numeric"
-            maxLength={4}
-            value={pin}
-            onChangeText={(v) => setPin(v.replace(/\D/g, ''))}
-          />
           <AppButton
             label="Pay and get number"
             loading={purchase.isPending}
-            disabled={!/^\d{4}$/.test(pin)}
             onPress={() => void pay()}
           />
           <AppButton
@@ -347,7 +318,6 @@ export default function ForeignNumbersScreen() {
             variant="ghost"
             onPress={() => {
               setSelection(null);
-              setPin('');
             }}
           />
         </View>
@@ -378,7 +348,8 @@ export default function ForeignNumbersScreen() {
           {orders.data?.orders.map((o) => (
             <View key={o.id} style={card}>
               <View style={styles.service}>
-                <Text style={[styles.heading, text]}>{o.service_name}</Text>
+                <ServiceAvatar name={o.service_name} size={40} />
+                <Text style={[styles.heading, styles.serviceText, text]}>{o.service_name}</Text>
                 <Text style={[styles.badge, { color: theme.colors.brand }]}>
                   {o.rental_closed ? 'Closed' : o.rental_kind && o.rental_kind !== 'short' && o.status === 'waiting' ? 'Active' : o.status.replaceAll('_', ' ')}
                 </Text>
@@ -479,14 +450,19 @@ export default function ForeignNumbersScreen() {
   );
 }
 const styles = StyleSheet.create({
-  content: { gap: 18, paddingBottom: 32 },
-  intro: { padding: 24, borderWidth: 1, borderRadius: 24, gap: 12 },
+  content: { gap: 12, paddingBottom: 32, maxWidth: 720 },
+  country: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, marginBottom: 4 },
+  flag: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0F3F8', alignItems: 'center', justifyContent: 'center' },
+  flex: { flex: 1, minWidth: 0 },
   card: { padding: 20, borderWidth: 1, borderRadius: 20, gap: 14 },
   heading: { fontSize: 18, fontWeight: '700', flexShrink: 1 },
   body: { fontSize: 14, lineHeight: 22 },
-  tabs: { flexDirection: 'row', gap: 10 },
-  tab: { flex: 1, padding: 14, borderRadius: 14, alignItems: 'center' },
-  tabText: { fontWeight: '700' },
+  tabs: { flexDirection: 'row', gap: 8 },
+  segment: { padding: 4, borderRadius: 15, marginVertical: 4 },
+  tab: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, borderRadius: 12, alignItems: 'center' },
+  tabText: { fontWeight: '700', fontSize: 14, textAlign: 'center' },
+  mode: { flex: 1, minWidth: 0, paddingVertical: 14, paddingHorizontal: 4, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  modeText: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
   service: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -2,6 +2,7 @@ import {
   type NumberAllocation,
   NumberProviderError,
 } from '../providers/getatext.ts';
+import { compareNumberServices } from './number-display.ts';
 import type {
   RentalOffer,
   RentalRoute,
@@ -240,7 +241,7 @@ export async function handleExtendedNumberAction(
     } else offers = await adapter.offers();
     const all = (await allowedOffers(runtime, offers)).filter((o) =>
       o.name.toLowerCase().includes(query)
-    ).sort((a, b) => Number(a.stock === 0) - Number(b.stock === 0));
+    ).sort((a, b) => Number(a.stock === 0) - Number(b.stock === 0) || compareNumberServices(a, b));
     return {
       data: {
         services: await Promise.all(
@@ -353,10 +354,6 @@ export async function handleExtendedNumberAction(
     };
   }
   if (action !== 'numbers.purchase') throw fail('Unknown number action.');
-  const pin = requestText(input.pin, 'PIN', 4);
-  if (!/^\d{4}$/.test(pin)) {
-    throw fail('Enter your four-digit transaction PIN.');
-  }
   const key = requestText(input.idempotencyKey, 'Request key', 90);
   if (!/^[A-Za-z0-9:_-]{16,90}$/.test(key)) throw fail('Invalid request key.');
   const quote = await runtime.tokens.readOpaque<Quote>(
@@ -367,26 +364,11 @@ export async function handleExtendedNumberAction(
   const context = quote.parentId
     ? await rentalContext(runtime, userId, quote.parentId)
     : undefined;
-  const authorizations = [];
-  for (const _item of quote.items) {
-    const authorization = await runtime.database.rpc<string | null>(
-      'internal_authorize_transaction_pin',
-      { p_user_id: userId, p_pin: pin },
-    );
-    if (!authorization) {
-      throw new OperationsError(
-        403,
-        'forbidden',
-        'That transaction PIN is incorrect. Please try again.',
-      );
-    }
-    authorizations.push(authorization);
-  }
   const created = await runtime.database.rpc<
     { dispatch: boolean; orders: NumberOrder[] }
   >('internal_number_extended_create', {
     p_user_id: userId,
-    p_input: { ...quote, authorizations, idempotencyKey: key },
+    p_input: { ...quote, idempotencyKey: key },
   });
   if (!created.dispatch) {
     return { data: { orders: created.orders.map(visible) } };

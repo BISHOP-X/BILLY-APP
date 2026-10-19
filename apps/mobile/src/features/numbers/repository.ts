@@ -52,7 +52,7 @@ export const numberRepository = {
   reuseCatalog: (orderId: string, page: number, query: string) => invokeAction<NumberCatalog>('numbers.reuse.catalog', { orderId, page, query }),
   bundleQuote: (quoteTokens: string[]) => invokeAction<NumberService>('numbers.bundle.quote', { quoteTokens }),
   rentalOptions: (orderId: string) => invokeAction<{ options: NumberService[] }>('numbers.rental.options', { orderId }),
-  purchase: (input: { quoteToken: string; pin: string; idempotencyKey: string }) => invokeAction<{ orders: NumberOrder[] }>('numbers.purchase', input),
+  purchase: (input: { quoteToken: string; idempotencyKey: string }) => invokeAction<{ orders: NumberOrder[] }>('numbers.purchase', input),
   messages: (orderId: string, page = 1) => invokeAction<{ messages: NumberMessage[] }>('numbers.messages', { orderId, page }),
   another: (orderId: string) => invokeAction<NumberOrder>('numbers.another', { orderId }),
   finish: (orderId: string) => invokeAction<NumberOrder>('numbers.finish', { orderId }),
@@ -63,7 +63,7 @@ export const numberRepository = {
     }),
   orders: (page: number) =>
     invokeAction<{ orders: NumberOrder[] }>('numbers.orders', { page }),
-  order: (input: { quoteToken: string; pin: string; idempotencyKey: string }) =>
+  order: (input: { quoteToken: string; idempotencyKey: string }) =>
     invokeAction<NumberOrder>('numbers.order', input),
   refresh: (orderId: string) =>
     invokeAction<NumberOrder>('numbers.refresh', { orderId }),
