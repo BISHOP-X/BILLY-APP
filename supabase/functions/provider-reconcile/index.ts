@@ -4,6 +4,9 @@ import { GetatextAdapter } from '../_shared/providers/getatext.ts';
 import { GetatextRentals } from '../_shared/providers/getatext-rentals.ts';
 import { DaisySmsAdapter } from '../_shared/providers/daisysms.ts';
 import { SocialBoostHttpAdapter } from '../_shared/providers/social-boost.ts';
+import { createPremblyAdapter } from '../_shared/providers/prembly.ts';
+import { createServiceDatabase } from '../_shared/service-api/database.ts';
+import { refreshKycVerification } from '../_shared/service-api/handler.ts';
 import {
   createNumberDatabase,
   refreshNumber,
@@ -33,6 +36,16 @@ const digest = createHmacHexDigester(signing);
 const tokens = new ServiceTokenCodec(signing);
 const numberKey = Deno.env.get('GETATEXT_API_KEY');
 const socialKey = Deno.env.get('SOCIAL_BOOST_API_KEY');
+const identityKey = Deno.env.get('PREMBLY_API_KEY');
+const identityHmacSecret = Deno.env.get('KYC_IDENTITY_HMAC_SECRET');
+// Same owner/mode binding, lease and proof checks as interactive refresh.
+// This worker only queries status; it never resubmits a paid identity request.
+const identity = identityKey && identityHmacSecret && Deno.env.get('PREMBLY_MODE') === 'live' &&
+  Deno.env.get('PREMBLY_STATUS_METHOD') === 'GET'
+  ? createPremblyAdapter({ apiKey: identityKey, mode: 'live',
+    baseUrl: Deno.env.get('PREMBLY_BASE_URL'), verificationStatusMethod: 'GET' }) : undefined;
+const identityDependencies = { database: createServiceDatabase(client),
+  digestIdentity: identityHmacSecret ? createHmacHexDigester(identityHmacSecret) : digest };
 const numbers: NumberRuntime = {
   extended: numberKey ? new GetatextRentals(numberKey, fetch, Deno.env.get('GETATEXT_API_TIER') !== 'standard') : undefined,
   additionalAdapters: { daisysms: Deno.env.get('DAISYSMS_API_KEY')
@@ -95,7 +108,7 @@ Deno.serve(async (request) => {
     failed = 0;
   type Due = { user_id: string; order_id: string };
   try {
-    const [n, s, f] = await Promise.all([
+    const [n, s, f, k] = await Promise.all([
       numbers.adapter
         ? client.rpc('internal_number_due', { p_limit: 40 })
         : Promise.resolve({ data: [], error: null }),
@@ -105,9 +118,13 @@ Deno.serve(async (request) => {
       socialKey
         ? client.rpc('internal_social_refill_due', { p_limit: 20 })
         : Promise.resolve({ data: [], error: null }),
+      identity
+        ? client.rpc('internal_kyc_due', { p_mode: 'live', p_limit: 20 })
+        : Promise.resolve({ data: [], error: null }),
     ]);
-    if (n.error || s.error || f.error) throw new Error('Queue unavailable');
+    if (n.error || s.error || f.error || k.error) throw new Error('Queue unavailable');
     const queue = [
+      ...(k.data as { user_id: string; check_id: string }[]).map((row) => ({ user_id: row.user_id, order_id: row.check_id, type: 'kyc' })),
       ...(n.data as Due[]).map((row) => ({ ...row, type: 'numbers' })),
       ...(s.data as Due[]).map((row) => ({ ...row, type: 'social' })),
       ...(f.data as Due[]).map((row) => ({ ...row, type: 'refill' })),
@@ -116,7 +133,9 @@ Deno.serve(async (request) => {
       while (queue.length && Date.now() - started < 50_000) {
         const item = queue.shift()!;
         try {
-          if (item.type === 'numbers')
+          if (item.type === 'kyc')
+            await refreshKycVerification(identityDependencies, identity!, 'live', item.user_id, item.order_id);
+          else if (item.type === 'numbers')
             await refreshNumber(numbers, item.user_id, item.order_id);
           else if (item.type === 'refill')
             await handleSocialBoostAction(

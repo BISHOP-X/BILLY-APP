@@ -1775,6 +1775,129 @@ function matchesPremblyRequery(
     result.providerReference === claim.providerReference;
 }
 
+export async function refreshKycVerification(
+  dependencies: Pick<ServiceApiDependencies, "database" | "digestIdentity">,
+  adapter: PremblyAdapter,
+  verificationMode: "live" | "mock",
+  userId: string,
+  checkId: string,
+): Promise<ActionResult> {
+  const database = dependencies.database;
+  const user = { id: userId };
+  const current = await database.getKycCheck(user.id, checkId);
+  if (!current) {
+    throw new ApiError(
+      404,
+      "not_found",
+      "Identity verification check was not found.",
+    );
+  }
+  if (current.verification_mode !== verificationMode) {
+    throw new ApiError(
+      409,
+      "conflict",
+      "This identity check belongs to a different processing mode.",
+    );
+  }
+
+  const claim = await database.claimKycCheckRequery(
+    user.id,
+    checkId,
+    verificationMode,
+  );
+  if (
+    claim.checkId !== current.id ||
+    claim.checkType !== current.check_type ||
+    claim.verificationMode !== verificationMode
+  ) {
+    throw new ApiError(
+      409,
+      "provider_pending",
+      "Identity verification requires manual confirmation.",
+    );
+  }
+  if (claim.action !== "acquired") {
+    const unchanged = await database.getKycCheck(user.id, checkId) ??
+      current;
+    return {
+      data: kycCheckResponse(unchanged),
+      status: unchanged.status === "pending" ||
+          unchanged.status === "created"
+        ? 202
+        : 200,
+    };
+  }
+  if (!claim.providerReference) {
+    const deferred = await database.deferKycCheckRequery({
+      checkId,
+      failureCode: "missing_reference",
+      userId: user.id,
+    });
+    return { data: kycCheckResponse(deferred), status: 202 };
+  }
+
+  let verification: PremblyVerificationResult;
+  try {
+    verification = await adapter.getVerificationStatus({
+      identityLast4: claim.identityLastFour,
+      method: premblyAdapterMethod(claim.checkType),
+      providerReference: claim.providerReference,
+    });
+  } catch {
+    const deferred = await database.deferKycCheckRequery({
+      checkId,
+      failureCode: "provider_status_unavailable",
+      userId: user.id,
+    });
+    return { data: kycCheckResponse(deferred), status: 202 };
+  }
+
+  if (
+    verification.status === "technical_error" ||
+    !matchesPremblyRequery(verification, claim)
+  ) {
+    const deferred = await database.deferKycCheckRequery({
+      checkId,
+      failureCode: verification.status === "technical_error"
+        ? verification.retryable
+          ? "provider_status_unavailable"
+          : "manual_review"
+        : "provider_evidence_mismatch",
+      userId: user.id,
+    });
+    return { data: kycCheckResponse(deferred), status: 202 };
+  }
+
+  const responseDigest = await dependencies.digestIdentity(
+    `status:${claim.checkType}:${
+      JSON.stringify({
+        code: verification.providerCode,
+        reference: claim.providerReference,
+        status: verification.status,
+      })
+    }`,
+  );
+  const completed = await database.completeKycCheck({
+    checkId,
+    outcome: verification.status,
+    outcomeReason: safeProviderText(
+      verification.providerMessage,
+      verification.status === "verified"
+        ? "Identity details were verified."
+        : verification.status === "rejected"
+        ? "Identity details could not be verified."
+        : "Identity verification is pending.",
+    ),
+    providerReference: claim.providerReference,
+    responseDigest,
+    userId: user.id,
+  });
+  return {
+    data: kycCheckResponse(completed),
+    status: verification.status === "pending" ? 202 : 200,
+  };
+}
+
 async function handleAction(
   action: string,
   inputValue: unknown,
@@ -2583,118 +2706,7 @@ async function handleAction(
         "Identity verification refresh request",
       );
       const checkId = requireUuid(input.checkId, "Identity check ID");
-      const current = await database.getKycCheck(user.id, checkId);
-      if (!current) {
-        throw new ApiError(
-          404,
-          "not_found",
-          "Identity verification check was not found.",
-        );
-      }
-      if (current.verification_mode !== verificationMode) {
-        throw new ApiError(
-          409,
-          "conflict",
-          "This identity check belongs to a different processing mode.",
-        );
-      }
-
-      const claim = await database.claimKycCheckRequery(
-        user.id,
-        checkId,
-        verificationMode,
-      );
-      if (
-        claim.checkId !== current.id ||
-        claim.checkType !== current.check_type ||
-        claim.verificationMode !== verificationMode
-      ) {
-        throw new ApiError(
-          409,
-          "provider_pending",
-          "Identity verification requires manual confirmation.",
-        );
-      }
-      if (claim.action !== "acquired") {
-        const unchanged = await database.getKycCheck(user.id, checkId) ??
-          current;
-        return {
-          data: kycCheckResponse(unchanged),
-          status: unchanged.status === "pending" ||
-              unchanged.status === "created"
-            ? 202
-            : 200,
-        };
-      }
-      if (!claim.providerReference) {
-        const deferred = await database.deferKycCheckRequery({
-          checkId,
-          failureCode: "missing_reference",
-          userId: user.id,
-        });
-        return { data: kycCheckResponse(deferred), status: 202 };
-      }
-
-      let verification: PremblyVerificationResult;
-      try {
-        verification = await adapter.getVerificationStatus({
-          identityLast4: claim.identityLastFour,
-          method: premblyAdapterMethod(claim.checkType),
-          providerReference: claim.providerReference,
-        });
-      } catch {
-        const deferred = await database.deferKycCheckRequery({
-          checkId,
-          failureCode: "provider_status_unavailable",
-          userId: user.id,
-        });
-        return { data: kycCheckResponse(deferred), status: 202 };
-      }
-
-      if (
-        verification.status === "technical_error" ||
-        !matchesPremblyRequery(verification, claim)
-      ) {
-        const deferred = await database.deferKycCheckRequery({
-          checkId,
-          failureCode: verification.status === "technical_error"
-            ? verification.retryable
-              ? "provider_status_unavailable"
-              : "manual_review"
-            : "provider_evidence_mismatch",
-          userId: user.id,
-        });
-        return { data: kycCheckResponse(deferred), status: 202 };
-      }
-
-      const responseDigest = await dependencies.digestIdentity(
-        `status:${claim.checkType}:${
-          JSON.stringify({
-            code: verification.providerCode,
-            reference: claim.providerReference,
-            status: verification.status,
-          })
-        }`,
-      );
-      const completed = await database.completeKycCheck({
-        checkId,
-        outcome: verification.status,
-        outcomeReason: safeProviderText(
-          verification.providerMessage,
-          verification.status === "verified"
-            ? "Identity details were verified."
-            : verification.status === "rejected"
-            ? "Identity details could not be verified."
-            : "Identity verification is pending.",
-        ),
-        providerReference: claim.providerReference,
-        responseDigest,
-        userId: user.id,
-      });
-      return {
-        data: kycCheckResponse(completed),
-        status: verification.status === "pending" ? 202 : 200,
-      };
+      return refreshKycVerification(dependencies, adapter, verificationMode, user.id, checkId);
     }
 
     case "kyc.history": {

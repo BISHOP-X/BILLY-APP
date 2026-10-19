@@ -300,3 +300,91 @@ Deno.test("Disabling WhatsApp in the admin catalogue also disables its backup", 
   }, r);
   assert.equal((result.data as { services: unknown[] }).services.length, 0);
 });
+
+Deno.test("US catalogue survives primary outage without inventing shared or Canadian products", async () => {
+  const r = runtime();
+  const owner = 'a9190000-0000-4000-8000-000000000001';
+  r.adapter!.services = async () => { throw new Error('Primary offline'); };
+  const result = await handleNumberAction('numbers.catalog', {}, { id: owner }, r);
+  const services = (result.data as { services: { name: string }[] }).services;
+  assert.equal(services.length, 1);
+  assert.equal(services[0].name, 'WhatsApp');
+  await assert.rejects(() => handleNumberAction('numbers.catalog', { shared: true }, { id: 'owner' }, r));
+  r.additionalAdapters!.daisysms!.services = async () => { throw new Error('Backup offline'); };
+  await assert.rejects(() => handleNumberAction('numbers.catalog', {}, { id: 'owner' }, r));
+});
+
+Deno.test("Checkout backup is one order, one quote, one dispatch and safe on replay", async () => {
+  const r = runtime();
+  const owner = 'a9190000-0000-4000-8000-000000000001';
+  const row = { id: 'order', user_id: owner, status: 'processing' } as NumberOrder;
+  let creates = 0, primaryCalls = 0, backupCalls = 0, switches = 0, settled = 0;
+  r.adapter!.rent = async () => { primaryCalls++; throw new NumberProviderError(false, 'Unavailable', 'stock'); };
+  r.additionalAdapters!.daisysms!.rent = async (_service, price) => {
+    backupCalls++;
+    assert.equal(price, 700000);
+    return { rentalId: '789', phoneNumber: '+12025550101' };
+  };
+  r.database.rpc = async <T>(name: string, input: Record<string, unknown>) => {
+    if (name === 'internal_number_provider_access') return true as T;
+    if (name === 'internal_number_create') return { dispatch: creates++ === 0, order: row } as T;
+    if (name === 'internal_number_fallback_claim') {
+      switches++;
+      assert.equal(input.p_order_id, row.id);
+      assert.equal((input.p_input as { reason: string }).reason, 'stock');
+      return { dispatch: true, order: row } as T;
+    }
+    assert.equal(name, 'internal_number_allocation');
+    assert.equal((input.p_input as { state: string }).state, 'allocated');
+    settled++; row.status = 'waiting'; return row as T;
+  };
+  const quoteToken = await r.tokens.issueOpaque('number_quote', owner, {
+    providerKey: 'getatext', serviceId: 'whatsapp', serviceName: 'WhatsApp', maximumMicroUsd: 800000, amountMinor: 112000, feeMinor: 0,
+  }, 60000);
+  const input = { quoteToken, idempotencyKey: 'fallback-synthetic-01' };
+  const first = await handleNumberAction('numbers.order', input, { id: owner }, r);
+  const second = await handleNumberAction('numbers.order', input, { id: owner }, r);
+  assert.deepEqual(first, second);
+  assert.deepEqual([primaryCalls, backupCalls, switches, settled], [1, 1, 1, 1]);
+  assert(!JSON.stringify(first).includes('daisysms'));
+});
+
+Deno.test("Checkout never switches on ambiguity, unsupported products or an unaffordable backup", async () => {
+  for (const scenario of ['timeout', 'unclassified', 'telegram', 'price', 'denied', 'lost-claim', 'already-switched', 'busy', 'backup-timeout', 'backup-rejected']) {
+    const r = runtime();
+    const owner = 'a9190000-0000-4000-8000-000000000001';
+    const row = { id: 'order', user_id: owner } as NumberOrder;
+    let backupCalls = 0, switches = 0, state = '';
+    r.adapter!.rent = async () => {
+      throw new NumberProviderError(scenario === 'timeout', 'Synthetic refusal', scenario === 'unclassified' ? undefined : 'stock');
+    };
+    r.additionalAdapters!.daisysms!.rent = async () => {
+      backupCalls++;
+      throw new NumberProviderError(scenario !== 'backup-rejected', 'Synthetic backup refusal');
+    };
+    r.database.rpc = async <T>(name: string) => {
+      if (name === 'internal_number_provider_access') return (scenario !== 'denied') as T;
+      if (name === 'internal_number_create') return { dispatch: true, order: row } as T;
+      if (name === 'internal_number_fallback_claim') {
+        switches++;
+        if (scenario === 'lost-claim') throw new Error('Acknowledgement lost');
+        return { dispatch: !['already-switched', 'busy'].includes(scenario), rejected: scenario === 'busy', order: row } as T;
+      }
+      assert.equal(name, 'internal_number_allocation');
+      return row as T;
+    };
+    const rpc = r.database.rpc;
+    r.database.rpc = <T>(name: string, input: Record<string, unknown>) => {
+      if (name === 'internal_number_allocation') state = (input.p_input as { state: string }).state;
+      return rpc<T>(name, input);
+    };
+    const quoteToken = await r.tokens.issueOpaque('number_quote', owner, {
+      providerKey: 'getatext', serviceId: scenario === 'telegram' ? 'telegram' : 'whatsapp', serviceName: 'Service',
+      maximumMicroUsd: scenario === 'price' ? 500000 : 800000, amountMinor: 112000, feeMinor: 0,
+    }, 60000);
+    await handleNumberAction('numbers.order', { quoteToken, idempotencyKey: 'synthetic-backup-check' }, { id: owner }, r);
+    assert.equal(backupCalls, scenario.startsWith('backup-') ? 1 : 0, scenario);
+    assert.equal(switches, ['lost-claim', 'already-switched', 'busy', 'backup-timeout', 'backup-rejected'].includes(scenario) ? 1 : 0, scenario);
+    assert.equal(state, scenario === 'already-switched' ? '' : ['timeout', 'lost-claim', 'backup-timeout'].includes(scenario) ? 'unknown' : 'rejected', scenario);
+  }
+});

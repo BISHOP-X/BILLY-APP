@@ -84,7 +84,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
                 : error.message === 'Insufficient available wallet balance.'
                   ? error.message
                   : error.code === '42501'
-                    ? 'This action is unavailable. Check your PIN and service availability.'
+                    ? 'This number service is currently unavailable. Please try again later.'
                     : 'We could not confirm this request. Check your orders before trying again.';
         throw new OperationsError(
           error.code === '23505' ? 409 : 503,
@@ -189,6 +189,49 @@ function publicOrder(order: NumberOrder) {
   const { user_id: _user, ...row } = order;
   return row;
 }
+
+// Only the .io US WhatsApp aliases are verified equivalents. Extended rentals
+// and shared-number bundles must never be silently replaced with a short rental.
+async function backupServices(runtime: NumberRuntime, userId: string) {
+  const adapter = runtime.additionalAdapters?.daisysms;
+  if (!adapter || !await runtime.database.rpc<boolean>(
+    'internal_number_provider_access', { p_user_id: userId },
+  )) return [];
+  return (await adapter.services()).filter((s) =>
+    ['whatsapp', 'whatsapp_re', 'wa'].includes(s.serviceId) && s.stock > 0
+  ).sort((a, b) => a.priceMicroUsd - b.priceMicroUsd);
+}
+
+async function allocateNumber(adapter: NumberAdapter, serviceId: string, maximum: number, runtime: NumberRuntime) {
+  const result = await adapter.rent(serviceId, maximum);
+  return { ...result, state: 'allocated', digest: await runtime.digest(JSON.stringify(result)) };
+}
+
+async function fallbackNumber(runtime: NumberRuntime, userId: string, order: NumberOrder, quote: NumberQuote, reason: NonNullable<NumberProviderError['fallbackReason']>) {
+  // A failed read-only catalogue lookup leaves the confirmed rejection intact.
+  const candidate = await backupServices(runtime, userId).catch(() => [])
+    .then((services) => services.find((s) => s.priceMicroUsd <= quote.maximumMicroUsd));
+  if (!candidate) return { allocation: { state: 'rejected' } };
+  let claim: { dispatch: boolean; order: NumberOrder; rejected: boolean };
+  try {
+    claim = await runtime.database.rpc('internal_number_fallback_claim', {
+      p_user_id: userId, p_order_id: order.id,
+      p_input: { serviceId: candidate.serviceId, maximumMicroUsd: candidate.priceMicroUsd,
+        reason, digest: await runtime.digest(`getatext:${order.id}:${reason}`) },
+    });
+  } catch {
+    // The route switch may have committed. Do not release the hold or dispatch
+    // another allocation when the acknowledgement itself is uncertain.
+    return { allocation: { state: 'unknown' } };
+  }
+  if (!claim.dispatch) return claim.rejected
+    ? { allocation: { state: 'rejected' } } : { order: claim.order };
+  try {
+    return { allocation: await allocateNumber(provider(runtime, 'daisysms'), candidate.serviceId, candidate.priceMicroUsd, runtime) };
+  } catch (error) {
+    return { allocation: { state: error instanceof NumberProviderError && !error.uncertain ? 'rejected' : 'unknown' } };
+  }
+}
 export async function refreshNumber(
   runtime: NumberRuntime,
   userId: string,
@@ -267,7 +310,6 @@ export async function handleNumberAction(
       ),
     };
   }
-  const adapter = provider(runtime);
   if (action === 'numbers.catalog') {
     const page = requestPage(input.page);
     const query =
@@ -279,15 +321,20 @@ export async function handleNumberAction(
       { p_service_key: 'foreign_numbers' },
     );
     const unavailable = new Set(disabled.map((row) => row.item_id));
-    const primary = (await adapter.services()).map((s) => ({ ...s, providerKey: 'getatext' as NumberProviderKey }));
+    const [primaryResult, secondaryResult] = await Promise.allSettled([
+      runtime.adapter ? runtime.adapter.services() : Promise.reject(new Error('Primary unavailable')),
+      input.shared === true ? Promise.resolve([]) : backupServices(runtime, user.id),
+    ]);
+    const primary = (primaryResult.status === 'fulfilled' ? primaryResult.value : [])
+      .map((s) => ({ ...s, providerKey: 'getatext' as NumberProviderKey }));
     // Secondary failure must not break the working primary catalogue. Only the
     // verified US WhatsApp product is considered, never the .io Canada entries.
-    const daisyAllowed = runtime.additionalAdapters?.daisysms && await runtime.database.rpc<boolean>(
-      'internal_number_provider_access', { p_user_id: user.id });
-    const secondary = daisyAllowed ? await runtime.additionalAdapters?.daisysms?.services().catch(() => []) : [];
+    const secondary = secondaryResult.status === 'fulfilled' ? secondaryResult.value : [];
+    if (primaryResult.status === 'rejected' && !secondary.length)
+      throw new OperationsError(503, 'unavailable', 'US numbers are temporarily unavailable. Try again shortly.', true);
     const primaryWhatsApp = unavailable.has('whatsapp') || primary.some((s) =>
       s.serviceId === 'whatsapp' && s.stock > 0 && !unavailable.has('getatext.whatsapp'));
-    const backup = !primaryWhatsApp ? (secondary ?? []).filter((s) => s.stock > 0)
+    const backup = !primaryWhatsApp ? secondary.filter((s) => !unavailable.has(s.serviceId) && !unavailable.has(`daisysms.${s.serviceId}`))
       .sort((a, b) => a.priceMicroUsd - b.priceMicroUsd).slice(0, 1)
       .map((s) => ({ ...s, providerKey: 'daisysms' as NumberProviderKey })) : [];
     const all = [...primary, ...backup].filter(
@@ -359,19 +406,21 @@ export async function handleNumberAction(
     if (!created.dispatch) return { data: publicOrder(created.order) };
     let allocation: Record<string, unknown>;
     try {
-      const result = await selectedAdapter.rent(quote.serviceId, quote.maximumMicroUsd);
-      allocation = {
-        ...result,
-        state: 'allocated',
-        digest: await runtime.digest(JSON.stringify(result)),
-      };
+      allocation = await allocateNumber(selectedAdapter, quote.serviceId, quote.maximumMicroUsd, runtime);
     } catch (error) {
-      allocation = {
-        state:
-          error instanceof NumberProviderError && !error.uncertain
-            ? 'rejected'
-            : 'unknown',
-      };
+      if ((quote.providerKey ?? 'getatext') === 'getatext' && quote.serviceId === 'whatsapp' &&
+        error instanceof NumberProviderError && !error.uncertain && error.fallbackReason) {
+        const fallback = await fallbackNumber(runtime, user.id, created.order, quote, error.fallbackReason);
+        if (fallback.order) return { data: publicOrder(fallback.order) };
+        allocation = fallback.allocation!;
+      } else {
+        allocation = {
+          state:
+            error instanceof NumberProviderError && !error.uncertain
+              ? 'rejected'
+              : 'unknown',
+        };
+      }
     }
     const order = await runtime.database.rpc<NumberOrder>(
       'internal_number_allocation',

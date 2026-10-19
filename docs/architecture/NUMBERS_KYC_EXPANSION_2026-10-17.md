@@ -312,3 +312,77 @@ No new finding concerns the modified reserve function. See the
 Recovery: restore the previous reservation function in a new forward migration
 and restore the PIN UI/API together if the owner reverses this decision. Never
 rewrite applied migration history or delete rental/financial records.
+
+## 19 October closure: checkout backup and pending KYC reconciliation
+
+The active reference trace remains Active Store `src/App.tsx` ->
+`src/pages/SmsUsNumbers.tsx` -> `supabase/functions/getatext/index.ts` and
+`_shared/new-daisy-api.ts`. Billy uses its own adapters, credentials and ledger.
+The verified shared product is US WhatsApp (`whatsapp`, `whatsapp_re`, `wa`,
+country 187). Active Store has additional backup providers for other services;
+Billy does not inherit those accounts or pretend Daisy covers those products.
+
+Customers continue to see only US numbers. A primary catalogue outage can now
+serve the available verified backup offer. At checkout, GetAText remains primary;
+an exact documented stock, funds, active-rental-limit or price-cap refusal can
+switch the same order to an affordable Daisy offer. The backup price must fit
+the original quote. Migration `20261019194903_number_failover_kyc_reconciliation.sql`
+records a server-only, one-time route claim and rejection digest, preserves the
+original quote fingerprint, and reuses the same wallet reservation. No second
+customer order, debit, price increase or provider selector is introduced.
+
+Transport timeouts, 5xx/429 responses, contradictory allocation evidence and
+unknown responses never trigger a second provider purchase. Confirmed backup
+failure releases the hold once; uncertain allocation remains pending review.
+Polling and cancellation follow the stored provider. Long rentals, exact-number
+reuse and shared-number bundles are not interchangeable with a short WhatsApp
+rental, so no unsupported cross-provider replacement is attempted.
+Source: [GetAText's documented rental refusals](https://getatext.com/api-docs).
+
+Prembly status-method uncertainty is resolved: on 19 October, an authenticated
+OPTIONS probe to a deliberately nonexistent synthetic verification reference
+returned HTTP 200 and `Allow: GET, POST, HEAD, OPTIONS`; GET returned a structured
+404 stating the reference was not found. No identity data or paid verification
+was submitted. This supports the existing GET status adapter and the production
+`PREMBLY_STATUS_METHOD=GET` setting, rather than a speculative POST implementation.
+
+The existing once-per-minute authenticated reconciler now includes pending live
+KYC checks. It shares the interactive refresh implementation, including owner,
+method, mode, reference, last-four, terminal-status and response-code matching.
+It never resubmits a paid identity request. Database leases prevent concurrent
+polls, recover after a crashed worker, and stop after a terminal outcome. Repeated
+pending results use bounded exponential background backoff (up to 32 minutes);
+manual-review or mismatched evidence is not repeatedly polled in the background.
+An interactive refresh retains its existing 60-second minimum interval.
+
+Read-only balances on 19 October: GetAText USD 188.96, DaisySMS.io USD 26.61,
+Prembly NGN 0.00. The canonical Prembly wallet endpoint is `/api/v1/wallet/`
+(trailing slash). Its successful response confirms the supplied API key works;
+funded real-person verification still requires adding funds. General long-rental
+offers currently report zero stock; service-specific long offers are listed but
+do not report stock. No stock or successful paid fulfillment is invented.
+
+Verification includes adapter failure/replay scenarios and rolled-back SQL
+assertions covering one hold/debit, price caps, ownership, privileges, original
+quote replay after failover, backup failure/uncertainty, KYC mode separation,
+lease recovery, retry cooldown and terminal completion without a new attempt.
+No customer funds, real identity data or paid provider requests are used by these
+tests. The additive columns and provider provenance must be preserved during
+recovery; never reset issued orders or rerun uncertain purchases. Both functions
+retain gateway JWT verification and the worker also requires its private key.
+
+Deployment evidence: migration `20261019194903` is applied; service-api v26 and
+provider-reconcile v16 are ACTIVE with `verify_jwt: true`. Secret metadata matches
+the SHA-256 digest of `GET`, and the dedicated KYC HMAC key is configured. The
+scheduled worker runs every minute; authenticated invocation returned success,
+while missing scheduler credentials were rejected. Both provider rollout rows
+remain `all`. Test users, number orders and KYC checks remain zero after rollback.
+
+Final checks: 140 backend tests, 130 app tests, type-check, lint, both rolled-back
+database suites, authenticated live short/long catalogue and multi-service quote
+checks, all-normal-account access checks and 11 secured admin views passed. The
+first full app run had one existing asynchronous admin test time out; it passed
+unchanged in isolation and the complete rerun passed all 25 suites. No test was
+weakened or skipped. A web rebuild was not required for these server-only changes.
+Security/performance advisors introduced no new relevant finding; pre-existing
+owner-RPC/password-protection/index notices remain as documented above.

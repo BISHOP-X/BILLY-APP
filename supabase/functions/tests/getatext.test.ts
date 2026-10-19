@@ -121,6 +121,34 @@ Deno.test(
     );
   },
 );
+
+Deno.test('GetAText only documented non-allocation errors permit checkout backup', async () => {
+  for (const [status, errors, reason] of [
+    [400, 'Service is out of stock', 'stock'],
+    [400, 'Insufficient funds', 'balance'],
+    [400, 'You have reached the maximum number of active rentals', 'limit'],
+    [400, 'The price of the service exceeds the maximum price you are willing to pay, actual price is: 1.25', 'price'],
+    [400, 'Unknown provider response', undefined],
+    [403, 'Wrong Api Key or User is restricted', undefined],
+    [500, 'Service is out of stock', undefined],
+    [408, 'Service is out of stock', undefined],
+    [429, 'Service is out of stock', undefined],
+  ] as const) {
+    const adapter = new GetatextAdapter('synthetic', (async () => Response.json({ errors }, { status })) as typeof fetch);
+    await assert.rejects(() => adapter.rent('whatsapp', 900000), (error: unknown) => {
+      assert(error instanceof NumberProviderError);
+      assert.equal(error.fallbackReason, reason);
+      return true;
+    });
+  }
+  const contradictory = new GetatextAdapter('synthetic', (async () => Response.json({
+    errors: 'Service is out of stock', id: 123, number: '12025550101',
+  }, { status: 400 })) as typeof fetch);
+  await assert.rejects(() => contradictory.rent('whatsapp', 900000), (error: unknown) => {
+    assert(error instanceof NumberProviderError && error.uncertain && !error.fallbackReason);
+    return true;
+  });
+});
 Deno.test('GetAText catalogue and money use exact minor-unit math', () => {
   assert.equal(usdMicros('0.901234'), 901234);
   assert.equal(usdMicros('1e3'), undefined);

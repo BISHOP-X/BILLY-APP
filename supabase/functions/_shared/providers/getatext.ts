@@ -29,6 +29,7 @@ export class NumberProviderError extends Error {
   constructor(
     readonly uncertain: boolean,
     message: string,
+    readonly fallbackReason?: 'stock' | 'balance' | 'limit' | 'price',
   ) {
     super(message);
     this.name = 'NumberProviderError';
@@ -197,11 +198,20 @@ export class GetatextAdapter implements NumberAdapter {
     // A documented rejection proves no allocation. Transport/server errors do not.
     if (
       [400, 403, 404, 422].includes(response.status) &&
-      typeof row?.errors === 'string'
+      typeof row?.errors === 'string' && row.id == null && row.number == null && row.status !== 'success'
     ) {
       throw new NumberProviderError(
         false,
         'This number could not be allocated. No money was taken. Choose another service or try later.',
+        // Exact documented refusals only. Never retry a timeout, unknown error,
+        // authentication failure or ambiguous response at another provider.
+        response.status === 400
+          ? row.errors === 'Service is out of stock' ? 'stock'
+          : row.errors === 'Insufficient funds' ? 'balance'
+          : row.errors === 'You have reached the maximum number of active rentals' ? 'limit'
+          : /^The price of the service exceeds the maximum price you are willing to pay, actual price is: \d+(?:\.\d+)?$/.test(row.errors) ? 'price'
+          : undefined
+          : undefined,
       );
     }
     const id = String(row?.id ?? '');
