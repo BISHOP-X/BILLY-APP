@@ -5,6 +5,8 @@ import {
   type NumberStatus,
 } from '../providers/getatext.ts';
 import type { ServiceTokenCodec } from './tokens.ts';
+import type { ExtendedNumberAdapter } from '../providers/getatext-rentals.ts';
+import { handleExtendedNumberAction, rentalContext, refreshExtendedNumber } from './number-rentals.ts';
 
 export class OperationsError extends Error {
   constructor(
@@ -23,6 +25,14 @@ export class OperationsError extends Error {
   }
 }
 export type NumberOrder = {
+  rental_kind?: 'short' | 'general' | 'service';
+  rental_period?: string | null;
+  rental_end?: string | null;
+  rental_closed?: boolean;
+  supports_extras?: boolean;
+  awaiting_another?: boolean;
+  revision?: number;
+  operation?: string;
   id: string;
   user_id: string;
   transaction_id: string;
@@ -102,6 +112,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
   };
 }
 export type NumberRuntime = {
+  extended?: ExtendedNumberAdapter;
   adapter?: NumberAdapter;
   additionalAdapters?: Partial<Record<NumberProviderKey, NumberAdapter>>;
   database: NumberDatabase;
@@ -183,6 +194,14 @@ export async function refreshNumber(
   orderId: string,
   cancel = false,
 ) {
+  if (runtime.extended) {
+    const context = await rentalContext(runtime, userId, orderId);
+    if (context.pendingAllocation && ['processing', 'manual_review'].includes(context.order.status))
+      return runtime.database.rpc<NumberOrder>('internal_number_extended_allocate', { p_user_id: userId, p_order_id: orderId, p_input: context.pendingAllocation });
+    if (context.order.rental_closed) return context.order;
+    if ((context.order.rental_kind && context.order.rental_kind !== 'short') || (context.order.status === 'received' && context.route.providerKey === 'getatext'))
+      return refreshExtendedNumber(runtime, userId, context, cancel ? 'cancel' : 'refresh');
+  }
   const claim = await runtime.database.rpc<NumberClaim>(
     'internal_number_claim',
     {
@@ -227,6 +246,8 @@ export async function handleNumberAction(
       'US numbers are not available yet.',
     );
   const input = requestObject(value);
+  if (!['numbers.orders', 'numbers.refresh', 'numbers.cancel', 'numbers.catalog', 'numbers.order'].includes(action))
+    return handleExtendedNumberAction(action, input, user.id, runtime);
   if (action === 'numbers.orders')
     return {
       data: {
@@ -270,6 +291,7 @@ export async function handleNumberAction(
       .map((s) => ({ ...s, providerKey: 'daisysms' as NumberProviderKey })) : [];
     const all = [...primary, ...backup].filter(
       (s) =>
+        (input.shared !== true || s.providerKey === 'getatext') &&
         !unavailable.has(s.serviceId) && !unavailable.has(`${s.providerKey}.${s.serviceId}`) &&
         s.stock > 0 &&
         s.name.toLowerCase().includes(query),

@@ -40,6 +40,7 @@ import type { QuidaxServiceRuntime } from "../_shared/service-api/quidax-service
 import { createSocialBoostDatabase } from "../_shared/service-api/social-boost-database.ts";
 import { handleSocialBoostAction, type SocialBoostServiceRuntime } from "../_shared/service-api/social-boost-service.ts";
 import { GetatextAdapter } from "../_shared/providers/getatext.ts";
+import { GetatextRentals } from "../_shared/providers/getatext-rentals.ts";
 import { DaisySmsAdapter } from "../_shared/providers/daisysms.ts";
 import { createNumberDatabase, refreshNumber, type NumberRuntime } from "../_shared/service-api/number-service.ts";
 import {
@@ -531,9 +532,10 @@ const socialAdapter = env("SOCIAL_BOOST_API_KEY") ? new SocialBoostHttpAdapter({
 const numberAdapter = env("GETATEXT_API_KEY") ? new GetatextAdapter(requiredEnv("GETATEXT_API_KEY"),fetch,
   oneOf("GETATEXT_API_TIER",env("GETATEXT_API_TIER"),["premium","standard"] as const,"premium")) : undefined;
 const daisyAdapter = env("DAISYSMS_API_KEY") ? new DaisySmsAdapter(requiredEnv("DAISYSMS_API_KEY")) : undefined;
+const extendedNumberAdapter = env("GETATEXT_API_KEY") ? new GetatextRentals(requiredEnv("GETATEXT_API_KEY"),fetch,env("GETATEXT_API_TIER")!=="standard") : undefined;
 async function numberRuntime(): Promise<NumberRuntime> {
   const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
-  return {adapter:numberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+  return {adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
     exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
 }
 async function readyServices() {

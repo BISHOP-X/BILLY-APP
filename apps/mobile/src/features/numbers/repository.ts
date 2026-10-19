@@ -1,6 +1,10 @@
 import { invokeAction } from '@/features/services/supabase-service-repository';
 
 export type NumberService = {
+  kind?: 'short' | 'general' | 'service';
+  periodLabel?: string;
+  available?: boolean;
+  actionLabel?: string;
   name: string;
   totalMinor: number;
   quoteToken: string;
@@ -14,6 +18,13 @@ export type NumberCatalog = {
   total: number;
 };
 export type NumberOrder = {
+  rental_kind?: 'short' | 'general' | 'service';
+  rental_period?: string | null;
+  rental_end?: string | null;
+  rental_closed?: boolean;
+  awaiting_another?: boolean;
+  supports_extras?: boolean;
+  operation?: string;
   id: string;
   transaction_id: string;
   service_name: string;
@@ -36,6 +47,15 @@ export type NumberOrder = {
   completed_at: string | null;
 };
 export const numberRepository = {
+  sharedCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.catalog', { page, query, shared: true }),
+  longCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.long.catalog', { page, query }),
+  reuseCatalog: (orderId: string, page: number, query: string) => invokeAction<NumberCatalog>('numbers.reuse.catalog', { orderId, page, query }),
+  bundleQuote: (quoteTokens: string[]) => invokeAction<NumberService>('numbers.bundle.quote', { quoteTokens }),
+  rentalOptions: (orderId: string) => invokeAction<{ options: NumberService[] }>('numbers.rental.options', { orderId }),
+  purchase: (input: { quoteToken: string; pin: string; idempotencyKey: string }) => invokeAction<{ orders: NumberOrder[] }>('numbers.purchase', input),
+  messages: (orderId: string, page = 1) => invokeAction<{ messages: NumberMessage[] }>('numbers.messages', { orderId, page }),
+  another: (orderId: string) => invokeAction<NumberOrder>('numbers.another', { orderId }),
+  finish: (orderId: string) => invokeAction<NumberOrder>('numbers.finish', { orderId }),
   catalog: (page: number, query: string) =>
     invokeAction<NumberCatalog>('numbers.catalog', {
       page,
@@ -50,3 +70,4 @@ export const numberRepository = {
   cancel: (orderId: string) =>
     invokeAction<NumberOrder>('numbers.cancel', { orderId }),
 };
+export type NumberMessage = { id: string; body: string; sender: string; received_at: string | null; created_at: string };

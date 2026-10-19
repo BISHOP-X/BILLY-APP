@@ -79,7 +79,7 @@ Live read-only/provider validation evidence (time-sensitive):
 Credentials are stored only as Billy Edge secrets, not in this document or the
 client bundle. No customer wallet was credited/debited by these tests.
 
-## GetAText contract for the next milestone
+## GetAText contract at the first milestone (superseded below)
 
 The following are researched but **not yet exposed as completed Billy customer
 flows**:
@@ -185,3 +185,76 @@ Regression verification uses `scripts/verify-open-provider-access-live.mjs`:
 current non-admin access checks, authenticated live US catalogue, configured KYC
 reaching local input validation, and continued anonymous rejection. The malformed
 KYC input intentionally cannot contact Prembly or write an identity check.
+
+## Expanded rentals delivered, 19 October 2026
+
+The researched flows above are now implemented in Billy's shared web/native
+screens and server adapters. The US numbers screen has Short rental, Long rental
+and Multiple services options. My numbers provides message history, another-code
+and completion actions, paid reuse, and live renewal/recovery options. These
+features use the existing all-signed-in-accounts configuration. There is no
+tester/account/IP allowlist and no additional KYC requirement for numbers.
+
+Provider sources: [GetAText API documentation](https://getatext.com/api-docs) and
+[GetAText terms, section 3.4](https://getatext.com/terms-and-conditions). The terms
+resolve the earlier refund question: accepted unused long-rental cancellation
+within the 20-minute grace period returns the rental cost to provider balance.
+Billy requires a matching terminal cancellation response before refunding.
+Recovery fees are excluded from that refund. Renewed rentals or contradictory
+message evidence retain review instead of guessing a refundable amount.
+
+- General and service-specific long rentals load current periods, prices and
+  stock. Available offers appear before out-of-stock offers; neither stock nor
+  catalogues are fabricated. Service-specific availability remains independent
+  of general-pool stock.
+- Multi-service requests reserve all 2–5 child payments atomically, issue one
+  premium provider request, match results by service rather than array order,
+  and persist all normalized receipts before settling individual orders.
+  Unsupported backup products are excluded from the shared-number selector.
+- Paid reuse is owner-bound, newly quoted and PIN-authorized. It uses the
+  documented exact-number surcharge and completed same-service discount, with
+  a provider maximum-price cap. Receipt number mismatches remain unresolved,
+  never silently accepted.
+- Renewal and recovery require a new displayed price and explicit PIN payment.
+  Renewal increments the original rental revision once; stale quotes cannot
+  renew it twice. Recovery keeps the old history and records the new rental ID.
+  Provider automatic renewal is always false: no recurring business-wallet
+  charges outside Billy's wallet authorization.
+- Message history has owner-only SELECT RLS. Provider list responses are
+  filtered by rental ID, phone and service before any messages are requested.
+  Expired service rentals serve saved history only, avoiding exposure after a
+  phone number is reassigned. Unzoned provider end times are display-only; no
+  fabricated timezone drives refunds or expiry decisions.
+- User-triggered actions bypass a completed poll's cooldown but never an active
+  lease. The 75-second lease exceeds the complete bounded provider sequence.
+  Saved allocation evidence can be reconciled after an interrupted settlement
+  without issuing a second paid provider request.
+- All schema changes are source-controlled and additive. The follow-up ownership
+  index resolves the new message table's foreign-key indexing advisory. No
+  existing customer records, balances, or reference projects were altered.
+
+Verification: 135 backend tests and 122 app tests; app type-check/lint; UI tests for PIN checkout,
+errors without automatic purchase retry, shared selection, messages and finish
+confirmation; production web export; and live authenticated catalogue/quote
+probes. Database assertions ran before and after migration, inside rolled-back
+transactions, covering RLS, owner isolation, replay, atomic batch holds,
+partial recovery refunds, stale renewal revisions, leases and saved receipts.
+The live application checks also verify that normal accounts retain access,
+anonymous calls fail, and malformed input stops before provider dispatch.
+The deployed service-api is v22 and provider-reconcile is v12, both ACTIVE with
+JWT verification enabled. Live counts after rolled-back assertions remain zero
+number orders/messages and zero synthetic accounts. Existing unrelated advisor
+warnings remain unchanged; the new message foreign-key index finding is resolved.
+
+Acceptance limits remain explicit: these checks do not prove a real paid rental
+receiving an external SMS, nor a funded Prembly identity verification. The
+administrator test wallet was empty; no customer's funds or identity were used
+as substitutes. Prembly remains available, with its previously verified
+insufficient-provider-balance response reported to the caller. Pending KYC
+status-method evidence remains as described above. No new owner-answerable
+GetAText question blocks using the implemented flows.
+
+Recovery: keep the additive tables, receipts, message ownership rules and
+reconciler if reverting UI changes. Never drop issued-rental data or rerun a
+paid allocation to recover an uncertain result. Existing JWT verification
+settings remain enabled for service-api and provider-reconcile.

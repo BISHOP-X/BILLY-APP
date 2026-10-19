@@ -68,6 +68,28 @@ try {
     assert(Number.isSafeInteger(offer.totalMinor) && offer.totalMinor > 0);
     assert.equal(typeof offer.quoteToken, 'string');
   }
+  const longCatalog = await action('numbers.long.catalog', { page: 1 });
+  assert.equal(longCatalog.status, 200, 'Long-rental catalog must be live.');
+  assert(longCatalog.body.data.services.length > 0);
+  for (const offer of longCatalog.body.data.services) {
+    assert.equal(offer.countryCode, 'US');
+    assert(['general', 'service'].includes(offer.kind));
+    assert(Number.isSafeInteger(offer.totalMinor) && offer.totalMinor > 0);
+    assert.equal(typeof offer.quoteToken, 'string');
+    assert.equal(typeof offer.periodLabel, 'string');
+  }
+  const bundle = await action('numbers.bundle.quote', {
+    quoteTokens: catalog.body.data.services.slice(0, 2).map(offer => offer.quoteToken),
+  });
+  assert.equal(bundle.status, 200, 'Multi-service quote must be live.');
+  assert(Number.isSafeInteger(bundle.body.data.totalMinor) && bundle.body.data.totalMinor > 0);
+  const malformedPin = await action('numbers.purchase', {
+    quoteToken: longCatalog.body.data.services[0].quoteToken,
+    idempotencyKey: 'read-only-validation-no-purchase', pin: 'invalid',
+  });
+  assert.equal(malformedPin.status, 400, 'Malformed PIN must stop before database/provider dispatch.');
+  const foreignHistory = await action('numbers.messages', { orderId: 'a6180000-0000-4000-8000-000000000099' });
+  assert(foreignHistory.status >= 400, 'An order outside this account cannot expose messages.');
   const history = await action('kyc.history');
   assert.equal(history.status, 200);
   const validation = await action('kyc.submit', {
@@ -77,13 +99,15 @@ try {
   });
   assert.equal(validation.status, 400, 'Open KYC reaches input validation rather than an access/provider block.');
   assert.equal(validation.body.error.code, 'invalid_request');
-  for (const name of ['numbers.catalog', 'kyc.history']) {
+  for (const name of ['numbers.catalog', 'numbers.long.catalog', 'numbers.bundle.quote', 'numbers.messages', 'kyc.history']) {
     const anonymous = await action(name, {}, null);
     assert.equal(anonymous.status, 401, 'Sign-in remains required.');
   }
   console.log(JSON.stringify({
     result: 'PASS', identityConfigured: true,
     numberCatalogAvailable: true, offersChecked: catalog.body.data.services.length,
+    longRentalOffersChecked: longCatalog.body.data.services.length,
+    multiServiceQuoteAvailable: true, messageOwnershipEnforced: true,
     identityInputValidationReached: true, anonymousRejected: true,
     allRegularAccountsHaveAccess: true,
     paidProviderCalls: 0,

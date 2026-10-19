@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/layout/app-screen';
 import { AppButton } from '@/components/ui/button';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -18,6 +18,8 @@ import {
 } from '@/features/numbers/repository';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { RentalOptions, type RentalMode } from '@/features/numbers/rental-options';
+import { RentalTools } from '@/features/numbers/rental-tools';
 
 const terminal = new Set(['received', 'cancelled', 'failed']);
 export default function ForeignNumbersScreen() {
@@ -25,6 +27,8 @@ export default function ForeignNumbersScreen() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState<'browse' | 'orders'>('browse');
+  const [mode, setMode] = useState<'short' | RentalMode>('short');
+  const [sourceOrder, setSourceOrder] = useState<NumberOrder>();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -45,7 +49,7 @@ export default function ForeignNumbersScreen() {
   const catalog = useQuery({
     queryKey: ['numbers', user?.id, 'catalog', page, query],
     queryFn: () => numberRepository.catalog(page, query),
-    enabled: tab === 'browse',
+    enabled: tab === 'browse' && mode === 'short',
     staleTime: 30_000,
   });
   const orders = useQuery({
@@ -60,7 +64,7 @@ export default function ForeignNumbersScreen() {
     ]);
   }, [qc, user?.id]);
   const activeOrderIds = (orders.data?.orders ?? [])
-    .filter((o) => !terminal.has(o.status))
+    .filter((o) => !o.rental_closed && (!terminal.has(o.status) || o.awaiting_another))
     .slice(0, 4)
     .map((o) => o.id)
     .join(',');
@@ -82,6 +86,7 @@ export default function ForeignNumbersScreen() {
     let stopped = false;
     const timer = setInterval(() => {
       if (busy.current) return;
+      if (AppState.currentState !== 'active') return;
       if (typeof document !== 'undefined' && document.hidden) return;
       const active = activeOrderIds ? activeOrderIds.split(',') : [];
       if (!active.length) return;
@@ -160,7 +165,7 @@ export default function ForeignNumbersScreen() {
     >
       <ScreenHeader
         title="US numbers"
-        subtitle="One number. One service. Your code, right here."
+        subtitle="US numbers. Your messages, right here."
       />
       <View
         style={[
@@ -178,9 +183,8 @@ export default function ForeignNumbersScreen() {
         />
         <Text style={[styles.heading, text]}>A number for your next step.</Text>
         <Text style={[styles.body, muted]}>
-          Get a temporary US number to receive a verification code for your
-          chosen service. No calls or permanent ownership. Acceptance is
-          controlled by that service.
+          Receive SMS with a short rental, keep a number longer, or use one
+          number for several services. No calls or permanent ownership.
         </Text>
       </View>
       <View style={styles.tabs}>
@@ -217,7 +221,15 @@ export default function ForeignNumbersScreen() {
           <Text style={[styles.body, text]}>{notice}</Text>
         </View>
       ) : null}
-      {tab === 'browse' && !selection ? (
+      {tab === 'browse' && !selection ? <View style={[styles.tabs, { flexWrap: 'wrap' }]}>
+        {([{ key: 'short', label: 'Short rental' }, { key: 'long', label: 'Long rental' }, { key: 'shared', label: 'Multiple services' }] as const).map(item =>
+          <ScalePressable key={item.key} accessibilityRole="button" accessibilityState={{ selected: mode === item.key }}
+            onPress={() => { setMode(item.key); setSourceOrder(undefined); }} style={[styles.tab, { backgroundColor: mode === item.key ? theme.colors.brandMist : theme.colors.surface }]}>
+            <Text style={[styles.tabText, text]}>{item.label}</Text>
+          </ScalePressable>)}
+      </View> : null}
+      {tab === 'browse' && mode !== 'short' ? <RentalOptions key={`${mode}-${sourceOrder?.id ?? ''}`} mode={mode} order={sourceOrder} onDone={() => { setTab('orders'); setOrdersPage(1); }} /> : null}
+      {tab === 'browse' && mode === 'short' && !selection ? (
         <>
           <TextField
             label="Find your service"
@@ -296,7 +308,7 @@ export default function ForeignNumbersScreen() {
           ) : null}
         </>
       ) : null}
-      {tab === 'browse' && selection ? (
+      {tab === 'browse' && mode === 'short' && selection ? (
         <View style={card}>
           <Text style={[styles.eyebrow, { color: theme.colors.brand }]}>
             REVIEW YOUR NUMBER
@@ -368,7 +380,7 @@ export default function ForeignNumbersScreen() {
               <View style={styles.service}>
                 <Text style={[styles.heading, text]}>{o.service_name}</Text>
                 <Text style={[styles.badge, { color: theme.colors.brand }]}>
-                  {o.status.replaceAll('_', ' ')}
+                  {o.rental_closed ? 'Closed' : o.rental_kind && o.rental_kind !== 'short' && o.status === 'waiting' ? 'Active' : o.status.replaceAll('_', ' ')}
                 </Text>
               </View>
               <Text style={[styles.body, muted]}>
@@ -409,10 +421,10 @@ export default function ForeignNumbersScreen() {
                 </View>
               ) : null}
               <Text style={[styles.body, muted]}>{o.status_message}</Text>
-              {!terminal.has(o.status) ? (
+              {!o.rental_closed && (!terminal.has(o.status) || o.awaiting_another) ? (
                 <>
                   <AppButton
-                    label="Check for code"
+                    label={o.rental_kind && o.rental_kind !== 'short' ? 'Refresh messages' : 'Check for code'}
                     variant="secondary"
                     loading={update.isPending}
                     onPress={() => void refresh(o.id)}
@@ -429,9 +441,8 @@ export default function ForeignNumbersScreen() {
               {cancelOrder?.id === o.id ? (
                 <View style={styles.confirm}>
                   <Text style={[styles.body, text]}>
-                    Cancel this number? Do not use it after requesting
-                    cancellation. Your payment returns after cancellation is
-                    confirmed.
+                    Cancel this number? Do not use it after requesting cancellation.
+                    {o.rental_kind && o.rental_kind !== 'short' ? ' Any eligible refund must be confirmed.' : ' Your payment returns after cancellation is confirmed.'}
                   </Text>
                   <AppButton
                     label="Confirm cancellation"
@@ -445,6 +456,7 @@ export default function ForeignNumbersScreen() {
                   />
                 </View>
               ) : null}
+              {o.phone_number ? <RentalTools order={o} onOptions={(nextMode, order) => { setMode(nextMode); setSourceOrder(order); setSelection(null); setTab('browse'); }} /> : null}
             </View>
           ))}
           <View style={styles.pagination}>
