@@ -47,7 +47,7 @@ export type NumberOrder = {
   completed_at: string | null;
 };
 export const numberRepository = {
-  sharedCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.catalog', { page, query, shared: true }),
+  sharedCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.catalog', { page, query: query.trim() || undefined, shared: true }),
   longCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.long.catalog', { page, query }),
   reuseCatalog: (orderId: string, page: number, query: string) => invokeAction<NumberCatalog>('numbers.reuse.catalog', { orderId, page, query }),
   bundleQuote: (quoteTokens: string[]) => invokeAction<NumberService>('numbers.bundle.quote', { quoteTokens }),

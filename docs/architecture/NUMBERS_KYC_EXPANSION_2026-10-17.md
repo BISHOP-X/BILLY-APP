@@ -288,7 +288,12 @@ evenly sized icon-led rental choices, logo/price rows, and matching checkout and
 order identities. Selection never charges the wallet; the customer must confirm
 the displayed price. Desktop content is bounded to a readable 720px column.
 
-Verification: 136 backend tests, 127 app tests, type-check, lint and web export.
+Verification: 136 backend tests, 130 app tests, type-check, lint and web export.
+Browser checks covered 320px, 390px and 1280px layouts, short/long checkout and
+multi-service selection through the combined-price confirmation without a PIN.
+The multi-service browser test caught an empty-search request rejected by the
+API; the repository now omits blank searches, with three regression assertions.
+The final mobile checkout has no horizontal overflow or browser-console errors.
 Rolled-back database assertions passed before and after migration, including
 both short-rental providers, long/shared purchases, cancellation/refund, renewal,
 recovery, ownership, atomic batch failure, replay and PIN isolation for other
