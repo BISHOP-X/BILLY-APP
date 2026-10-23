@@ -1,6 +1,7 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, skipToken, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { socialBoostRepository } from './repository';
+import type { SocialBoostPlatform } from './domain';
 
 export const socialBoostKeys = {
   catalog: (platform: string, query: string, page: number) =>
@@ -24,16 +25,31 @@ export function useSocialBoostCatalog(platform: string, query: string, page = 1)
 }
 
 export function useSocialBoostFormCatalog(platform: string, query: string, category: string) {
+  const queryClient = useQueryClient();
   return useInfiniteQuery({
     queryKey: ['social-boost', 'form-catalog', platform, query.trim().toLowerCase(), category],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => socialBoostRepository.catalog({
-      platform, query: query.trim() || undefined, category: category || undefined,
-      page: pageParam, limit: 100,
-    }),
+    queryFn: async ({ pageParam }) => {
+      const result = await socialBoostRepository.catalog({
+        platform, query: query.trim() || undefined, category: category || undefined,
+        page: pageParam, limit: 100,
+      });
+      // Platform metadata covers the whole catalogue, independently of filters.
+      // Keep it available even if a later filter request fails.
+      queryClient.setQueryData(['social-boost', 'platforms'], result.platforms);
+      return result;
+    },
     getNextPageParam: (lastPage) => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
+    // A filter change must not tear down the catalogue, platform grid or form.
+    placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
+}
+
+export function useSocialBoostPlatforms() {
+  return useQuery<SocialBoostPlatform[]>({
+    queryKey: ['social-boost', 'platforms'], queryFn: skipToken, initialData: [],
+  }).data;
 }
 
 export function useSocialBoostOrders() {

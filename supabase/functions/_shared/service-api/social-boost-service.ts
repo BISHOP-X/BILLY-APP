@@ -544,7 +544,7 @@ export async function handleSocialBoostAction(
       ? undefined
       : text(input.category, "Category", 1, 1000);
     const services = await provider.adapter.getServices();
-    const enabled = await runtime.database.syncCatalog(services);
+    const enabled = await runtime.database.syncCatalog(services, { browseCache: true });
     const available = services.filter((service) =>
       enabled.has(service.providerServiceId)
     );

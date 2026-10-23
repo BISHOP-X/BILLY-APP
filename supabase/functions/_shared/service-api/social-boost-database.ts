@@ -174,8 +174,16 @@ export interface SocialBoostDatabase {
     orderId: string,
     message: string,
   ): Promise<SocialBoostOrderRow>;
-  syncCatalog(services: SocialBoostService[]): Promise<Set<string>>;
+  syncCatalog(services: SocialBoostService[], options?: { browseCache: true }): Promise<Set<string>>;
 }
+
+// Browse requests share the provider's immutable cached catalogue array. Avoid
+// rewriting thousands of inventory rows for every filter/keystroke. Checkout
+// never opts in: quote and submit always re-check enabled services in the DB.
+const browseCatalogSync = new WeakMap<SupabaseClient, WeakMap<SocialBoostService[], {
+  expiresAt: number;
+  request: Promise<Set<string>>;
+}>>();
 
 class SocialBoostDatabaseError extends Error {
   constructor() {
@@ -474,31 +482,46 @@ export function createSocialBoostDatabase(
       return order(result({ data: response.data, error: response.error }));
     },
 
-    async syncCatalog(services) {
+    async syncCatalog(services, options) {
       if (!services.length) return new Set<string>();
-      const seenAt = new Date().toISOString();
-      const rows = services.map((service) => ({
-        cancel_available: service.cancelAvailable,
-        category: service.category,
-        input_kind: service.inputKind satisfies SocialBoostInputKind,
-        last_seen_at: seenAt,
-        maximum_quantity: service.maximumQuantity,
-        minimum_quantity: service.minimumQuantity,
-        platform: service.platform,
-        product_title: service.name,
-        provider_service_id: service.providerServiceId,
-        rate_micro_usd_per_thousand: service.rateMicroUsdPerThousand,
-        refill_available: service.refillAvailable,
-        service_type: service.type,
-      }));
-      const enabled = new Set<string>();
-      for (let index = 0; index < rows.length; index += 500) {
-        const response = await client.rpc("internal_social_catalog_sync", {p_rows:rows.slice(index,index+500)});
-        const enabledRows=result({data:response.data,error:response.error});
-        if(!Array.isArray(enabledRows)) throw new SocialBoostDatabaseError();
-        for(const row of enabledRows) enabled.add(requiredText((row as JsonRecord).provider_service_id));
+      let cache = browseCatalogSync.get(client);
+      if (options?.browseCache && !cache) {
+        cache = new WeakMap();
+        browseCatalogSync.set(client, cache);
       }
-      return enabled;
+      const cached = options?.browseCache ? cache?.get(services) : undefined;
+      if (cached && cached.expiresAt > Date.now()) return cached.request;
+      const request = (async () => {
+        const seenAt = new Date().toISOString();
+        const rows = services.map((service) => ({
+          cancel_available: service.cancelAvailable,
+          category: service.category,
+          input_kind: service.inputKind satisfies SocialBoostInputKind,
+          last_seen_at: seenAt,
+          maximum_quantity: service.maximumQuantity,
+          minimum_quantity: service.minimumQuantity,
+          platform: service.platform,
+          product_title: service.name,
+          provider_service_id: service.providerServiceId,
+          rate_micro_usd_per_thousand: service.rateMicroUsdPerThousand,
+          refill_available: service.refillAvailable,
+          service_type: service.type,
+        }));
+        const enabled = new Set<string>();
+        for (let index = 0; index < rows.length; index += 500) {
+          const response = await client.rpc("internal_social_catalog_sync", {p_rows:rows.slice(index,index+500)});
+          const enabledRows=result({data:response.data,error:response.error});
+          if(!Array.isArray(enabledRows)) throw new SocialBoostDatabaseError();
+          for(const row of enabledRows) enabled.add(requiredText((row as JsonRecord).provider_service_id));
+        }
+        return enabled;
+      })();
+      if (options?.browseCache) cache!.set(services, { expiresAt: Date.now() + 30_000, request });
+      try { return await request; }
+      catch (error) {
+        if (options?.browseCache && cache?.get(services)?.request === request) cache.delete(services);
+        throw error;
+      }
     },
   };
 }
