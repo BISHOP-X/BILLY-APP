@@ -9,6 +9,13 @@ jest.mock('@/features/services/supabase-service-repository', () => ({
 }));
 
 describe('Social Boost preview journey', () => {
+  it('returns complete categories and filters the service dropdown by category', async () => {
+    const catalog = await socialBoostRepository.catalog({ limit: 1 });
+    expect(catalog.categories).toContain('YouTube Engagement');
+    expect(catalog.pages).toBe(4);
+    const selected = await socialBoostRepository.catalog({ category: 'YouTube Engagement' });
+    expect(selected.services.map((service) => service.name)).toEqual(['Custom Comments']);
+  });
   it('completes catalog, quote, order, delivery and refill without provider keys', async () => {
     const catalog = await socialBoostRepository.catalog({
       platform: 'instagram',

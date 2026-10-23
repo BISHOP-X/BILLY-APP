@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
-import { StatusChip } from '@/components/ui/status-chip';
+import { StatusChip, statusLabel } from '@/components/ui/status-chip';
 import type { ActivityItem } from '@/features/main/domain';
 import {
   describeMinorUnits,
@@ -42,7 +42,7 @@ export function ActivityRow({ item, onPress, showStatus = false }: ActivityRowPr
   return (
     <ScalePressable
       accessibilityHint="Opens transaction details"
-      accessibilityLabel={`${item.title}, ${describeMinorUnits(signedAmount, item.currency)}, status ${item.status}`}
+      accessibilityLabel={`${item.title}, ${describeMinorUnits(signedAmount, item.currency)}, status ${statusLabel(item.status, item.serviceKey)}`}
       accessibilityRole="button"
       onPress={onPress}
       pressedScale={0.985}
@@ -70,7 +70,7 @@ export function ActivityRow({ item, onPress, showStatus = false }: ActivityRowPr
         <Text numberOfLines={1} style={[styles.subtitle, { color: theme.colors.textMuted }]}>
           {item.subtitle || formatActivityDate(item.createdAt)}
         </Text>
-        {showStatus ? <StatusChip status={item.status} /> : null}
+        {showStatus ? <StatusChip status={item.status} serviceKey={item.serviceKey} /> : null}
       </View>
       <View style={[styles.trailing, stacksAmount && styles.trailingStacked]}>
         <Text

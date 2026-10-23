@@ -11,6 +11,13 @@ import { radii, typography } from '@/theme/tokens';
 
 type Status = ActivityStatus | KycStatus | ServiceState | 'demo' | 'tester';
 
+export function statusLabel(status: Status, serviceKey?: string) {
+  if (status === 'refunded' && ['foreign_numbers', 'social_boost'].includes(serviceKey ?? '')) {
+    return 'Cancelled and refunded';
+  }
+  return labels[status];
+}
+
 const labels: Record<Status, string> = {
   available: 'Available',
   cancelled: 'Cancelled',
@@ -33,9 +40,13 @@ const labels: Record<Status, string> = {
   verified: 'Verified',
 };
 
-export function StatusChip({ status }: { status: Status }) {
+export function StatusChip({ status, label, serviceKey, refund = false }: {
+  status: Status; label?: string; serviceKey?: string; refund?: boolean;
+}) {
   const theme = useBillyTheme();
-  const positive = ['available', 'refunded', 'succeeded', 'verified'].includes(
+  const isRefund = refund || status === 'refunded';
+  const displayLabel = label ?? statusLabel(status, serviceKey);
+  const positive = ['available', 'succeeded', 'verified'].includes(
     status,
   );
   const attention = [
@@ -49,12 +60,12 @@ export function StatusChip({ status }: { status: Status }) {
     'reserved',
     'tester',
   ].includes(status);
-  const color = positive
+  const color = isRefund ? (theme.dark ? '#D0B7FF' : '#6D28D9') : positive
     ? theme.colors.success
     : attention
       ? theme.colors.warning
       : theme.colors.danger;
-  const icon = positive
+  const icon = isRefund ? 'return-down-back' : positive
     ? 'checkmark-circle'
     : attention
       ? 'time'
@@ -62,10 +73,10 @@ export function StatusChip({ status }: { status: Status }) {
 
   return (
     <View
-      accessibilityLabel={`Status: ${labels[status]}`}
+      accessibilityLabel={`Status: ${displayLabel}`}
       style={[styles.chip, { backgroundColor: `${color}18` }]}>
       <Ionicons accessible={false} color={color} name={icon} size={13} />
-      <Text style={[styles.label, { color }]}>{labels[status]}</Text>
+      <Text style={[styles.label, { color }]}>{displayLabel}</Text>
     </View>
   );
 }
@@ -80,11 +91,14 @@ const styles = StyleSheet.create({
     minHeight: 28,
     paddingHorizontal: 9,
     paddingVertical: 5,
+    maxWidth: '100%',
+    flexShrink: 1,
   },
   label: {
     fontFamily: typography.familyRounded,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.2,
+    flexShrink: 1,
   },
 });

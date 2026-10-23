@@ -527,7 +527,7 @@ export async function handleSocialBoostAction(
 
   if (action === "social.catalog") {
     const input = record(value ?? {});
-    only(input, ["limit", "page", "platform", "query"]);
+    only(input, ["category", "limit", "page", "platform", "query"]);
     const limit = input.limit === undefined
       ? 60
       : integer(input.limit, "Page size", 1, 100);
@@ -540,6 +540,9 @@ export async function handleSocialBoostAction(
     const query = input.query === undefined
       ? ""
       : text(input.query, "Search", 1, 80).toLowerCase();
+    const category = input.category === undefined
+      ? undefined
+      : text(input.category, "Category", 1, 1000);
     const services = await provider.adapter.getServices();
     const enabled = await runtime.database.syncCatalog(services);
     const available = services.filter((service) =>
@@ -552,7 +555,7 @@ export async function handleSocialBoostAction(
       },
       {},
     );
-    const filtered = available.filter((service) => {
+    const matching = available.filter((service) => {
       if (platform && platform !== "all" && service.platform !== platform) {
         return false;
       }
@@ -566,10 +569,14 @@ export async function handleSocialBoostAction(
       }
       return true;
     });
+    // Categories must cover the complete matching catalogue, not just page one.
+    const categories = [...new Set(matching.map((service) => service.category))];
+    const filtered = category ? matching.filter((service) => service.category === category) : matching;
     const start = (page - 1) * limit;
     const selected = filtered.slice(start, start + limit);
     return {
       data: {
+        categories,
         isPreview: provider.mode === "mock",
         page,
         pages: Math.max(1, Math.ceil(filtered.length / limit)),

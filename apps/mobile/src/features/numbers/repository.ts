@@ -18,6 +18,7 @@ export type NumberCatalog = {
   total: number;
 };
 export type NumberOrder = {
+  refund_minor?: number;
   rental_kind?: 'short' | 'general' | 'service';
   rental_period?: string | null;
   rental_end?: string | null;

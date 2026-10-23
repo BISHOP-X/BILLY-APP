@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { socialBoostRepository } from './repository';
 
@@ -19,6 +19,19 @@ export function useSocialBoostCatalog(platform: string, query: string, page = 1)
         query: query.trim() || undefined,
       }),
     queryKey: socialBoostKeys.catalog(platform, query.trim().toLowerCase(), page),
+    staleTime: 30_000,
+  });
+}
+
+export function useSocialBoostFormCatalog(platform: string, query: string, category: string) {
+  return useInfiniteQuery({
+    queryKey: ['social-boost', 'form-catalog', platform, query.trim().toLowerCase(), category],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => socialBoostRepository.catalog({
+      platform, query: query.trim() || undefined, category: category || undefined,
+      page: pageParam, limit: 100,
+    }),
+    getNextPageParam: (lastPage) => lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
     staleTime: 30_000,
   });
 }

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, StyleSheet, Text, View } from 'react-native';
 import { AppScreen } from '@/components/layout/app-screen';
 import { AppButton } from '@/components/ui/button';
+import { StatusChip } from '@/components/ui/status-chip';
+import { numberOrderStatus, numberRefundMinor } from '@/features/services/order-status';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { TextField } from '@/components/ui/text-field';
 import { StatePanel } from '@/components/ui/state-panel';
@@ -350,10 +352,8 @@ export default function ForeignNumbersScreen() {
               <View style={styles.service}>
                 <ServiceAvatar name={o.service_name} size={40} />
                 <Text style={[styles.heading, styles.serviceText, text]}>{o.service_name}</Text>
-                <Text style={[styles.badge, { color: theme.colors.brand }]}>
-                  {o.rental_closed ? 'Closed' : o.rental_kind && o.rental_kind !== 'short' && o.status === 'waiting' ? 'Active' : o.status.replaceAll('_', ' ')}
-                </Text>
               </View>
+              <StatusChip {...numberOrderStatus(o)} />
               <Text style={[styles.body, muted]}>
                 {formatMinorUnits(o.amount_minor + o.fee_minor, 'NGN')} ·{' '}
                 {new Date(o.created_at).toLocaleDateString()}
@@ -392,6 +392,11 @@ export default function ForeignNumbersScreen() {
                 </View>
               ) : null}
               <Text style={[styles.body, muted]}>{o.status_message}</Text>
+              {numberRefundMinor(o) > 0 ? (
+                <Text style={[styles.body, { color: theme.dark ? '#D0B7FF' : '#6D28D9' }]}>
+                  {formatMinorUnits(numberRefundMinor(o), 'NGN')} returned to your Billy wallet.
+                </Text>
+              ) : null}
               {!o.rental_closed && (!terminal.has(o.status) || o.awaiting_another) ? (
                 <>
                   <AppButton
@@ -403,7 +408,7 @@ export default function ForeignNumbersScreen() {
                   {o.status === 'waiting' && !o.cancel_requested ? (
                     <AppButton
                       label="Request cancellation"
-                      variant="ghost"
+                      variant="danger"
                       onPress={() => setCancelOrder(o)}
                     />
                   ) : null}
@@ -417,6 +422,7 @@ export default function ForeignNumbersScreen() {
                   </Text>
                   <AppButton
                     label="Confirm cancellation"
+                    variant="danger"
                     loading={update.isPending}
                     onPress={() => void refresh(o.id, true)}
                   />

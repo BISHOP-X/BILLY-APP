@@ -1,9 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Crypto from 'expo-crypto';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -21,13 +19,12 @@ import { TextField } from '@/components/ui/text-field';
 import type {
   SocialBoostInputKind,
   SocialBoostOrder,
-  SocialBoostPlatform,
   SocialBoostQuote,
   SocialBoostService,
 } from '@/features/social-boost/domain';
 import {
   useSocialBoostCancel,
-  useSocialBoostCatalog,
+  useSocialBoostFormCatalog,
   useSocialBoostOrders,
   useSocialBoostRefill,
   useSocialBoostRefills,
@@ -35,6 +32,9 @@ import {
   useSocialBoostSubmit,
 } from '@/features/social-boost/queries';
 import { socialBoostRepository } from '@/features/social-boost/repository';
+import { BoostPlatformIcon, BoostPlatformPicker } from '@/features/social-boost/platform-picker';
+import { CatalogSelect } from '@/features/social-boost/catalog-select';
+import { boostOrderStatus } from '@/features/services/order-status';
 import {
   isCompleteTransactionPin,
   normalizeTransactionPin,
@@ -43,27 +43,6 @@ import {
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
-
-const platformLabels: Partial<Record<SocialBoostPlatform, string>> = {
-  facebook: 'Facebook',
-  instagram: 'Instagram',
-  telegram: 'Telegram',
-  tiktok: 'TikTok',
-  twitter: 'X / Twitter',
-  youtube: 'YouTube',
-};
-
-const platformIcons: Partial<
-  Record<SocialBoostPlatform, keyof typeof Ionicons.glyphMap>
-> = {
-  facebook: 'logo-facebook',
-  instagram: 'logo-instagram',
-  linkedin: 'logo-linkedin',
-  pinterest: 'logo-pinterest',
-  tiktok: 'logo-tiktok',
-  twitter: 'logo-twitter',
-  youtube: 'logo-youtube',
-};
 
 type FormState = {
   answerNumber: string;
@@ -99,18 +78,19 @@ export default function SocialBoostScreen() {
   const [platform, setPlatform] = useState('all');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
+  const [category, setCategory] = useState('');
   const requestKey = useRef('');
+  const formVersion = useRef(0);
   const refillKeys = useRef<Record<string,string>>({});
   const [feedback,setFeedback] = useState<{title:string;message:string;buttons?:{text:string;onPress?:()=>void;style?:string}[]}|null>(null);
   function notify(title:string,message:string,buttons?:{text:string;onPress?:()=>void;style?:string}[]) { setFeedback({title,message,buttons}); }
-  useEffect(()=>{const timer=setTimeout(()=>{setQuery(search.trim());setPage(1);},300);return()=>clearTimeout(timer);},[search]);
+  useEffect(()=>{const timer=setTimeout(()=>setQuery(search.trim()),300);return()=>clearTimeout(timer);},[search]);
   const [selected, setSelected] = useState<SocialBoostService | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [quote, setQuote] = useState<SocialBoostQuote | null>(null);
   const [pin, setPin] = useState('');
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const catalog = useSocialBoostCatalog(platform, query, page);
+  const catalog = useSocialBoostFormCatalog(platform, query, category);
   const orders = useSocialBoostOrders();
   const refills = useSocialBoostRefills();
   const submit = useSocialBoostSubmit();
@@ -118,18 +98,29 @@ export default function SocialBoostScreen() {
   const cancel = useSocialBoostCancel();
   const refill = useSocialBoostRefill();
 
-  const platforms = useMemo(
-    () => ['all', ...(catalog.data?.platforms ?? [])],
-    [catalog.data?.platforms],
+  const catalogSummary = catalog.data?.pages[0];
+  const services = useMemo(
+    () => catalog.data?.pages.flatMap((part) => part.services) ?? [],
+    [catalog.data],
   );
 
+  function resetSelection() {
+    formVersion.current += 1;
+    setSelected(null);
+    setForm(emptyForm);
+    setQuote(null);
+    setPin('');
+  }
+
   function patchForm(key: keyof FormState, value: string) {
+    formVersion.current += 1;
     setForm((current) => ({ ...current, [key]: value }));
     setQuote(null);
     setPin('');
   }
 
   function selectService(service: SocialBoostService) {
+    formVersion.current += 1;
     setSelected(service);
     setForm({
       ...emptyForm,
@@ -140,7 +131,8 @@ export default function SocialBoostScreen() {
   }
 
   async function getQuote() {
-    if (!selected) return;
+    if (!selected || quoteBusy) return;
+    const requestedVersion = formVersion.current;
     const quantity = Number(form.quantity.replaceAll(',', ''));
     if (
       !Number.isSafeInteger(quantity) ||
@@ -156,10 +148,10 @@ export default function SocialBoostScreen() {
     setQuoteBusy(true);
     requestKey.current = `mobile-social-${Crypto.randomUUID()}`;
     try {
-      setQuote(
-        await socialBoostRepository.quote(selected.selectionToken, quantity),
-      );
+      const nextQuote = await socialBoostRepository.quote(selected.selectionToken, quantity);
+      if (formVersion.current === requestedVersion) setQuote(nextQuote);
     } catch (error) {
+      if (formVersion.current !== requestedVersion) return;
       notify(
         'Quote unavailable',
         error instanceof Error ? error.message : 'Please try again safely.',
@@ -222,41 +214,14 @@ export default function SocialBoostScreen() {
       testID="social-boost-screen"
     >
       <ScreenHeader
-        subtitle="Real services. Clear delivery tracking."
+        subtitle="Choose a service. Grow your audience."
         title="Social Boost"
       />
       <DemoDataBanner />
       {feedback ? <View accessibilityLiveRegion="polite" style={[styles.quote,{backgroundColor:theme.colors.surface,borderColor:theme.colors.border}]}>
         <Text style={[styles.cardTitle,{color:theme.colors.text}]}>{feedback.title}</Text>
         <Text style={[styles.helper,{color:theme.colors.textMuted}]}>{feedback.message}</Text>
-        {(feedback.buttons??[{text:'Dismiss'}]).map(button=><AppButton key={button.text} label={button.text} variant="ghost" onPress={()=>{setFeedback(null);button.onPress?.();}}/>)}</View>:null}
-
-      <LinearGradient
-        colors={['#071E14', '#124D31', '#2B8D5A']}
-        end={{ x: 1, y: 1 }}
-        start={{ x: 0, y: 0 }}
-        style={styles.hero}
-      >
-        <View style={styles.heroTop}>
-          <View style={styles.heroCopy}>
-            <Text style={styles.eyebrow}>GROW WITH CLARITY</Text>
-            <Text style={styles.heroTitle}>Choose. Review. Track.</Text>
-          </View>
-          <View style={styles.heroIcon}>
-            <Ionicons color="#146237" name="megaphone" size={27} />
-          </View>
-        </View>
-        <Text style={styles.heroBody}>
-          Browse the current service catalog, confirm an exact target and follow
-          every step of delivery in one place.
-        </Text>
-        <View style={styles.heroNotice}>
-          <Ionicons color="#B8F3CF" name="eye-outline" size={17} />
-          <Text style={styles.heroNoticeText}>
-            Keep the target profile or content public until delivery completes.
-          </Text>
-        </View>
-      </LinearGradient>
+        {(feedback.buttons??[{text:'Dismiss'}]).map(button=><AppButton key={button.text} label={button.text} variant={button.style === 'destructive' ? 'danger' : 'ghost'} onPress={()=>{setFeedback(null);button.onPress?.();}}/>)}</View>:null}
 
       <View
         style={[
@@ -268,6 +233,7 @@ export default function SocialBoostScreen() {
           <ScalePressable
             accessibilityRole="tab"
             accessibilityState={{ selected: tab === item }}
+            containerStyle={styles.tabContainer}
             key={item}
             onPress={() => setTab(item)}
             style={[
@@ -292,7 +258,7 @@ export default function SocialBoostScreen() {
                 },
               ]}
             >
-              {item === 'browse' ? 'Browse' : 'My orders'}
+              {item === 'browse' ? 'New order' : 'My orders'}
             </Text>
           </ScalePressable>
         ))}
@@ -300,143 +266,66 @@ export default function SocialBoostScreen() {
 
       {tab === 'browse' ? (
         <FadeSlide style={styles.section}>
-          <TextField
-            autoCapitalize="none"
-            icon="search-outline"
-            label="Find a service"
-            onChangeText={setSearch}
-            placeholder="Followers, views, comments…"
-            value={search}
-          />
-
-          <ScrollView
-            contentContainerStyle={styles.platforms}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {platforms.map((item) => {
-              const active = platform === item;
-              const typed = item as SocialBoostPlatform;
-              return (
-                <ScalePressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: active }}
-                  key={item}
-                  onPress={() => {
-                    setPlatform(item);
-                    setPage(1);
-                    setSelected(null);
-                    setQuote(null);
-                  }}
-                  style={[
-                    styles.platform,
-                    {
-                      backgroundColor: active
-                        ? theme.colors.brand
-                        : theme.colors.surface,
-                      borderColor: active
-                        ? theme.colors.brand
-                        : theme.colors.border,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    color={active ? '#FFFFFF' : theme.colors.brand}
-                    name={
-                      item === 'all'
-                        ? 'apps-outline'
-                        : platformIcons[typed] ?? 'globe-outline'
-                    }
-                    size={17}
-                  />
-                  <Text
-                    style={[
-                      styles.platformText,
-                      {
-                        color: active ? '#FFFFFF' : theme.colors.text,
-                      },
-                    ]}
-                  >
-                    {item === 'all'
-                      ? 'All'
-                      : platformLabels[typed] ??
-                        `${item.slice(0, 1).toUpperCase()}${item.slice(1)}`}
-                  </Text>
-                  {item !== 'all' && catalog.data?.platformCounts[item] ? (
-                    <Text
-                      style={[
-                        styles.platformCount,
-                        {
-                          color: active
-                            ? 'rgba(255,255,255,0.75)'
-                            : theme.colors.textSoft,
-                        },
-                      ]}
-                    >
-                      {catalog.data.platformCounts[item]}
-                    </Text>
-                  ) : null}
-                </ScalePressable>
-              );
-            })}
-          </ScrollView>
-
-          {catalog.isLoading ? (
-            <>
-              <SkeletonBlock style={styles.serviceSkeleton} />
-              <SkeletonBlock style={styles.serviceSkeleton} />
-            </>
-          ) : catalog.isError || !catalog.data ? (
-            <StatePanel
-              actionLabel="Try again"
-              icon="cloud-offline-outline"
-              message={
-                catalog.error?.message ??
-                'Billy could not load the current service catalog.'
-              }
-              onAction={() => void catalog.refetch()}
-              title="Catalog unavailable"
-              tone="danger"
+          <View style={[styles.orderForm, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <BoostPlatformPicker
+              platforms={catalogSummary?.platforms ?? []}
+              selected={platform}
+              onSelect={(value) => { setPlatform(value); setCategory(''); resetSelection(); }}
             />
-          ) : catalog.data.services.length ? (
-            <View style={styles.services}>
-              {catalog.data.services.map((service) => (
-                <ServiceCard
-                  key={service.selectionToken}
-                  onPress={() => selectService(service)}
-                  selected={selected?.selectionToken === service.selectionToken}
-                  service={service}
-                />
-              ))}
-            </View>
-          ) : (
-            <StatePanel
-              compact
+            <TextField
+              autoCapitalize="none"
               icon="search-outline"
-              message="Try another platform or search phrase."
-              title="No matching services"
+              label="Search"
+              maxLength={80}
+              onChangeText={(value) => { setSearch(value); setCategory(''); resetSelection(); }}
+              placeholder="Search for a service"
+              value={search}
             />
-          )}
-
-          {catalog.data && catalog.data.pages>1 ? <View style={styles.scheduleRow}>
-            <AppButton label="Previous" disabled={page===1} variant="ghost" onPress={()=>setPage(p=>p-1)}/>
-            <Text style={{color:theme.colors.textMuted}}>Page {page} of {catalog.data.pages}</Text>
-            <AppButton label="Next" disabled={page>=catalog.data.pages} variant="ghost" onPress={()=>setPage(p=>p+1)}/>
-          </View>:null}
-          {selected ? (
-            <OrderBuilder
-              busy={quoteBusy}
-              form={form}
-              onChange={patchForm}
-              onClose={() => {
-                setSelected(null);
-                setQuote(null);
-                setPin('');
-              }}
-              onQuote={() => void getQuote()}
-              selected={selected}
+            {catalog.isError && !catalog.data ? (
+              <StatePanel compact actionLabel="Try again" icon="cloud-offline-outline"
+                title="Services unavailable" message={catalog.error.message}
+                onAction={() => void catalog.refetch()} tone="danger" />
+            ) : null}
+            <CatalogSelect
+              label="Category"
+              placeholder="Choose a category"
+              value={category}
+              loading={catalog.isPending}
+              disabled={!catalogSummary?.categories?.length || search.trim() !== query}
+              options={(catalogSummary?.categories ?? []).map((name) => ({ value: name, label: name }))}
+              onSelect={(value) => { setCategory(value); resetSelection(); }}
             />
-          ) : null}
+            <CatalogSelect
+              label="Service"
+              placeholder={category ? 'Choose a service' : 'Choose a category first'}
+              value={selected?.selectionToken ?? ''}
+              selectedLabel={selected?.name}
+              loading={catalog.isPending}
+              disabled={!category || !services.length || search.trim() !== query}
+              searchable={false}
+              options={services.map((service) => ({
+                value: service.selectionToken, label: service.name,
+                detail: `${service.minimumQuantity.toLocaleString()}–${service.maximumQuantity.toLocaleString()}${service.refillAvailable ? ' · Refill available' : ''}`,
+              }))}
+              onSelect={(value) => { const service = services.find((item) => item.selectionToken === value); if (service) selectService(service); }}
+              onLoadMore={catalog.hasNextPage ? () => void catalog.fetchNextPage() : undefined}
+              loadingMore={catalog.isFetchingNextPage}
+              loadError={catalog.isFetchNextPageError ? 'Could not load more services. Try again.' : undefined}
+            />
+            {!catalog.isPending && catalogSummary?.total === 0 ? (
+              <Text style={[styles.helper, { color: theme.colors.textMuted }]}>No services match this search. Try another platform or phrase.</Text>
+            ) : null}
+            {selected ? (
+              <OrderBuilder busy={quoteBusy} form={form} onChange={patchForm}
+                onQuote={() => void getQuote()} selected={selected} />
+            ) : (
+              <>
+                <TextField label="Link" placeholder="https://…" value="" disabled />
+                <TextField label="Quantity" placeholder="Choose a service first" value="" disabled />
+                <Text style={[styles.helper, { color: theme.colors.textMuted }]}>Choose your category and service to see limits and pricing.</Text>
+              </>
+            )}
+          </View>
 
           {quote ? (
             <View
@@ -451,10 +340,10 @@ export default function SocialBoostScreen() {
               <View style={styles.quoteHeader}>
                 <View>
                   <Text style={[styles.quoteEyebrow, { color: theme.colors.brand }]}>
-                    SECURE QUOTE
+                    CHARGE
                   </Text>
                   <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-                    Review before ordering
+                    Review your order
                   </Text>
                 </View>
                 <Ionicons
@@ -576,102 +465,16 @@ export default function SocialBoostScreen() {
   );
 }
 
-function ServiceCard({
-  onPress,
-  selected,
-  service,
-}: {
-  onPress: () => void;
-  selected: boolean;
-  service: SocialBoostService;
-}) {
-  const theme = useBillyTheme();
-  return (
-    <ScalePressable
-      accessibilityLabel={`Select ${service.name}`}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[
-        styles.service,
-        {
-          backgroundColor: selected
-            ? theme.colors.brandMist
-            : theme.colors.surface,
-          borderColor: selected ? theme.colors.brand : theme.colors.border,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.serviceIcon,
-          {
-            backgroundColor: selected
-              ? theme.colors.brand
-              : theme.colors.brandMist,
-          },
-        ]}
-      >
-        <Ionicons
-          color={selected ? '#FFFFFF' : theme.colors.brand}
-          name={platformIcons[service.platform] ?? 'globe-outline'}
-          size={21}
-        />
-      </View>
-      <View style={styles.serviceCopy}>
-        <Text style={[styles.serviceCategory, { color: theme.colors.brand }]}>
-          {service.category}
-        </Text>
-        <Text style={[styles.serviceTitle, { color: theme.colors.text }]}>
-          {service.name}
-        </Text>
-        <Text style={[styles.serviceMeta, { color: theme.colors.textMuted }]}>
-          {service.minimumQuantity.toLocaleString()}–
-          {service.maximumQuantity.toLocaleString()} · {service.type}
-        </Text>
-        <View style={styles.capabilities}>
-          {service.refillAvailable ? (
-            <Capability icon="refresh-outline" label="Refill eligible" />
-          ) : null}
-          {service.cancelAvailable ? (
-            <Capability icon="close-circle-outline" label="Cancellation" />
-          ) : null}
-        </View>
-      </View>
-      <Ionicons color={theme.colors.textSoft} name="chevron-forward" size={20} />
-    </ScalePressable>
-  );
-}
-
-function Capability({
-  icon,
-  label,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-}) {
-  const theme = useBillyTheme();
-  return (
-    <View style={[styles.capability, { backgroundColor: theme.colors.surfaceMuted }]}>
-      <Ionicons color={theme.colors.brand} name={icon} size={12} />
-      <Text style={[styles.capabilityText, { color: theme.colors.textMuted }]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
 function OrderBuilder({
   busy,
   form,
   onChange,
-  onClose,
   onQuote,
   selected,
 }: {
   busy: boolean;
   form: FormState;
   onChange: (key: keyof FormState, value: string) => void;
-  onClose: () => void;
   onQuote: () => void;
   selected: SocialBoostService;
 }) {
@@ -687,27 +490,10 @@ function OrderBuilder({
         },
       ]}
     >
-      <View style={styles.builderHeader}>
-        <View style={styles.builderHeading}>
-          <Text style={[styles.builderEyebrow, { color: theme.colors.brand }]}>
-            BUILD YOUR ORDER
-          </Text>
-          <Text style={[styles.cardTitle, { color: theme.colors.text }]}>
-            {selected.name}
-          </Text>
-        </View>
-        <ScalePressable
-          accessibilityLabel="Close order form"
-          onPress={onClose}
-          style={[styles.close, { backgroundColor: theme.colors.surfaceMuted }]}
-        >
-          <Ionicons color={theme.colors.textMuted} name="close" size={20} />
-        </ScalePressable>
-      </View>
       <TextField
         autoCapitalize="none"
         icon="link-outline"
-        label={targetCopy.label}
+        label={targetCopy.label === 'TikTok username' ? targetCopy.label : 'Link'}
         onChangeText={(value) => onChange('target', value)}
         placeholder={targetCopy.placeholder}
         value={form.target}
@@ -904,7 +690,6 @@ function OrdersPanel({
             Refresh checks this order. It won’t place a new one.
           </Text>
         </View>
-        <StatusChip status="pending" />
       </View>
       {orders.map((order) => {
         const orderRefills = refills.filter(
@@ -925,14 +710,10 @@ function OrdersPanel({
               <View
                 style={[
                   styles.orderIcon,
-                  { backgroundColor: theme.colors.brandMist },
+                  { backgroundColor: '#FFFFFF' },
                 ]}
               >
-                <Ionicons
-                  color={theme.colors.brand}
-                  name={platformIcons[order.platform] ?? 'globe-outline'}
-                  size={21}
-                />
+                <BoostPlatformIcon platform={order.platform} size={23} />
               </View>
               <View style={styles.orderCopy}>
                 <Text style={[styles.orderTitle, { color: theme.colors.text }]}>
@@ -945,8 +726,8 @@ function OrdersPanel({
                   {order.target}
                 </Text>
               </View>
-              <StatusChip status={chipStatus(order.status)} />
             </View>
+            <StatusChip {...boostOrderStatus(order)} />
             <View style={[styles.orderStats, { backgroundColor: theme.colors.surfaceMuted }]}>
               <OrderStat
                 label="Quantity"
@@ -969,13 +750,13 @@ function OrdersPanel({
               {order.statusMessage}
             </Text>
             {order.refundMinor > 0 ? (
-              <View style={[styles.refund, { backgroundColor: `${theme.colors.success}14` }]}>
+              <View style={[styles.refund, { backgroundColor: theme.dark ? '#322344' : '#F1E9FF' }]}>
                 <Ionicons
-                  color={theme.colors.success}
+                  color={theme.dark ? '#D0B7FF' : '#6D28D9'}
                   name="return-down-back-outline"
                   size={17}
                 />
-                <Text style={[styles.refundText, { color: theme.colors.success }]}>
+                <Text style={[styles.refundText, { color: theme.dark ? '#D0B7FF' : '#6D28D9' }]}>
                   {formatMinorUnits(order.refundMinor, 'NGN')} returned to your
                   Billy wallet.
                 </Text>
@@ -1144,130 +925,30 @@ function targetLabel(service: SocialBoostService) {
   };
 }
 
-function chipStatus(status: SocialBoostOrder['status']) {
-  if (status === 'partial') return 'in_progress' as const;
-  if (status === 'manual_review' || status === 'cancellation_requested') {
-    return 'pending' as const;
-  }
-  return status;
-}
-
 const styles = StyleSheet.create({
+  orderForm: { borderRadius: 24, borderWidth: 1, padding: 16, gap: 20 },
   builder: {
-    borderRadius: radii.xl,
-    borderWidth: 1,
     gap: spacing.md,
-    padding: spacing.lg,
-  },
-  builderEyebrow: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.1,
-  },
-  builderHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  builderHeading: { flex: 1, gap: 4 },
-  capability: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-  },
-  capabilities: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
-  capabilityText: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '700',
   },
   cardTitle: {
     fontFamily: typography.familyRounded,
     fontSize: 18,
     fontWeight: '900',
   },
-  close: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
   content: { gap: spacing.lg },
   divider: { height: 1 },
-  eyebrow: {
-    color: '#B8F3CF',
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.3,
-  },
   helper: {
     fontFamily: typography.family,
     fontSize: 11,
     lineHeight: 17,
     marginTop: -spacing.xs,
   },
-  hero: {
-    borderRadius: radii.xl,
-    gap: spacing.md,
-    minHeight: 220,
-    overflow: 'hidden',
-    padding: spacing.lg,
-  },
-  heroBody: {
-    color: 'rgba(255,255,255,0.76)',
-    fontFamily: typography.family,
-    fontSize: 12,
-    lineHeight: 19,
-  },
-  heroCopy: { flex: 1, gap: 5 },
-  heroIcon: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: radii.pill,
-    height: 52,
-    justifyContent: 'center',
-    width: 52,
-  },
-  heroNotice: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: radii.md,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  heroNoticeText: {
-    color: '#DDF8E8',
-    flex: 1,
-    fontFamily: typography.family,
-    fontSize: 11,
-    lineHeight: 17,
-  },
-  heroTitle: {
-    color: '#FFFFFF',
-    fontFamily: typography.familyRounded,
-    fontSize: 25,
-    fontWeight: '900',
-    letterSpacing: -0.6,
-  },
-  heroTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
   miniAction: {
     alignItems: 'center',
     borderRadius: radii.pill,
     flexDirection: 'row',
     gap: 5,
-    minHeight: 38,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
   },
   miniActionText: {
@@ -1312,6 +993,7 @@ const styles = StyleSheet.create({
   orderStats: {
     borderRadius: radii.md,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     padding: spacing.md,
   },
@@ -1326,31 +1008,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  orders: { gap: spacing.md },
+  orders: { gap: spacing.md, width: '100%', maxWidth: 760, alignSelf: 'center' },
   ordersHeading: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  platform: {
-    alignItems: 'center',
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-  },
-  platformCount: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '800',
-  },
-  platforms: { gap: spacing.sm, paddingRight: spacing.lg },
-  platformText: {
-    fontFamily: typography.familyRounded,
-    fontSize: 11,
-    fontWeight: '800',
   },
   quote: {
     borderRadius: radii.xl,
@@ -1414,47 +1076,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 16,
   },
-  scheduleField: { flex: 1, minWidth: 130 },
-  scheduleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  section: { gap: spacing.lg },
+  section: { gap: spacing.lg, width: '100%', maxWidth: 760, alignSelf: 'center' },
   sectionBody: { fontFamily: typography.family, fontSize: 11, lineHeight: 17 },
   sectionTitle: {
     fontFamily: typography.familyRounded,
     fontSize: 20,
     fontWeight: '900',
   },
-  service: {
-    alignItems: 'center',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 116,
-    padding: spacing.md,
-  },
-  serviceCategory: {
-    fontFamily: typography.familyRounded,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  serviceCopy: { flex: 1, gap: 4 },
-  serviceIcon: {
-    alignItems: 'center',
-    borderRadius: radii.md,
-    height: 46,
-    justifyContent: 'center',
-    width: 46,
-  },
-  serviceMeta: { fontFamily: typography.family, fontSize: 10 },
-  services: { gap: spacing.sm },
-  serviceSkeleton: { height: 116 },
-  serviceTitle: {
-    fontFamily: typography.familyRounded,
-    fontSize: 14,
-    fontWeight: '800',
-  },
+  tabContainer: { flex: 1 },
   tab: {
     alignItems: 'center',
     borderRadius: radii.md,
@@ -1465,6 +1094,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   tabs: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
     borderRadius: radii.lg,
     flexDirection: 'row',
     gap: 4,

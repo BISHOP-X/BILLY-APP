@@ -97,7 +97,7 @@ function demoRepository(): SocialBoostRepository {
     async catalog(input = {}) {
       const query = input.query?.trim().toLowerCase() ?? '';
       const platform = input.platform;
-      const filtered = previewServices.filter(
+      const matching = previewServices.filter(
         (service) =>
           (!platform || platform === 'all' || service.platform === platform) &&
           (!query ||
@@ -105,6 +105,10 @@ function demoRepository(): SocialBoostRepository {
               .toLowerCase()
               .includes(query)),
       );
+      const categories = [...new Set(matching.map((service) => service.category))];
+      const filtered = input.category ? matching.filter((service) => service.category === input.category) : matching;
+      const page = input.page ?? 1;
+      const limit = input.limit ?? 100;
       const platformCounts = previewServices.reduce<Record<string, number>>(
         (counts, service) => {
           counts[service.platform] = (counts[service.platform] ?? 0) + 1;
@@ -113,12 +117,13 @@ function demoRepository(): SocialBoostRepository {
         {},
       );
       return {
+        categories,
         isPreview: true,
-        page: 1,
-        pages: 1,
+        page,
+        pages: Math.max(1, Math.ceil(filtered.length / limit)),
         platformCounts,
         platforms: Object.keys(platformCounts) as SocialBoostCatalog['platforms'],
-        services: filtered,
+        services: filtered.slice((page - 1) * limit, page * limit),
         total: filtered.length,
       };
     },

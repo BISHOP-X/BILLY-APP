@@ -41,6 +41,7 @@ export type SocialBoostService = {
 };
 
 export type SocialBoostCatalog = {
+  categories: string[];
   isPreview: boolean;
   page: number;
   pages: number;
@@ -128,6 +129,7 @@ export type SocialBoostOrderInput = {
 export interface SocialBoostRepository {
   cancelOrder(orderId: string): Promise<SocialBoostOrder>;
   catalog(input?: {
+    category?: string;
     limit?: number;
     page?: number;
     platform?: string;

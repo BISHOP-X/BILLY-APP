@@ -1,4 +1,4 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { StatusChip } from '@/components/ui/status-chip';
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -47,17 +47,7 @@ export default function ReceiptScreen() {
             <Text style={[styles.receiptTitle, { color: theme.colors.text }]}>
               Transaction receipt
             </Text>
-            <View style={[styles.success, { backgroundColor: `${theme.colors.success}16` }]}>
-              <Ionicons
-                accessible={false}
-                color={theme.colors.success}
-                name="checkmark-circle"
-                size={18}
-              />
-              <Text style={[styles.successText, { color: theme.colors.success }]}>
-                {query.data.status === 'refunded' ? 'Refunded' : 'Successful'}
-              </Text>
-            </View>
+            <StatusChip status={query.data.status} serviceKey={query.data.serviceKey} />
           </View>
           <View style={[styles.divider, { borderColor: theme.colors.border }]} />
           <ReceiptRow label="Title" value={query.data.receipt.title} />

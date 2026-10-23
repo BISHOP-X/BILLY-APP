@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/button';
-import { StatusChip } from '@/components/ui/status-chip';
+import { StatusChip, statusLabel } from '@/components/ui/status-chip';
 import type { TransactionDetail } from '@/features/main/domain';
 import {
   describeMinorUnits,
@@ -30,7 +30,7 @@ export function TransactionDetailView({
         accessibilityLabel={`${transaction.title}, ${describeMinorUnits(
           signedAmount,
           transaction.currency,
-        )}, status ${transaction.status}`}
+        )}, status ${statusLabel(transaction.status, transaction.serviceKey)}`}
         style={[
           styles.hero,
           {
@@ -60,7 +60,7 @@ export function TransactionDetailView({
         <Text style={[styles.title, { color: theme.colors.text }]}>
           {transaction.title}
         </Text>
-        <StatusChip status={transaction.status} />
+        <StatusChip status={transaction.status} serviceKey={transaction.serviceKey} />
       </View>
 
       <View
@@ -101,7 +101,7 @@ export function TransactionDetailView({
                 </View>
                 <View style={styles.eventCopy}>
                   <Text style={[styles.eventStatus, { color: theme.colors.text }]}>
-                    {event.status.replace('_', ' ')}
+                    {statusLabel(event.status, transaction.serviceKey)}
                   </Text>
                   <Text style={[styles.eventMessage, { color: theme.colors.textMuted }]}>
                     {event.message}
