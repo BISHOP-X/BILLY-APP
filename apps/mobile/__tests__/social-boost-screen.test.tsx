@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import SocialBoostScreen from '@/app/(app)/social-boost';
 import { socialBoostRepository } from '@/features/social-boost/repository';
 import type { SocialBoostService } from '@/features/social-boost/domain';
+import { boostSnapshotOptions } from '@/features/social-boost/queries';
 
 jest.mock('@/components/layout/app-screen', () => ({ AppScreen: ({ children, refreshing }: { children: React.ReactNode; refreshing: boolean }) => {
   const { View } = require('react-native');
@@ -11,21 +12,24 @@ jest.mock('@/components/layout/app-screen', () => ({ AppScreen: ({ children, ref
 jest.mock('@/components/ui/screen-header', () => ({ ScreenHeader: () => null }));
 jest.mock('@/components/ui/demo-data-banner', () => ({ DemoDataBanner: () => null }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'synthetic-id' }));
+jest.mock('@/features/auth/auth-provider', () => ({ useAuth: () => ({ user: { id: 'test-user' } }) }));
 jest.mock('@/features/social-boost/repository', () => ({ socialBoostRepository: {
   catalog: jest.fn(), orders: jest.fn(), refills: jest.fn(), quote: jest.fn(),
   cancelOrder: jest.fn(), createRefill: jest.fn(), refreshOrder: jest.fn(), submitOrder: jest.fn(),
 } }));
 const service: SocialBoostService = {
+  catalogKey: 'stable-key', priceMinorPerThousand: 140000,
   category: 'Instagram Followers', name: 'Stable Followers', platform: 'instagram',
   selectionToken: 'opaque-selection', cancelAvailable: true, refillAvailable: true,
   inputKind: 'default', minimumQuantity: 100, maximumQuantity: 10000,
   rateMicroUsdPerThousand: 1000000, type: 'Default',
 };
+const youtube: SocialBoostService = { ...service, catalogKey: 'youtube-key', selectionToken: 'youtube-token', category: 'YouTube Views', platform: 'youtube', name: 'Video Views' };
 beforeEach(() => {
-  jest.mocked(socialBoostRepository.catalog).mockImplementation(async (input) => ({
-    categories: [service.category, 'Instagram Likes'], services: input?.category === 'Instagram Likes' ? [{ ...service, selectionToken: 'likes-token', name: 'Post Likes' }] : [service],
+  jest.mocked(socialBoostRepository.catalog).mockImplementation(async () => ({
+    categories: [service.category, 'Instagram Likes', youtube.category], services: [service, { ...service, catalogKey: 'likes-key', category: 'Instagram Likes', selectionToken: 'likes-token', name: 'Post Likes' }, youtube],
     platforms: ['instagram', 'youtube'], platformCounts: { instagram: 2, youtube: 1 },
-    isPreview: true, page: 1, pages: 1, total: 1,
+    isPreview: true, page: 1, pages: 1, total: 3,
   }));
   jest.mocked(socialBoostRepository.orders).mockResolvedValue([]);
   jest.mocked(socialBoostRepository.refills).mockResolvedValue([]);
@@ -52,7 +56,8 @@ test('panel order flow selects category and service then shows native form and e
   await chooseService();
   expect(screen.getByLabelText('Quantity').props.value).toBe('100');
   await fireEvent.changeText(screen.getByLabelText('Link'), 'https://instagram.com/example');
-  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
+  expect(screen.getByText('₦1,400.00 / 1,000')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
   await waitFor(() => expect(screen.getByText('Review your order')).toBeTruthy());
   expect(socialBoostRepository.quote).toHaveBeenCalledWith('opaque-selection', 100);
   expect(screen.getByLabelText('Transaction PIN')).toBeTruthy();
@@ -67,7 +72,7 @@ test('a late quote cannot restore checkout after the customer changes platform',
   const client = await mount();
   await chooseService();
   await fireEvent.changeText(screen.getByLabelText('Link'), 'https://instagram.com/example');
-  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
   await fireEvent.press(screen.getByRole('radio', { name: 'YouTube' }));
   await act(async () => { resolveQuote({ quoteId: 'stale', productTitle: service.name, category: service.category, platform: 'instagram', inputKind: 'default', quantity: 100, amountMinor: 14000, feeMinor: 0, totalMinor: 14000, expiresAt: '2099-01-01' }); });
   await waitFor(() => expect(screen.getByLabelText('Category: Choose a category')).not.toBeDisabled());
@@ -89,10 +94,9 @@ const response = (services: SocialBoostService[]): Catalog => ({
 });
 afterEach(() => { jest.useRealTimers(); });
 
-test('slow platform and category requests keep the grid and form mounted without refreshing the page', async () => {
+test('platform and category selections are immediate and make no requests even offline', async () => {
   const client = await mount();
-  const pending = deferred<Catalog>();
-  jest.mocked(socialBoostRepository.catalog).mockReturnValue(pending.promise);
+  jest.mocked(socialBoostRepository.catalog).mockClear().mockRejectedValue(new Error('Offline'));
   const searchInput = screen.getByLabelText('Search');
   await fireEvent.press(screen.getByRole('radio', { name: 'YouTube' }));
   expect(screen.getByRole('radio', { name: 'Instagram' })).toBeTruthy();
@@ -100,18 +104,16 @@ test('slow platform and category requests keep the grid and form mounted without
   expect(screen.getByLabelText('Search')).toBe(searchInput);
   expect(screen.getByLabelText('Link')).toBeTruthy();
   expect(screen.getByTestId('page-refresh').props.accessibilityState.busy).toBe(false);
-  expect(screen.getByLabelText('Category: Choose a category')).toBeDisabled();
-  const youtube = { ...service, category: 'YouTube Views', platform: 'youtube' as const, name: 'Video Views' };
-  await act(async () => pending.resolve(response([youtube])));
-  await waitFor(() => expect(screen.getByLabelText('Category: Choose a category')).not.toBeDisabled());
-  const categoryRequest = deferred<Catalog>();
-  jest.mocked(socialBoostRepository.catalog).mockReturnValue(categoryRequest.promise);
+  expect(screen.getByLabelText('Category: Choose a category')).not.toBeDisabled();
   await fireEvent.press(screen.getByLabelText('Category: Choose a category'));
   await fireEvent.press(screen.getByRole('radio', { name: 'YouTube Views' }));
   expect(screen.getByRole('radio', { name: 'Instagram' })).toBeTruthy();
   expect(screen.getByLabelText('Category: YouTube Views')).toBeTruthy();
   expect(screen.getByTestId('page-refresh').props.accessibilityState.busy).toBe(false);
-  await act(async () => categoryRequest.resolve(response([youtube])));
+  expect(screen.getByLabelText('Service: Choose a service')).not.toBeDisabled();
+  await fireEvent.press(screen.getByLabelText('Service: Choose a service'));
+  expect(screen.getByRole('radio', { name: /Video Views/ })).toBeTruthy();
+  expect(socialBoostRepository.catalog).not.toHaveBeenCalled();
   await act(() => client.clear());
 });
 
@@ -124,26 +126,25 @@ test('typing filters visible services immediately and does not erase a filled fo
   await fireEvent.changeText(screen.getByLabelText('Search'), 'stable');
   expect(screen.getByRole('button', { name: 'Select Stable Followers, Instagram Followers' })).toBeTruthy();
   expect(screen.getByLabelText('Link').props.value).toBe('https://instagram.com/example');
-  // Local filtering does not wait for the debounced network request.
+  // Search is entirely local, even after the old debounce interval.
   expect(socialBoostRepository.catalog).not.toHaveBeenCalled();
   await fireEvent.changeText(screen.getByLabelText('Search'), 'no match');
   expect(screen.queryByRole('button', { name: 'Select Stable Followers, Instagram Followers' })).toBeNull();
-  expect(screen.queryByText('No matching services. Try a different name or platform.')).toBeNull();
-  expect(screen.getByText('Finding services…')).toBeTruthy();
+  expect(screen.getByText('No matching services. Try a different name or platform.')).toBeTruthy();
+  await act(() => jest.advanceTimersByTime(1000));
+  expect(socialBoostRepository.catalog).not.toHaveBeenCalled();
   await act(() => client.clear());
 });
 
 test('search finds a service beyond the initial page and allows choosing it directly', async () => {
+  const later = { ...service, catalogKey: 'later-key', selectionToken: 'later-page-token', name: 'Later Service', category: 'Later Category' };
+  jest.mocked(socialBoostRepository.catalog).mockResolvedValue(response([
+    ...Array.from({ length: 150 }, (_, i) => ({ ...service, catalogKey: `key-${i}`, selectionToken: `token-${i}`, name: `Earlier ${i}` })), later,
+  ]));
   const client = await mount();
-  jest.useFakeTimers();
-  const request = deferred<Catalog>();
-  jest.mocked(socialBoostRepository.catalog).mockReturnValue(request.promise);
-  const later = { ...service, selectionToken: 'later-page-token', name: 'Later Service', category: 'Later Category' };
+  jest.mocked(socialBoostRepository.catalog).mockClear();
   await fireEvent.changeText(screen.getByLabelText('Search'), 'later');
-  await act(() => jest.advanceTimersByTime(200));
-  expect(socialBoostRepository.catalog).toHaveBeenLastCalledWith({ platform: 'all', query: 'later', category: undefined, page: 1, limit: 100 });
-  await act(async () => { request.resolve(response([later])); });
-  await act(() => jest.advanceTimersByTime(1));
+  expect(socialBoostRepository.catalog).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole('button', { name: 'Select Later Service, Later Category' }));
   expect(screen.getByLabelText('Search').props.value).toBe('');
   expect(screen.getByLabelText('Category: Later Category')).toBeTruthy();
@@ -152,23 +153,20 @@ test('search finds a service beyond the initial page and allows choosing it dire
   await act(() => client.clear());
 });
 
-test('late search responses cannot replace the latest results', async () => {
+test('background refresh respects the latest search and keeps the form mounted', async () => {
   const client = await mount();
-  jest.useFakeTimers();
-  const first = deferred<Catalog>();
-  const second = deferred<Catalog>();
-  jest.mocked(socialBoostRepository.catalog).mockImplementation((input) => input?.query === 'first' ? first.promise : second.promise);
+  const refresh = deferred<Catalog>();
+  jest.mocked(socialBoostRepository.catalog).mockReturnValue(refresh.promise);
+  let refreshPromise!: Promise<void>;
+  await act(() => { refreshPromise = client.invalidateQueries({ queryKey: boostSnapshotOptions('test-user').queryKey }); });
   await fireEvent.changeText(screen.getByLabelText('Search'), 'first');
-  await act(() => jest.advanceTimersByTime(200));
   await fireEvent.changeText(screen.getByLabelText('Search'), 'second');
-  await act(() => jest.advanceTimersByTime(200));
-  await act(async () => second.resolve(response([{ ...service, name: 'Second Match', selectionToken: 'second' }])));
-  await act(() => jest.advanceTimersByTime(1));
-  expect(screen.getByRole('button', { name: /Select Second Match/ })).toBeTruthy();
-  await act(async () => first.resolve(response([{ ...service, name: 'First Match', selectionToken: 'first' }])));
-  await act(() => jest.advanceTimersByTime(1));
+  await act(async () => {
+    refresh.resolve(response([{ ...service, name: 'First Match', selectionToken: 'first' }, { ...service, name: 'Second Match', selectionToken: 'second' }]));
+    await refreshPromise;
+  });
   expect(screen.queryByRole('button', { name: /Select First Match/ })).toBeNull();
-  expect(screen.getByRole('button', { name: /Select Second Match/ })).toBeTruthy();
+  await waitFor(() => expect(screen.getByRole('button', { name: /Select Second Match/ })).toBeTruthy());
   await act(() => client.clear());
 });
 
@@ -184,13 +182,28 @@ test('tapping the active platform leaves the entered order alone', async () => {
   await act(() => client.clear());
 });
 
-test('a failed filter request keeps the platform grid available for recovery', async () => {
+test('a failed background refresh preserves cached filters and services', async () => {
   const client = await mount();
   jest.mocked(socialBoostRepository.catalog).mockRejectedValue(new Error('Synthetic offline request'));
-  await fireEvent.press(screen.getByRole('radio', { name: 'YouTube' }));
+  await act(() => client.invalidateQueries({ queryKey: boostSnapshotOptions('test-user').queryKey }));
   await waitFor(() => expect(screen.getByText('Services unavailable')).toBeTruthy());
   expect(screen.getByRole('radio', { name: 'Instagram' })).toBeTruthy();
   expect(screen.getByRole('radio', { name: 'YouTube' })).toBeTruthy();
   expect(screen.getByTestId('page-refresh').props.accessibilityState.busy).toBe(false);
+  await chooseService();
+  expect(screen.getByLabelText('Quantity').props.value).toBe('100');
+  await act(() => client.clear());
+});
+
+test('an expired browsing cache is refreshed before quoting, without losing entered details', async () => {
+  const client = await mount();
+  await chooseService();
+  await fireEvent.changeText(screen.getByLabelText('Link'), 'https://instagram.com/example');
+  await act(() => client.setQueryData(boostSnapshotOptions('test-user').queryKey, response([service]), { updatedAt: Date.now() - 6 * 60_000 }));
+  jest.mocked(socialBoostRepository.catalog).mockResolvedValue(response([{ ...service, selectionToken: 'fresh-token' }]));
+  jest.mocked(socialBoostRepository.quote).mockResolvedValue({ quoteId: 'fresh-quote', productTitle: service.name, category: service.category, platform: 'instagram', inputKind: 'default', quantity: 100, amountMinor: 14000, feeMinor: 0, totalMinor: 14000, expiresAt: '2099-01-01' });
+  await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
+  await waitFor(() => expect(socialBoostRepository.quote).toHaveBeenCalledWith('fresh-token', 100));
+  expect(screen.getByLabelText('Link').props.value).toBe('https://instagram.com/example');
   await act(() => client.clear());
 });

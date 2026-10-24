@@ -27,6 +27,8 @@ export type SocialBoostInputKind =
   | 'usernames';
 
 export type SocialBoostService = {
+  catalogKey: string;
+  priceMinorPerThousand: number;
   cancelAvailable: boolean;
   category: string;
   inputKind: SocialBoostInputKind;
@@ -129,6 +131,7 @@ export type SocialBoostOrderInput = {
 export interface SocialBoostRepository {
   cancelOrder(orderId: string): Promise<SocialBoostOrder>;
   catalog(input?: {
+    snapshot?: boolean;
     category?: string;
     limit?: number;
     page?: number;

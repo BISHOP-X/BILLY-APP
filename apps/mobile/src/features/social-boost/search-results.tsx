@@ -6,13 +6,14 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { typography } from '@/theme/tokens';
 import type { SocialBoostService } from './domain';
 import { BoostPlatformIcon } from './platform-picker';
+import { boostServicePrice } from './price-label';
 
-// Render a small visible window; full-catalogue matching and pagination stay server-side.
+// Filter the cached catalogue locally, but only mount a small visible result window.
 export function BoostSearchResults({ searchKey, services, loading, total, error, onRetry, onSelect, onLoadMore, loadingMore, loadError }: {
   searchKey: string;
   services: SocialBoostService[]; loading: boolean; total?: number; error?: string;
   onRetry: () => void; onSelect: (service: SocialBoostService) => void;
-  onLoadMore?: () => void; loadingMore: boolean; loadError: boolean;
+  onLoadMore?: () => void; loadingMore?: boolean; loadError?: boolean;
 }) {
   const theme = useBillyTheme();
   const [window, setWindow] = useState({ searchKey, size: 8 });
@@ -33,6 +34,7 @@ export function BoostSearchResults({ searchKey, services, loading, total, error,
       <View style={styles.copy}>
         <Text style={[styles.name, { color: theme.colors.text }]} numberOfLines={2}>{service.name}</Text>
         <Text style={[styles.caption, { color: theme.colors.textMuted }]} numberOfLines={1}>{service.category}</Text>
+        <Text style={[styles.price, { color: theme.colors.brand }]}>{boostServicePrice(service)}</Text>
       </View>
       <Ionicons name="chevron-forward" color={theme.colors.textMuted} size={16} />
     </Pressable>)}
@@ -50,5 +52,6 @@ const styles = StyleSheet.create({
   result: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, minHeight: 68, borderWidth: 1, borderRadius: 14 },
   icon: { width: 32, height: 32, backgroundColor: '#FFFFFF', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   copy: { flex: 1, gap: 3 }, name: { fontFamily: typography.family, fontWeight: '600', fontSize: 14, lineHeight: 20 },
+  price: { fontFamily: typography.family, fontWeight: '700', fontSize: 13, lineHeight: 19 },
   caption: { fontFamily: typography.family, fontSize: 12, lineHeight: 18 }, empty: { paddingVertical: 12, fontFamily: typography.family, fontSize: 14 },
 });

@@ -12,6 +12,7 @@ import type {
 
 const previewServices: SocialBoostService[] = [
   {
+    catalogKey: 'preview-1001', priceMinorPerThousand: 187_200,
     cancelAvailable: true,
     category: 'Instagram Followers',
     inputKind: 'default',
@@ -27,6 +28,7 @@ const previewServices: SocialBoostService[] = [
   {
     cancelAvailable: true,
     category: 'TikTok Views',
+    catalogKey: 'preview-1002', priceMinorPerThousand: 24_960,
     inputKind: 'default',
     maximumQuantity: 1_000_000,
     minimumQuantity: 500,
@@ -40,6 +42,7 @@ const previewServices: SocialBoostService[] = [
   {
     cancelAvailable: false,
     category: 'YouTube Engagement',
+    catalogKey: 'preview-1003', priceMinorPerThousand: 1_664_000,
     inputKind: 'comments',
     maximumQuantity: 1_000,
     minimumQuantity: 5,
@@ -53,6 +56,7 @@ const previewServices: SocialBoostService[] = [
   {
     cancelAvailable: true,
     category: 'X / Twitter Engagement',
+    catalogKey: 'preview-1004', priceMinorPerThousand: 228_800,
     inputKind: 'default',
     maximumQuantity: 50_000,
     minimumQuantity: 50,
@@ -108,7 +112,7 @@ function demoRepository(): SocialBoostRepository {
       const categories = [...new Set(matching.map((service) => service.category))];
       const filtered = input.category ? matching.filter((service) => service.category === input.category) : matching;
       const page = input.page ?? 1;
-      const limit = input.limit ?? 100;
+      const limit = input.snapshot ? Math.max(1, filtered.length) : input.limit ?? 100;
       const platformCounts = previewServices.reduce<Record<string, number>>(
         (counts, service) => {
           counts[service.platform] = (counts[service.platform] ?? 0) + 1;

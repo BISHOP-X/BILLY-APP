@@ -321,8 +321,12 @@ function normalizeTarget(
 function publicCatalogService(
   service: SocialBoostService,
   selectionToken: string,
+  catalogKey: string,
+  priceMinorPerThousand: number,
 ) {
   return {
+    catalogKey,
+    priceMinorPerThousand,
     cancelAvailable: service.cancelAvailable,
     category: service.category,
     inputKind: service.inputKind,
@@ -527,7 +531,14 @@ export async function handleSocialBoostAction(
 
   if (action === "social.catalog") {
     const input = record(value ?? {});
-    only(input, ["category", "limit", "page", "platform", "query"]);
+    only(input, ["category", "limit", "page", "platform", "query", "snapshot"]);
+    if (input.snapshot !== undefined && typeof input.snapshot !== "boolean") {
+      throw new SocialBoostServiceError(400, "invalid_request", "Catalogue snapshot must be a boolean.");
+    }
+    const snapshot = input.snapshot === true;
+    if (snapshot && ["category", "limit", "page", "platform", "query"].some(key => input[key] !== undefined)) {
+      throw new SocialBoostServiceError(400, "invalid_request", "A catalogue snapshot cannot include filters.");
+    }
     const limit = input.limit === undefined
       ? 60
       : integer(input.limit, "Page size", 1, 100);
@@ -573,38 +584,35 @@ export async function handleSocialBoostAction(
     const categories = [...new Set(matching.map((service) => service.category))];
     const filtered = category ? matching.filter((service) => service.category === category) : matching;
     const start = (page - 1) * limit;
-    const selected = filtered.slice(start, start + limit);
+    const selected = snapshot ? filtered : filtered.slice(start, start + limit);
+    // Bound response work; never silently return an incomplete snapshot.
+    if (snapshot && selected.length > 20_000) {
+      throw new SocialBoostServiceError(503, "unavailable", "The catalogue is temporarily unavailable.", true);
+    }
+    const publicServices = [];
+    for (let offset = 0; offset < selected.length; offset += 250) {
+      publicServices.push(...await Promise.all(selected.slice(offset, offset + 250).map(async service =>
+        publicCatalogService(
+          service,
+          // A selection identifies a service, never a trusted price or availability.
+          // Quote and checkout independently re-read the current provider contract.
+          await runtime.tokens.issueOpaque("social_service", user.id,
+            { providerServiceId: service.providerServiceId }, CATALOG_TTL_MS),
+          await runtime.digest(`social-catalog:${service.providerServiceId}`),
+          calculatePrice(service.rateMicroUsdPerThousand, 1_000,
+            runtime.exchangeRateMinorPerUsd, runtime.markupBps).totalMinor,
+        ),
+      )));
+    }
     return {
       data: {
         categories,
         isPreview: provider.mode === "mock",
         page,
-        pages: Math.max(1, Math.ceil(filtered.length / limit)),
+        pages: snapshot ? 1 : Math.max(1, Math.ceil(filtered.length / limit)),
         platformCounts,
         platforms: Object.keys(platformCounts).sort(),
-        services: await Promise.all(selected.map(async (service) =>
-          publicCatalogService(
-            service,
-            await runtime.tokens.issueOpaque<CatalogSelection>(
-              "social_service",
-              user.id,
-              {
-                cancelAvailable: service.cancelAvailable,
-                category: service.category,
-                inputKind: service.inputKind,
-                maximumQuantity: service.maximumQuantity,
-                minimumQuantity: service.minimumQuantity,
-                name: service.name,
-                platform: service.platform,
-                providerServiceId: service.providerServiceId,
-                rateMicroUsdPerThousand: service.rateMicroUsdPerThousand,
-                refillAvailable: service.refillAvailable,
-                type: service.type,
-              },
-              CATALOG_TTL_MS,
-            ),
-          )
-        )),
+        services: publicServices,
         total: filtered.length,
       },
     };
@@ -613,16 +621,16 @@ export async function handleSocialBoostAction(
   if (action === "social.quote") {
     const input = record(value);
     only(input, ["quantity", "selectionToken"]);
-    const selection = await runtime.tokens.readOpaque<CatalogSelection>(
+    const reference = await runtime.tokens.readOpaque<Pick<CatalogSelection, "providerServiceId">>(
       input.selectionToken,
       "social_service",
       user.id,
     );
-    const current=(await provider.adapter.getServices()).find(s=>s.providerServiceId===selection.providerServiceId);
+    const current=(await provider.adapter.getServices()).find(s=>s.providerServiceId===reference.providerServiceId);
     if(!current || !(await runtime.database.syncCatalog([current])).has(current.providerServiceId)) {
       throw new SocialBoostServiceError(409,"conflict","This service is no longer available. Refresh the catalogue.");
     }
-    Object.assign(selection,current);
+    const selection: CatalogSelection = current;
     const quantity = integer(
       input.quantity,
       "Quantity",

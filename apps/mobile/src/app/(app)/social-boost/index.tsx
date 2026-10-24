@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Crypto from 'expo-crypto';
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -26,7 +26,6 @@ import {
   useSocialBoostCancel,
   useSocialBoostFormCatalog,
   useSocialBoostOrders,
-  useSocialBoostPlatforms,
   useSocialBoostRefill,
   useSocialBoostRefills,
   useSocialBoostRefresh,
@@ -36,6 +35,7 @@ import { socialBoostRepository } from '@/features/social-boost/repository';
 import { BoostPlatformIcon, BoostPlatformPicker } from '@/features/social-boost/platform-picker';
 import { CatalogSelect } from '@/features/social-boost/catalog-select';
 import { BoostSearchResults } from '@/features/social-boost/search-results';
+import { boostServicePrice } from '@/features/social-boost/price-label';
 import { boostOrderStatus } from '@/features/services/order-status';
 import {
   isCompleteTransactionPin,
@@ -79,7 +79,6 @@ export default function SocialBoostScreen() {
   const [tab, setTab] = useState<'browse' | 'orders'>('browse');
   const [platform, setPlatform] = useState('all');
   const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const searchText = search.trim();
@@ -89,14 +88,12 @@ export default function SocialBoostScreen() {
   const refillKeys = useRef<Record<string,string>>({});
   const [feedback,setFeedback] = useState<{title:string;message:string;buttons?:{text:string;onPress?:()=>void;style?:string}[]}|null>(null);
   function notify(title:string,message:string,buttons?:{text:string;onPress?:()=>void;style?:string}[]) { setFeedback({title,message,buttons}); }
-  useEffect(()=>{const timer=setTimeout(()=>setQuery(search.trim()),200);return()=>clearTimeout(timer);},[search]);
   const [selected, setSelected] = useState<SocialBoostService | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [quote, setQuote] = useState<SocialBoostQuote | null>(null);
   const [pin, setPin] = useState('');
   const [quoteBusy, setQuoteBusy] = useState(false);
-  const catalog = useSocialBoostFormCatalog(platform, query, query ? '' : category);
-  const knownPlatforms = useSocialBoostPlatforms();
+  const catalog = useSocialBoostFormCatalog();
   const orders = useSocialBoostOrders();
   const refills = useSocialBoostRefills();
   const submit = useSocialBoostSubmit();
@@ -104,15 +101,23 @@ export default function SocialBoostScreen() {
   const cancel = useSocialBoostCancel();
   const refill = useSocialBoostRefill();
 
-  const catalogSummary = catalog.data?.pages[0];
+  const catalogSummary = catalog.data;
+  const platformServices = useMemo(() => (catalog.data?.services ?? []).filter(service =>
+    platform === 'all' || service.platform === platform), [catalog.data, platform]);
+  const categories = useMemo(() => [...new Set(platformServices.map(service => service.category))], [platformServices]);
   const services = useMemo(
-    () => (catalog.data?.pages.flatMap((part) => part.services) ?? []).filter((service) =>
-      (platform === 'all' || service.platform === platform) &&
+    () => platformServices.filter((service) =>
       (searchText ? `${service.name} ${service.category} ${service.type} ${service.platform}`.toLowerCase().includes(deferredSearch)
         : !category || service.category === category)),
-    [catalog.data, category, deferredSearch, platform, searchText],
+    [platformServices, category, deferredSearch, searchText],
   );
-  const updatingSearch = searchText !== query || deferredSearch !== searchText.toLowerCase() || catalog.isPlaceholderData || catalog.isPending;
+  const updatingSearch = deferredSearch !== searchText.toLowerCase() || catalog.isPending;
+  const categoryOptions = useMemo(() => categories.map(name => ({ value: name, label: name })), [categories]);
+  const serviceOptions = useMemo(() => !category || searchText ? [] : services.map(service => ({
+    value: service.selectionToken, label: service.name,
+    priceLabel: boostServicePrice(service),
+    detail: `${service.minimumQuantity.toLocaleString()}–${service.maximumQuantity.toLocaleString()}${service.refillAvailable ? ' · Refill available' : ''}`,
+  })), [category, searchText, services]);
 
   async function refreshPage() {
     if (refreshing) return;
@@ -165,7 +170,10 @@ export default function SocialBoostScreen() {
     setQuoteBusy(true);
     requestKey.current = `mobile-social-${Crypto.randomUUID()}`;
     try {
-      const nextQuote = await socialBoostRepository.quote(selected.selectionToken, quantity);
+      const currentService = await catalog.freshService(selected.catalogKey);
+      if (formVersion.current !== requestedVersion) return;
+      setSelected(currentService);
+      const nextQuote = await socialBoostRepository.quote(currentService.selectionToken, quantity);
       if (formVersion.current === requestedVersion) setQuote(nextQuote);
     } catch (error) {
       if (formVersion.current !== requestedVersion) return;
@@ -279,7 +287,7 @@ export default function SocialBoostScreen() {
         <FadeSlide style={styles.section}>
           <View style={[styles.orderForm, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
             <BoostPlatformPicker
-              platforms={catalogSummary?.platforms ?? knownPlatforms ?? []}
+              platforms={catalogSummary?.platforms ?? []}
               selected={platform}
               onSelect={(value) => {
                 if (value === platform) return;
@@ -299,15 +307,12 @@ export default function SocialBoostScreen() {
               searchKey={`${platform}:${searchText}`}
               services={services}
               loading={updatingSearch && !catalog.isError}
-              total={updatingSearch ? undefined : catalogSummary?.total}
+              total={updatingSearch ? undefined : services.length}
               error={catalog.isError ? 'Search is unavailable. Your form is still here.' : undefined}
               onRetry={() => void catalog.refetch()}
               onSelect={(service) => {
-                setSearch(''); setQuery(''); setCategory(service.category); selectService(service);
+                setSearch(''); setCategory(service.category); selectService(service);
               }}
-              onLoadMore={!updatingSearch && catalog.hasNextPage ? () => void catalog.fetchNextPage() : undefined}
-              loadingMore={catalog.isFetchingNextPage}
-              loadError={catalog.isFetchNextPageError}
             /> : null}
             {catalog.isError && !searchText ? (
               <StatePanel compact actionLabel="Try again" icon="cloud-offline-outline"
@@ -319,9 +324,9 @@ export default function SocialBoostScreen() {
               placeholder="Choose a category"
               value={category}
               selectedLabel={category}
-              loading={catalog.isPending || catalog.isPlaceholderData}
-              disabled={!catalogSummary?.categories?.length || Boolean(searchText) || searchText !== query}
-              options={(catalogSummary?.categories ?? []).map((name) => ({ value: name, label: name }))}
+              loading={catalog.isPending}
+              disabled={!categories.length || Boolean(searchText)}
+              options={categoryOptions}
               onSelect={(value) => { if (value === category) return; setCategory(value); resetSelection(); }}
             />
             <CatalogSelect
@@ -329,19 +334,13 @@ export default function SocialBoostScreen() {
               placeholder={category ? 'Choose a service' : 'Choose a category first'}
               value={selected?.selectionToken ?? ''}
               selectedLabel={selected?.name}
-              loading={catalog.isPending || catalog.isPlaceholderData}
-              disabled={!category || !services.length || Boolean(searchText) || searchText !== query}
-              searchable={false}
-              options={services.map((service) => ({
-                value: service.selectionToken, label: service.name,
-                detail: `${service.minimumQuantity.toLocaleString()}–${service.maximumQuantity.toLocaleString()}${service.refillAvailable ? ' · Refill available' : ''}`,
-              }))}
+              selectedPriceLabel={selected ? boostServicePrice(selected) : undefined}
+              loading={catalog.isPending}
+              disabled={!category || !services.length || Boolean(searchText)}
+              options={serviceOptions}
               onSelect={(value) => { const service = services.find((item) => item.selectionToken === value); if (service) selectService(service); }}
-              onLoadMore={catalog.hasNextPage ? () => void catalog.fetchNextPage() : undefined}
-              loadingMore={catalog.isFetchingNextPage}
-              loadError={catalog.isFetchNextPageError ? 'Could not load more services. Try again.' : undefined}
             />
-            {!searchText && !catalog.isPending && !catalog.isPlaceholderData && catalogSummary?.total === 0 ? (
+            {!searchText && !catalog.isPending && services.length === 0 ? (
               <Text style={[styles.helper, { color: theme.colors.textMuted }]}>No services match this search. Try another platform or phrase.</Text>
             ) : null}
             {selected ? (
@@ -552,7 +551,7 @@ function OrderBuilder({
       <AppButton
         disabled={!form.target.trim() || !form.quantity.trim()}
         icon="receipt-outline"
-        label="Review price"
+        label="Continue"
         loading={busy}
         onPress={onQuote}
       />
