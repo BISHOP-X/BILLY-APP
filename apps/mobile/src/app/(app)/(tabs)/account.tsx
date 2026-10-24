@@ -55,7 +55,7 @@ export default function AccountScreen() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (!dashboard.data) {
     return (
       <AppScreen>
         <DemoDataBanner />

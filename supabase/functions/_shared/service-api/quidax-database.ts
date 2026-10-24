@@ -104,7 +104,7 @@ export interface QuidaxDatabase {
     fiatAmountMinor?: number;
     idempotencyKey: string;
     network: string;
-    pinAuthorizationId: string;
+    pinAuthorizationId: string | null;
     quoteDigest: string;
     tokenAmount: string;
     userId: string;

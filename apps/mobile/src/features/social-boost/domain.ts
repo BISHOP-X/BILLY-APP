@@ -120,7 +120,7 @@ export type SocialBoostOrderInput = {
   idempotencyKey: string;
   intervalMinutes?: number;
   keywords?: string;
-  pin: string;
+  pin?: string;
   quoteId: string;
   runs?: number;
   target: string;

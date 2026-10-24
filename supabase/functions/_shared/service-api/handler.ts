@@ -184,7 +184,7 @@ export type CreateBillOrderInput = {
   feeMinor: number;
   idempotencyKey: string;
   executionMode: "live" | "mock";
-  pinAuthorizationId: string;
+  pinAuthorizationId: string | null;
   productLabel?: string;
   providerKey: "vtpass";
   providerRequestId: string;
@@ -2313,14 +2313,6 @@ async function handleAction(
         "Bill purchase request",
       );
       const idempotencyKey = requireIdempotencyKey(input.idempotencyKey);
-      const pin = requiredText(input.pin, "Transaction PIN", 6, 6);
-      if (!/^\d{6}$/.test(pin)) {
-        throw new ApiError(
-          400,
-          "invalid_request",
-          "Enter your complete 6-digit transaction PIN.",
-        );
-      }
       const quote = await dependencies.tokens.readSigned<QuoteClaims>(
         input.quoteId,
         "quote",
@@ -2345,20 +2337,8 @@ async function handleAction(
         );
       }
 
-      // PIN remains a local variable and is passed only to the dedicated
-      // service-role RPC. It is never included in logs, tokens or DB payloads.
-      const pinAuthorizationId = await database.authorizeTransactionPin(
-        user.id,
-        pin,
-      );
-      if (!pinAuthorizationId) {
-        throw new ApiError(
-          401,
-          "unauthorized",
-          "The transaction PIN is incorrect or temporarily locked.",
-        );
-      }
-
+      // Service purchases keep ownership, confirmed quotes and atomic wallet checks.
+      const pinAuthorizationId = null;
       const order = await database.createBillOrder({
         amountMinor: quote.amountMinor,
         category: quote.category,

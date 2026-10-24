@@ -8,6 +8,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { PinEntry } from '@/components/ui/pin-entry';
 import { SetupShell } from '@/components/ui/setup-shell';
 import { ProfileDetailsForm } from '@/features/auth/components/profile-details-form';
+import { markAccountStateChanged } from '@/features/auth/auth-api';
 import { friendlyAuthError } from '@/features/auth/form-utils';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import {
@@ -55,6 +56,7 @@ export default function PinSetupScreen() {
     try {
       const { error } = await supabase.rpc('set_transaction_pin', { p_pin: pin });
       if (error) throw error;
+      markAccountStateChanged();
       replaceFlowRoute('/(setup)/biometrics', '/home');
     } catch (error) {
       setFeedback(friendlyAuthError(error));

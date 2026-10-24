@@ -56,7 +56,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (dashboard.isError || !dashboard.data) {
+  if (!dashboard.data) {
     return (
       <AppScreen testID="home-error">
         <DemoDataBanner />
@@ -84,6 +84,9 @@ export default function HomeScreen() {
     >
       <View style={styles.primary} testID="home-primary-fold">
         <DemoDataBanner />
+        {dashboard.isError ? (
+          <FeedbackBanner message="Showing your last update. Pull down to retry." tone="info" />
+        ) : null}
 
         <FadeSlide>
           <HomeHeader

@@ -10,7 +10,7 @@ type AppBootScreenProps = {
 
 export function AppBootScreen({
   accessibilityLabel = 'Getting Billy ready',
-  message = 'Getting Billy ready',
+  message,
 }: AppBootScreenProps) {
   return (
     <View
@@ -18,7 +18,7 @@ export function AppBootScreen({
       style={styles.screen}
       testID="app-boot-screen">
       <BillyLogo size={164} tintColor="#F5FAF7" variant="wordmark" />
-      <Text style={styles.label}>{message}</Text>
+      {message ? <Text style={styles.label}>{message}</Text> : null}
     </View>
   );
 }

@@ -1,8 +1,8 @@
 import { Redirect, Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Platform } from 'react-native';
 
-import { getMyAccountState } from '@/features/auth/auth-api';
+import { getAccountStateRevision, getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
 import { isBillyDevDemo } from '@/features/main/repository';
@@ -10,17 +10,6 @@ import { invokeAction } from '@/features/services/supabase-service-repository';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
 import type { Profile } from '@/lib/supabase/database.types';
-
-type ProfileState =
-  | { status: 'idle' }
-  | { error: string; status: 'error'; userId: string }
-  | {
-      hasCurrentLegalAcceptance: boolean;
-      isAdmin: boolean;
-      profile: Profile | null;
-      status: 'ready';
-      userId: string;
-    };
 
 function setupDestination(profile: Profile | null) {
   const destination = setupDestinationForStep(profile?.onboarding_step, {
@@ -33,56 +22,29 @@ export default function AppLayout() {
   const { signOut, status, user } = useAuth();
   const { status: lockStatus } = useAppLock();
   const userId = user?.id;
-  const [profileState, setProfileState] = useState<ProfileState>({
-    status: 'idle',
+  // Memory-only and account-scoped. A cached complete account renders immediately;
+  // background checks never replace usable page content with a second splash.
+  const account = useQuery({
+    queryKey: ['account-entry', userId, getAccountStateRevision()],
+    enabled: status === 'authenticated' && !!userId && !isBillyDevDemo,
+    queryFn: async () => {
+      const [state, capabilities] = await Promise.all([
+        getMyAccountState(userId),
+        invokeAction<{ admin: boolean }>('admin.session', {}).catch(() => ({ admin: false })),
+      ]);
+      return { ...state, isAdmin: capabilities.admin };
+    },
+    staleTime: 30_000,
+    // Setup/legal writes change the revision in the key before returning here.
+    gcTime: 5 * 60_000,
   });
-  const [retryKey, setRetryKey] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-
-    if (status !== 'authenticated' || !userId) {
-      return () => {
-        active = false;
-      };
-    }
-
-    void Promise.all([
-      getMyAccountState(),
-      invokeAction<{ admin: boolean }>('admin.session', {}).catch(() => ({ admin: false })),
-    ])
-      .then(([{ hasCurrentLegalAcceptance, profile }, capabilities]) => {
-        if (active) {
-          setProfileState({
-            hasCurrentLegalAcceptance,
-            isAdmin: capabilities.admin,
-            profile,
-            status: 'ready',
-            userId,
-          });
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setProfileState({
-            error:
-              'Billy could not verify your account setup. Check your connection and try again.',
-            status: 'error',
-            userId,
-          });
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [retryKey, status, userId]);
+  const profileState = account.data;
 
   if (isBillyDevDemo) {
     return (
       <Stack
         screenOptions={{
-          animation: 'fade',
+          animation: 'none',
           contentStyle: { backgroundColor: '#07160D' },
           headerShown: false,
         }}
@@ -106,8 +68,7 @@ export default function AppLayout() {
 
   if (
     !userId ||
-    profileState.status === 'idle' ||
-    profileState.userId !== userId
+    (!profileState && !account.isError)
   ) {
     return (
       <AppGateScreen
@@ -118,14 +79,11 @@ export default function AppLayout() {
     );
   }
 
-  if (profileState.status === 'error') {
+  if (!profileState) {
     return (
       <AppGateScreen
-        error={profileState.error}
-        onRetry={() => {
-          setProfileState({ status: 'idle' });
-          setRetryKey((value) => value + 1);
-        }}
+        error="Check your connection and try again."
+        onRetry={() => void account.refetch()}
         onSignOut={() => void signOut()}
         subtitle="Your setup state was not changed. Retry when your connection is ready."
         title="We could not finish loading"
@@ -161,7 +119,7 @@ export default function AppLayout() {
   return (
     <Stack
       screenOptions={{
-        animation: 'fade',
+        animation: 'none',
         contentStyle: { backgroundColor: '#07160D' },
         headerShown: false,
       }}

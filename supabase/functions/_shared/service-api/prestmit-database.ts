@@ -72,7 +72,7 @@ export interface PrestmitDatabase {
     faceValueMinor: number;
     feeMinor: number;
     idempotencyKey: string;
-    pinAuthorizationId: string;
+    pinAuthorizationId: string | null;
     productTitle: string;
     providerProductId: string;
     quantity: number;
@@ -132,7 +132,7 @@ export interface PrestmitDatabase {
   reveal(
     userId: string,
     orderId: string,
-    pinAuthorizationId: string,
+    pinAuthorizationId: string | null,
   ): Promise<{ encryptedPayload: string; payloadDigest: string }>;
 }
 

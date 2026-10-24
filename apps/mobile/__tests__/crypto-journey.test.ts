@@ -23,7 +23,6 @@ describe('Quidax crypto preview journey', () => {
     const bought = await cryptoRepository.submitTrade({
       action: 'buy',
       idempotencyKey: 'preview-buy-operation-0001',
-      pin: '123456',
       quoteId: buyQuote.quoteId,
     });
     expect(bought.status).toBe('succeeded');
@@ -36,7 +35,6 @@ describe('Quidax crypto preview journey', () => {
     const sold = await cryptoRepository.submitTrade({
       action: 'sell',
       idempotencyKey: 'preview-sell-operation-0001',
-      pin: '123456',
       quoteId: sellQuote.quoteId,
     });
     expect(sold.status).toBe('succeeded');
@@ -55,7 +53,7 @@ describe('Quidax crypto preview journey', () => {
     const sent = await cryptoRepository.submitSend({
       address: 'TQn9Y2khEsLJW1ChVWFMSMeRDow5KcbLSE',
       idempotencyKey: 'preview-send-operation-0001',
-      pin: '123456',
+      pin: '4827',
       quoteId: sendQuote.quoteId,
     });
     expect(sent.status).toBe('succeeded');

@@ -37,11 +37,6 @@ import { CatalogSelect } from '@/features/social-boost/catalog-select';
 import { BoostSearchResults } from '@/features/social-boost/search-results';
 import { boostServicePrice } from '@/features/social-boost/price-label';
 import { boostOrderStatus } from '@/features/services/order-status';
-import {
-  isCompleteTransactionPin,
-  normalizeTransactionPin,
-  TRANSACTION_PIN_INPUT_MAX_LENGTH,
-} from '@/features/security/transaction-pin';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
@@ -91,7 +86,6 @@ export default function SocialBoostScreen() {
   const [selected, setSelected] = useState<SocialBoostService | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [quote, setQuote] = useState<SocialBoostQuote | null>(null);
-  const [pin, setPin] = useState('');
   const [quoteBusy, setQuoteBusy] = useState(false);
   const catalog = useSocialBoostFormCatalog();
   const orders = useSocialBoostOrders();
@@ -131,14 +125,12 @@ export default function SocialBoostScreen() {
     setSelected(null);
     setForm(emptyForm);
     setQuote(null);
-    setPin('');
   }
 
   function patchForm(key: keyof FormState, value: string) {
     formVersion.current += 1;
     setForm((current) => ({ ...current, [key]: value }));
     setQuote(null);
-    setPin('');
   }
 
   function selectService(service: SocialBoostService) {
@@ -149,7 +141,6 @@ export default function SocialBoostScreen() {
       quantity: String(service.minimumQuantity),
     });
     setQuote(null);
-    setPin('');
   }
 
   async function getQuote() {
@@ -201,7 +192,6 @@ export default function SocialBoostScreen() {
         idempotencyKey: requestKey.current,
         intervalMinutes: parseOptionalInteger(form.intervalMinutes),
         keywords: form.keywords.trim() || undefined,
-        pin,
         quoteId: quote.quoteId,
         runs: parseOptionalInteger(form.runs),
         target: form.target.trim(),
@@ -211,7 +201,6 @@ export default function SocialBoostScreen() {
       notify('Order received', order.statusMessage);
       setSelected(null);
       setQuote(null);
-      setPin('');
       setForm(emptyForm);
       setTab('orders');
     } catch (error) {
@@ -399,17 +388,9 @@ export default function SocialBoostScreen() {
                 strong
                 value={formatMinorUnits(quote.totalMinor, 'NGN')}
               />
-              <TextField
-                inputMode="numeric"
-                label="Transaction PIN"
-                maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
-                onChangeText={(value) => setPin(normalizeTransactionPin(value))}
-                placeholder="4 digits"
-                secureTextEntry
-                value={pin}
-              />
+
               <AppButton
-                disabled={!form.target.trim() || !isCompleteTransactionPin(pin)}
+                disabled={!form.target.trim()}
                 icon="arrow-forward"
                 label="Place order"
                 loading={submit.isPending}
@@ -419,7 +400,6 @@ export default function SocialBoostScreen() {
                 label="Change quantity"
                 onPress={() => {
                   setQuote(null);
-                  setPin('');
                 }}
                 variant="ghost"
               />

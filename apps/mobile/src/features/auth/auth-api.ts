@@ -12,6 +12,11 @@ import type {
 } from '@/lib/supabase/database.types';
 import { supabase } from '@/lib/supabase/client';
 
+// Bumped only after successful setup/legal writes; never stores credentials or profile data.
+let accountStateRevision = 0;
+export function getAccountStateRevision() { return accountStateRevision; }
+export function markAccountStateChanged() { accountStateRevision += 1; }
+
 const AUTH_CALLBACK_PATH = 'auth/callback';
 const PASSWORD_RESET_PATH = 'reset-password';
 
@@ -211,8 +216,10 @@ export async function getMyProfile() {
   return data;
 }
 
-export async function getMyAccountState() {
-  const userId = await requireCurrentUserId();
+export async function getMyAccountState(sessionUserId?: string) {
+  // RLS and the legal RPC authorize the caller; avoid a redundant getUser roundtrip
+  // when the authenticated provider already has this session's user ID.
+  const userId = sessionUserId ?? await requireCurrentUserId();
   const [profileResult, legalResult] = await Promise.all([
     supabase.from('profiles').select('*').eq('id', userId).maybeSingle<Profile>(),
     supabase.rpc('has_current_legal_acceptance'),
@@ -236,6 +243,7 @@ export async function acceptCurrentLegalDocuments() {
   if (error) {
     throw error;
   }
+  accountStateRevision += 1;
   return data[0] ?? null;
 }
 
@@ -282,6 +290,7 @@ export async function updateMyProfile(input: ProfileUpdateInput) {
     throw error;
   }
 
+  accountStateRevision += 1;
   return data;
 }
 
@@ -298,5 +307,6 @@ export async function updateOnboardingStep(step: OnboardingStep) {
     throw error;
   }
 
+  accountStateRevision += 1;
   return data;
 }

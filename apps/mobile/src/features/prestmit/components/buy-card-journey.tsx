@@ -7,11 +7,6 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide, ScalePressable } from '@/components/ui/motion';
 import { TextField } from '@/components/ui/text-field';
 import { createBillyOperationKey } from '@/features/services/idempotency';
-import {
-  isCompleteTransactionPin,
-  normalizeTransactionPin,
-  TRANSACTION_PIN_INPUT_MAX_LENGTH,
-} from '@/features/security/transaction-pin';
 import { formatMinorUnits } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -57,7 +52,6 @@ export function BuyCardJourney({
   const [amount, setAmount] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [quote, setQuote] = useState<BuyCardQuote | null>(null);
-  const [pin, setPin] = useState('');
   const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +60,6 @@ export function BuyCardJourney({
     setAmount((value.minimumFaceValueMinor / 100).toString());
     setQuantity(1);
     setQuote(null);
-    setPin('');
     setError(null);
   }
 
@@ -116,7 +109,6 @@ export function BuyCardJourney({
         idempotencyKey: createBillyOperationKey(
           service === 'prepaid_cards' ? 'prepaid' : 'giftcard-buy',
         ),
-        pin,
         quoteId: quote.quoteId,
         service,
       });
@@ -252,24 +244,14 @@ export function BuyCardJourney({
             <View style={[styles.rule, { backgroundColor: theme.colors.border }]} />
             <ReviewRow label="Total" strong value={formatMinorUnits(quote.totalMinor)} />
           </View>
-          <TextField
-            icon="keypad-outline"
-            keyboardType="number-pad"
-            label="Transaction PIN"
-            maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
-            onChangeText={(value) => setPin(normalizeTransactionPin(value))}
-            placeholder="4 digits"
-            secureTextEntry
-            value={pin}
-          />
+
           <FeedbackBanner
             message="This amount is held until your order is confirmed. If the order fails, it’s returned to your wallet."
             tone="info"
           />
           <AppButton
-            disabled={!isCompleteTransactionPin(pin)}
             icon="shield-checkmark-outline"
-            label="Confirm secure purchase"
+            label="Confirm purchase"
             loading={purchase.isPending}
             onPress={() => void confirm()}
           />
@@ -277,7 +259,6 @@ export function BuyCardJourney({
             label="Change amount"
             onPress={() => {
               setQuote(null);
-              setPin('');
             }}
             variant="ghost"
           />

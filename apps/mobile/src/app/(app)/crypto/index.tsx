@@ -157,7 +157,6 @@ export default function CryptoScreen() {
           : await submitTrade.mutateAsync({
               action: operation as 'buy' | 'sell',
               idempotencyKey,
-              pin,
               quoteId: quote.quoteId,
             });
       Alert.alert('Request received', order.statusMessage);
@@ -608,7 +607,8 @@ export default function CryptoScreen() {
               {operation === 'send' ? (
                 <QuoteRow label="Destination" value={address} />
               ) : null}
-              <TextField
+              {operation === 'send' ? (
+                <TextField
                 inputMode="numeric"
                 label="Transaction PIN"
                 maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
@@ -617,8 +617,9 @@ export default function CryptoScreen() {
                 secureTextEntry
                 value={pin}
               />
+              ) : null}
               <AppButton
-                disabled={!isCompleteTransactionPin(pin)}
+                disabled={operation === 'send' && !isCompleteTransactionPin(pin)}
                 label={`Confirm ${operation}`}
                 loading={busy}
                 onPress={() => void handleConfirm()}

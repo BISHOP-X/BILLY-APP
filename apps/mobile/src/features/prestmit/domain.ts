@@ -132,7 +132,7 @@ export type PrestmitRepository = {
   getSellProducts(categoryToken: string): Promise<SellCardProductCatalog>;
   purchase(input: {
     idempotencyKey: string;
-    pin: string;
+    pin?: string;
     quoteId: string;
     service: CardServiceKey;
   }): Promise<PrestmitOrder>;
@@ -149,7 +149,7 @@ export type PrestmitRepository = {
   refreshOrder(orderId: string, service: CardServiceKey): Promise<PrestmitOrder>;
   reveal(
     orderId: string,
-    pin: string,
+    pin: string | undefined,
     service: CardServiceKey,
   ): Promise<CardFulfilment>;
   submitSell(input: {

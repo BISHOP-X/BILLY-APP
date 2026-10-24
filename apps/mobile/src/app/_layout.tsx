@@ -110,7 +110,7 @@ function RootNavigator() {
       ) : (
         <Stack
           screenOptions={{
-            animation: 'fade',
+            animation: 'none',
             contentStyle: { backgroundColor: theme.colors.brandDeep },
             headerShown: false,
           }}

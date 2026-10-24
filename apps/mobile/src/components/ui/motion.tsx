@@ -9,7 +9,6 @@ import {
   ViewStyle,
 } from 'react-native';
 
-import { motion } from '@/theme/tokens';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 
 type FadeSlideProps = PropsWithChildren<{
@@ -18,9 +17,9 @@ type FadeSlideProps = PropsWithChildren<{
   style?: StyleProp<ViewStyle>;
 }>;
 
-export function FadeSlide({ children, delay = 0, distance = 18, style }: FadeSlideProps) {
+export function FadeSlide({ children, delay = 0, distance = 6, style }: FadeSlideProps) {
   const reducedMotion = useReducedMotion();
-  const [opacity] = useState(() => new Animated.Value(0));
+  const [opacity] = useState(() => new Animated.Value(1));
   const [translateY] = useState(() => new Animated.Value(distance));
 
   useEffect(() => {
@@ -33,15 +32,15 @@ export function FadeSlide({ children, delay = 0, distance = 18, style }: FadeSli
     const animation = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: motion.relaxed,
-        delay,
+        duration: 140,
+        delay: Math.min(delay, 40),
         easing: Easing.out(Easing.cubic),
         useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: motion.relaxed,
-        delay,
+        duration: 140,
+        delay: Math.min(delay, 40),
         easing: Easing.out(Easing.cubic),
         useNativeDriver: Platform.OS !== 'web',
       }),

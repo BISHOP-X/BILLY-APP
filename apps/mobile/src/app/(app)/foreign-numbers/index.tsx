@@ -53,7 +53,9 @@ export default function ForeignNumbersScreen() {
     queryKey: ['numbers', user?.id, 'catalog', page, query],
     queryFn: () => numberRepository.catalog(page, query),
     enabled: tab === 'browse' && mode === 'short',
-    staleTime: 30_000,
+    staleTime: 60_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === user?.id ? previous : undefined,
   });
   const orders = useQuery({
     queryKey: ['numbers', user?.id, 'orders', ordersPage],

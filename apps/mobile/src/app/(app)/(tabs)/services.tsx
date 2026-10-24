@@ -44,7 +44,7 @@ export default function ServicesScreen() {
     );
   }
 
-  if (query.isError || !query.data) {
+  if (!query.data) {
     return (
       <AppScreen>
         <DemoDataBanner />

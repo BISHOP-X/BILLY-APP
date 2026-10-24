@@ -221,7 +221,7 @@ export function usePurchaseBill() {
       quoteId,
     }: {
       idempotencyKey: string;
-      pin: string;
+      pin?: string;
       quoteId: string;
     }) =>
       billyServiceRepository.purchaseBill({

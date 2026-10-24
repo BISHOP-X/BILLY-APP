@@ -684,25 +684,8 @@ export async function handlePrestmitAction(
           "This quote does not belong to the selected service.",
         );
       }
-      const pin = text(input.pin, "Transaction PIN", 6, 6);
-      if (!/^\d{6}$/.test(pin)) {
-        throw new PrestmitServiceError(
-          400,
-          "invalid_request",
-          "Enter your complete 6-digit transaction PIN.",
-        );
-      }
-      const pinAuthorizationId = await runtime.database.authorizePin(
-        user.id,
-        pin,
-      );
-      if (!pinAuthorizationId) {
-        throw new PrestmitServiceError(
-          401,
-          "unauthorized",
-          "The transaction PIN is incorrect or temporarily locked.",
-        );
-      }
+
+      const pinAuthorizationId = null;
       const operationKey = idempotency(input.idempotencyKey);
       const quoteDigest = await runtime.digest(String(input.quoteId));
       const order = await runtime.database.createBuy({
@@ -944,25 +927,8 @@ export async function handlePrestmitAction(
     case "prepaid.order.reveal": {
       const input = record(inputValue);
       only(input, ["orderId", "pin"]);
-      const pin = text(input.pin, "Transaction PIN", 6, 6);
-      if (!/^\d{6}$/.test(pin)) {
-        throw new PrestmitServiceError(
-          400,
-          "invalid_request",
-          "Enter your complete 6-digit transaction PIN.",
-        );
-      }
-      const pinAuthorizationId = await runtime.database.authorizePin(
-        user.id,
-        pin,
-      );
-      if (!pinAuthorizationId) {
-        throw new PrestmitServiceError(
-          401,
-          "unauthorized",
-          "The transaction PIN is incorrect or temporarily locked.",
-        );
-      }
+
+      const pinAuthorizationId = null;
       const revealed = await runtime.database.reveal(
         user.id,
         uuid(input.orderId, "Order ID"),

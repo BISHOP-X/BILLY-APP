@@ -69,7 +69,6 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
 
 const bootstrapMarkup = `<div id="billy-bootstrap" aria-label="Getting Billy ready">
       <img alt="Billy" src="${logoSource}" />
-      <span>Getting Billy ready</span>
     </div>`;
 
 const prepared = original

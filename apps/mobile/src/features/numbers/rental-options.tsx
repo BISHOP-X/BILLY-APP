@@ -57,7 +57,10 @@ export function RentalOptions(
         ? numberRepository.longCatalog(page, query)
         : numberRepository.sharedCatalog(page, query);
     },
-    staleTime: 30_000,
+    staleTime: 60_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery && previousQuery.queryKey[1] === user?.id && previousQuery.queryKey[3] === mode &&
+      previousQuery.queryKey[4] === order?.id ? previous : undefined,
   });
   const purchase = useMutation({
     mutationFn: numberRepository.purchase,

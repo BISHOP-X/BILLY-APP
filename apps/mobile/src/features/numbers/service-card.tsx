@@ -1,3 +1,5 @@
+import { Image } from 'expo-image';
+import { brandTileBackground, serviceBrand, serviceInitials } from './brand-registry';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
@@ -5,65 +7,31 @@ import { ScalePressable } from '@/components/ui/motion';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { formatMinorUnits } from '@/features/wallet/money';
 
-// Display identities only, never a provider catalog or routing map. Brand glyphs
-// ship with the app so a third-party image outage cannot leave broken images.
-const brands: readonly [RegExp, string, string][] = [
-  [/\b(google|gmail)\b/i, 'google', '#4285F4'],
-  [/\bwhatsapp\b/i, 'whatsapp', '#158347'],
-  [/\btelegram\b/i, 'telegram-plane', '#229ED9'],
-  [/\binstagram\b/i, 'instagram', '#D33677'],
-  [/\bfacebook\b/i, 'facebook-f', '#1877F2'],
-  [/\b(twitter|x)\b/i, 'twitter', '#168BD2'],
-  [/\bdiscord\b/i, 'discord', '#5865F2'],
-  [/\btiktok\b/i, 'tiktok', '#141820'],
-  [/\bamazon\b/i, 'amazon', '#A66000'],
-  [/\bspotify\b/i, 'spotify', '#13823A'],
-  [/\bsnapchat\b/i, 'snapchat-ghost', '#171A18'],
-  [/\blinkedin\b/i, 'linkedin-in', '#0A66C2'],
-  [/\buber\b/i, 'uber', '#171A18'],
-  [/\bpaypal\b/i, 'paypal', '#003087'],
-  [/\bapple\b/i, 'apple', '#171A18'],
-  [/\b(microsoft|outlook|azure)\b/i, 'microsoft', '#2176BC'],
-  [/\bsteam\b/i, 'steam', '#17426B'],
-  [/\bebay\b/i, 'ebay', '#D32F36'],
-  [/\byahoo\b/i, 'yahoo', '#6001D2'],
-  [/\bviber\b/i, 'viber', '#7360F2'],
-  [/\blyft\b/i, 'lyft', '#E81092'],
-  [/\breddit\b/i, 'reddit-alien', '#E44212'],
-  [/\btwitch\b/i, 'twitch', '#8147E8'],
-  [/\bairbnb\b/i, 'airbnb', '#E94B5B'],
-];
-
-export function serviceBrand(name: string) {
-  const match = brands.find(([pattern]) => pattern.test(name));
-  return match ? { icon: match[1], color: match[2] } : null;
-}
+export { serviceBrand } from './brand-registry';
 
 export function ServiceAvatar(
   { name, size = 44 }: { name: string; size?: number },
 ) {
-  const theme = useBillyTheme();
   const brand = serviceBrand(name);
-  const initials = (name.match(/[\p{L}\p{N}]+/gu) ?? []).slice(0, 2).map(
-    (word) => word[0],
-  ).join('').toUpperCase();
+  const fallback = serviceInitials(name);
   return (
     <View
       accessible={false}
       style={[styles.avatar, {
         width: size,
         height: size,
-        backgroundColor: brand ? '#F5F7F6' : theme.colors.brandMist,
+        backgroundColor: brand ? brandTileBackground(brand.color) : fallback.color,
       }]}
     >
-      {brand?.icon === 'twitter'
+      {brand?.uri
         ? (
-          <Text
+          <Image
+            source={{ uri: brand.uri }}
+            style={{ width: size * 0.58, height: size * 0.58 }}
+            contentFit="contain"
+            transition={0}
             accessible={false}
-            style={{ fontSize: size * 0.58, color: '#171A18' }}
-          >
-            𝕏
-          </Text>
+          />
         )
         : brand
         ? (
@@ -76,8 +44,8 @@ export function ServiceAvatar(
           />
         )
         : (
-          <Text style={[styles.initials, { color: theme.colors.brand }]}>
-            {initials || 'SMS'}
+          <Text style={[styles.initials, { color: '#FFFFFF' }]}>
+            {fallback.initials}
           </Text>
         )}
     </View>

@@ -179,7 +179,7 @@ export type BillyServiceRepository = {
   getKycChecks: () => Promise<KycCheck[]>;
   purchaseBill: (input: {
     idempotencyKey: string;
-    pin: string;
+    pin?: string;
     quoteId: string;
   }) => Promise<BillOrder>;
   quoteBill: (input: {

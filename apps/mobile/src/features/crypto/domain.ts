@@ -109,7 +109,7 @@ export interface CryptoRepository {
   submitTrade(input: {
     action: 'buy' | 'sell';
     idempotencyKey: string;
-    pin: string;
+    pin?: string;
     quoteId: string;
   }): Promise<CryptoOrder>;
   submitSend(input: {

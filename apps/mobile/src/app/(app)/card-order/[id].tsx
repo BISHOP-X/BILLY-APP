@@ -12,7 +12,6 @@ import { ScreenHeader } from '@/components/ui/screen-header';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
 import { StatusChip } from '@/components/ui/status-chip';
-import { TextField } from '@/components/ui/text-field';
 import type {
   CardFulfilment,
   CardServiceKey,
@@ -23,11 +22,6 @@ import {
   formatFullDate,
   formatMinorUnits,
 } from '@/features/wallet/money';
-import {
-  isCompleteTransactionPin,
-  normalizeTransactionPin,
-  TRANSACTION_PIN_INPUT_MAX_LENGTH,
-} from '@/features/security/transaction-pin';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
@@ -44,7 +38,6 @@ export default function CardOrderScreen() {
   );
   const [order, setOrder] = useState<PrestmitOrder | null>(null);
   const [fulfilment, setFulfilment] = useState<CardFulfilment | null>(null);
-  const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [revealing, setRevealing] = useState(false);
@@ -95,8 +88,7 @@ export default function CardOrderScreen() {
     setRevealing(true);
     setError(null);
     try {
-      setFulfilment(await prestmitRepository.reveal(orderId, pin, service));
-      setPin('');
+      setFulfilment(await prestmitRepository.reveal(orderId, undefined, service));
     } catch (revealError) {
       setError(
         revealError instanceof Error
@@ -234,21 +226,10 @@ export default function CardOrderScreen() {
             Secure card details
           </Text>
           <Text style={[styles.sectionBody, { color: theme.colors.textMuted }]}>
-            Enter your transaction PIN to decrypt the delivered code. Billy never
-            stores these details in an owner-readable table.
+            View the card details from your completed order. Keep them private.
           </Text>
-          <TextField
-            icon="keypad-outline"
-            keyboardType="number-pad"
-            label="Transaction PIN"
-            maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
-            onChangeText={(value) => setPin(normalizeTransactionPin(value))}
-            placeholder="4 digits"
-            secureTextEntry
-            value={pin}
-          />
+
           <AppButton
-            disabled={!isCompleteTransactionPin(pin)}
             icon="lock-open-outline"
             label="Reveal card details"
             loading={revealing}

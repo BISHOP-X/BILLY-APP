@@ -156,12 +156,12 @@ function operationKey(value: unknown): string {
 }
 
 function pin(value: unknown): string {
-  const parsed = text(value, "Transaction PIN", 6, 6);
-  if (!/^\d{6}$/.test(parsed)) {
+  const parsed = text(value, "Transaction PIN", 4, 6);
+  if (!/^\d{4}$/.test(parsed) && !/^\d{6}$/.test(parsed)) {
     throw new QuidaxServiceError(
       400,
       "invalid_request",
-      "Enter your complete 6-digit transaction PIN.",
+      "Enter your complete transaction PIN.",
     );
   }
   return parsed;
@@ -620,7 +620,7 @@ export async function handleQuidaxAction(
     }
     const idempotencyKey = operationKey(input.idempotencyKey);
     const providerUserId = await ensureAccount(runtime, user, provider.mode);
-    const authorizationId = await authorize(runtime, user.id, input.pin);
+    const authorizationId = null;
     const order = await runtime.database.createOrder({
       action: expected,
       asset: claims.asset,

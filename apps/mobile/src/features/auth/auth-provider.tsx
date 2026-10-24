@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type {
   AuthChangeEvent,
   Session,
@@ -122,6 +123,7 @@ async function refreshSession() {
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
+  const queryClient = useQueryClient();
   const [authEvent, setAuthEvent] = useState<AuthChangeEvent | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
@@ -129,6 +131,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true;
     let authEventVersion = 0;
+    let previousUserId: string | undefined;
     const releaseAutoRefresh = retainAuthAutoRefresh();
     const {
       data: { subscription },
@@ -139,6 +142,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
+      if (previousUserId !== nextSession?.user.id || event === 'SIGNED_OUT') {
+        queryClient.clear();
+      }
+      previousUserId = nextSession?.user.id;
       setAuthEvent(event);
       setSession(nextSession);
       setStatus(nextSession ? 'authenticated' : 'unauthenticated');
@@ -169,7 +176,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       subscription.unsubscribe();
       releaseAutoRefresh();
     };
-  }, []);
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

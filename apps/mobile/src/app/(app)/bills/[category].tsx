@@ -34,11 +34,6 @@ import {
 import { createBillyOperationKey } from '@/features/services/idempotency';
 import { isBillyDevDemo } from '@/features/main/repository';
 import {
-  isCompleteTransactionPin,
-  normalizeTransactionPin,
-  TRANSACTION_PIN_INPUT_MAX_LENGTH,
-} from '@/features/security/transaction-pin';
-import {
   formatFullDate,
   formatMinorUnits,
   parseMajorUnitsToMinor,
@@ -102,7 +97,6 @@ function BillJourney({
   const [quote, setQuote] = useState<BillQuote | null>(null);
   const [operationKey, setOperationKey] = useState<string | null>(null);
   const [order, setOrder] = useState<BillOrder | null>(null);
-  const [pin, setPin] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const purchaseGuard = useRef(false);
 
@@ -240,7 +234,6 @@ function BillJourney({
       !canTransact ||
       !quote ||
       !operationKey ||
-      !isCompleteTransactionPin(pin) ||
       purchaseGuard.current
     ) {
       return;
@@ -249,14 +242,11 @@ function BillJourney({
     try {
       const completedOrder = await purchase.mutateAsync({
         idempotencyKey: operationKey,
-        pin,
         quoteId: quote.id,
       });
-      setPin('');
       setOrder(completedOrder);
       setStep(3);
     } catch {
-      setPin('');
     } finally {
       purchaseGuard.current = false;
     }
@@ -267,7 +257,6 @@ function BillJourney({
     setQuote(null);
     setOperationKey(null);
     setOrder(null);
-    setPin('');
     setServiceId('');
     setProductId(null);
     setSubscriptionType(null);
@@ -301,7 +290,6 @@ function BillJourney({
       return;
     }
     setStep((step - 1) as JourneyStep);
-    setPin('');
     purchase.reset();
   }
 
@@ -665,34 +653,18 @@ function BillJourney({
               </Text>
               <Text
                 style={[styles.pinSubtitle, { color: theme.colors.textMuted }]}>
-                Enter your Billy transaction PIN. Billy support will never ask
-                you to share it.
+                Review the amount, then confirm your payment.
               </Text>
-              <TextField
-                autoFocus
-                disabled={purchase.isPending}
-                inputMode="numeric"
-                label="Transaction PIN"
-                maxLength={TRANSACTION_PIN_INPUT_MAX_LENGTH}
-                onChangeText={(value) => {
-                  if (purchase.isPending) return;
-                  setPin(normalizeTransactionPin(value));
-                  purchase.reset();
-                }}
-                placeholder="4 digits"
-                secureTextEntry
-                testID="bill-transaction-pin"
-                value={pin}
-              />
+
               {isBillyDevDemo ? (
-                <FeedbackBanner message="Development preview: use any 4-digit PIN. No live funds or provider order will move." />
+                <FeedbackBanner message="Development preview: no live funds or provider order will move." />
               ) : null}
               {purchase.isError ? (
                 <FeedbackBanner message={purchase.error.message} tone="error" />
               ) : null}
             </View>
             <AppButton
-              disabled={!isCompleteTransactionPin(pin) || purchase.isPending}
+              disabled={purchase.isPending}
               icon="shield-checkmark-outline"
               label="Pay now"
               loading={purchase.isPending}

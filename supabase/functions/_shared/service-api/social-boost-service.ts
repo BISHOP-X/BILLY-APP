@@ -173,17 +173,6 @@ function operationKey(value: unknown): string {
   return candidate;
 }
 
-function pin(value: unknown): string {
-  const candidate = text(value, "Transaction PIN", 4, 4);
-  if (!/^\d{4}$/.test(candidate)) {
-    throw new SocialBoostServiceError(
-      400,
-      "invalid_request",
-      "Transaction PIN must contain four digits.",
-    );
-  }
-  return candidate;
-}
 
 function active(runtime: ProviderRuntime<SocialBoostAdapter>) {
   if (runtime.mode === "disabled" || !runtime.adapter) {
@@ -705,17 +694,7 @@ export async function handleSocialBoostAction(
     );
     const providerInput = validateDynamicInput(claims, input, target);
     const idempotencyKey = operationKey(input.idempotencyKey);
-    const pinAuthorizationId = await runtime.database.authorizePin(
-      user.id,
-      pin(input.pin),
-    );
-    if (!pinAuthorizationId) {
-      throw new SocialBoostServiceError(
-        403,
-        "conflict",
-        "Transaction PIN is incorrect or temporarily locked.",
-      );
-    }
+    const pinAuthorizationId = null;
     const encryptedOrderInput = await runtime.inputCipher.encrypt(providerInput);
     const inputDigest = await runtime.digest(JSON.stringify(providerInput));
     const created = await runtime.database.createOrder({

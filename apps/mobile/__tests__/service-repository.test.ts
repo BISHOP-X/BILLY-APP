@@ -117,7 +117,7 @@ describe('demo service repository', () => {
     expect(replay).toEqual(first);
   });
 
-  it('rejects malformed destinations and incomplete transaction PINs', async () => {
+  it('rejects malformed destinations but allows a confirmed purchase without a PIN', async () => {
     const invalidSelectionRequest = repository.quoteBill({
       selection: {
         ...airtimeSelection,
@@ -134,16 +134,11 @@ describe('demo service repository', () => {
     const quote = await completeDemoRequest(
       repository.quoteBill({ selection: airtimeSelection }),
     );
-    const invalidPinRequest = repository.purchaseBill({
+    const purchase = await completeDemoRequest(repository.purchaseBill({
       idempotencyKey: 'bill-test-operation-0003',
-      pin: '123',
       quoteId: quote.id,
-    });
-    const invalidPin = expect(invalidPinRequest).rejects.toMatchObject({
-      code: 'invalid_request',
-    });
-    await jest.runAllTimersAsync();
-    await invalidPin;
+    }));
+    expect(purchase.status).toBe('succeeded');
   });
 
   it('stores only a masked identifier for protected-service verification', async () => {

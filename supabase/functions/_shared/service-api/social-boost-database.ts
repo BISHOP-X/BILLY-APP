@@ -136,7 +136,7 @@ export interface SocialBoostDatabase {
     feeMinor: number;
     idempotencyKey: string;
     inputDigest: string;
-    pinAuthorizationId: string;
+    pinAuthorizationId: string | null;
     platform: SocialBoostPlatform;
     productTitle: string;
     providerServiceId: string;

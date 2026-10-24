@@ -60,7 +60,8 @@ test('panel order flow selects category and service then shows native form and e
   await fireEvent.press(screen.getByRole('button', { name: 'Continue' }));
   await waitFor(() => expect(screen.getByText('Review your order')).toBeTruthy());
   expect(socialBoostRepository.quote).toHaveBeenCalledWith('opaque-selection', 100);
-  expect(screen.getByLabelText('Transaction PIN')).toBeTruthy();
+  expect(screen.queryByLabelText('Transaction PIN')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Place order' })).not.toBeDisabled();
   await fireEvent.press(screen.getByRole('radio', { name: 'YouTube' }));
   expect(screen.queryByText('Review your order')).toBeNull();
   expect(screen.getByLabelText('Link')).toBeDisabled();

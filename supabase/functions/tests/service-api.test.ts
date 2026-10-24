@@ -1124,7 +1124,6 @@ Deno.test("catalog, validation, quote and delivered purchase complete end to end
 
   const purchase = await invoke(handler, "bills.purchase", {
     idempotencyKey: "bill-order-test-0001",
-    pin: "123456",
     quoteId: quoteData.id,
   });
   assert.equal(purchase.status, 200);
@@ -1141,6 +1140,7 @@ Deno.test("catalog, validation, quote and delivered purchase complete end to end
     "mock",
   );
   assert.equal(fixture.vtpass.purchases(), 1);
+  assert.equal(fixture.database.createdBillInputs[0].pinAuthorizationId, null);
   assert.deepEqual(fixture.database.transitions, ["settled"]);
   assert.equal(
     JSON.stringify(fixture.database.createdBillInputs).includes("123456"),
