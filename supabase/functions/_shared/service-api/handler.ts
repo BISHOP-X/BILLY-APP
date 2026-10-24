@@ -980,9 +980,13 @@ function jsonResponse(
   requestId: string,
   body: unknown,
   status: number,
+  options: { catalogueSnapshot?: boolean; acceptsGzip?: boolean } = {},
 ): Response {
   const encoded = JSON.stringify(body);
-  if (new TextEncoder().encode(encoded).byteLength > MAX_RESPONSE_BYTES) {
+  // Only the authenticated, read-only full catalogue can exceed the ordinary
+  // response limit. Check the uncompressed size before streaming compression.
+  const maximumBytes = options.catalogueSnapshot ? 16 * 1024 * 1024 : MAX_RESPONSE_BYTES;
+  if (new TextEncoder().encode(encoded).byteLength > maximumBytes) {
     const fallback = JSON.stringify({
       error: {
         code: "unavailable",
@@ -995,6 +999,12 @@ function jsonResponse(
     return new Response(fallback, {
       headers: commonHeaders(requestId),
       status: 503,
+    });
+  }
+  if (options.catalogueSnapshot && options.acceptsGzip) {
+    return new Response(new Response(encoded).body!.pipeThrough(new CompressionStream("gzip")), {
+      headers: { ...commonHeaders(requestId), "content-encoding": "gzip", vary: "Accept-Encoding" },
+      status,
     });
   }
   return new Response(encoded, {
@@ -3006,7 +3016,13 @@ export function createServiceApiHandler(
         data: result.data,
         ok: true,
         requestId,
-      }, result.status ?? 200);
+      }, result.status ?? 200, {
+        catalogueSnapshot: action === "social.catalog" && isRecord(body.input) && body.input.snapshot === true,
+        acceptsGzip: (request.headers.get("accept-encoding") ?? "").split(",").some(encoding => {
+          const [name, quality] = encoding.trim().split(";");
+          return name.trim().toLowerCase() === "gzip" && (!quality || Number(quality.trim().replace(/^q=/i, "")) > 0);
+        }),
+      });
     } catch (error) {
       const normalized = error instanceof OperationsError
         ? new ApiError(error.status, error.code, error.message, error.retryable)
