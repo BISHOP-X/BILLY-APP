@@ -28,7 +28,8 @@ operation key, and sale completion refreshes the wallet/proceeds views.
 
 ## Verification
 
-- 157 app tests / 31 suites passed, including four new withdrawal journey tests.
+- 158 app tests / 31 suites passed, including four new withdrawal journey tests
+  and a logo publisher/regional-identity regression check.
 - 155 backend tests passed, including ten new payout adapter/controller tests.
 - TypeScript and app ESLint passed.
 - Web export passed; Android and iOS Hermes exports passed.
@@ -46,6 +47,18 @@ operation key, and sale completion refreshes the wallet/proceeds views.
   reserved-but-unsubmitted payout without erasing its hold.
 - Live `service-api` version 32 and `provider-reconcile` version 17 are ACTIVE;
   both retain JWT verification. PocketFi funding/webhook functions were unchanged.
+- Production browser verification caught a missing internal-schema permission
+  that SQL-editor tests had missed. Migration
+  `20261025082829_withdrawal_service_role_boundary` grants only the trusted
+  `service_role` the necessary schema/table/sequence access. The payout RPCs
+  remain SECURITY INVOKER; anonymous/authenticated execution stays revoked.
+  The wallet grant is UPDATE(id) solely for row locking, not balance columns.
+  Regression tests now execute balance/create/retry/claim/observe/settlement and
+  both worker queues as the real service_role, with all fixtures rolled back.
+- Production at `app.billyapp.org/wallet/withdraw` loads the authenticated
+  proceeds balance and live PocketFi bank list. Typing `Zenith` filters immediately
+  to two current banks; choosing one returns to the account form. No recipient
+  account or PIN was entered and no payout was submitted in that browser check.
 - Advisors: no new warnings or missing-FK-index findings. Six new informational
   no-policy findings are expected for private tables with all client privileges
   revoked; their only reader/writer is the privileged server. New unused indexes
@@ -67,16 +80,21 @@ native export and mobile-width browser checks.
 
 ## Artwork
 
-The registry includes 459 local raster/app icons and 47 additional sourced SVG
+The registry includes 456 local raster/app icons and 47 additional sourced SVG
 marks alongside the previous registry. Runtime display does not call favicon
 or logo servers. Official-domain favicons and Apple app-listing artwork retain
 their original colours; source links are recorded in the generated modules.
 
-Audit against 484 publicly listed GetAText service names: 472 resolve to brand
-artwork. Twelve unresolved/generic names use a coloured local service symbol,
+Audit against 484 publicly listed GetAText service names: 469 resolve to brand
+artwork. Fifteen unresolved/generic names use a coloured local service symbol,
 never a blank image or initials: BlueAcorn, Flip, GiftPocket, Hyype Space,
 Netease, Red, Shopkick, Not Listed - Generic, Free Fillable Forms, Aiperks,
-Dopa Global, Muse. `Red` is ambiguous and the generic listing has no brand.
+Dopa Global, Muse, DOSH, Cash Up, Gamut. `Red` is ambiguous and the generic listing has no brand.
+Visual QA rejected unrelated Cash Up/Gamut/DOSH apps and replaced the regional
+7-Eleven and unrelated Soul icons with the verified US retail/social listings.
+Future automatic App Store matches must also match the primary publisher domain;
+name similarity alone cannot select an icon. Unknown identity does not prevent
+use of the service, but shows a neutral symbol rather than an invented logo.
 This is artwork coverage, not a guarantee of provider stock or capabilities.
 
 ## Recovery

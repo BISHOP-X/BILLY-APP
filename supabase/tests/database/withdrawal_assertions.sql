@@ -17,11 +17,14 @@ begin
  update public.kyc_profiles set status='verified',tier=1,verification_mode='live',verified_at=now() where user_id=uid;
  select id into wid from public.wallets where user_id=uid and currency='NGN';
  credit:=public.internal_financial_credit(uid,'withdraw-fixture-funding','wallet_funding','wallet_funding',50000,'NGN','Synthetic funding',null);
+ -- Reproduce the Edge Function role, not just a privileged SQL-editor caller.
+ execute 'set local role service_role';
  b:=public.internal_withdrawal_balance(uid);assert (b->>'availableMinor')::bigint=0,'Wallet funding must not become withdrawable';
  failed:=false;
  begin perform public.internal_withdrawal_create(uid,null,'no-sale-proceeds-test',10000,3000,'Synthetic Bank','0000',repeat('x',50),repeat('a',64));
  exception when raise_exception then failed:=sqlerrm='Insufficient available sale proceeds.';end;
  assert failed,'Top-ups cannot be withdrawn';
+ execute 'reset role';
 
  sale:=public.internal_create_crypto_order(uid,null,'withdraw-crypto-sale-01','sell','USDT','tron',10,150000,0,null,null,'live',repeat('b',64));
  sale:=public.internal_complete_crypto_order(sale.id,'SYNTHETIC-SALE','success','Synthetic sale confirmed',null);
@@ -50,19 +53,28 @@ begin
  assert failed,'PIN remains required';
  assert public.internal_authorize_transaction_pin(uid,'1234') is null,'Wrong PIN rejected';
  pin_id:=public.internal_authorize_transaction_pin(uid,'4827');
+ execute 'set local role service_role';
  o:=public.internal_withdrawal_create(uid,pin_id,'withdraw-success-test-01',100000,3000,'Synthetic Bank','0000',repeat('x',50),repeat('1',64));
  replay:=public.internal_withdrawal_create(uid,null,'withdraw-success-test-01',100000,3000,'Synthetic Bank','0000',repeat('y',50),repeat('1',64));
  assert o.id=replay.id,'Retry reuses order even after PIN consumed';
+ assert (public.internal_withdrawal_existing(uid,'withdraw-success-test-01')->'order'->>'id')::uuid=o.id,'Server can read its persisted retry';
+ perform public.internal_withdrawal_due(20);
+ perform public.internal_asset_settlement_due('crypto',20);
+ perform public.internal_asset_settlement_due('cards',20);
  b:=public.internal_withdrawal_balance(uid);assert (b->>'availableMinor')::bigint=107000,'Pending payout removes its full amount and fee';
  failed:=false;
  begin perform public.internal_withdrawal_create(uid,pin_id,'withdraw-reused-pin-01',10000,3000,'Synthetic Bank','0000',repeat('x',50),repeat('2',64));
  exception when insufficient_privilege then failed:=true;end;assert failed,'PIN evidence cannot be reused';
+ execute 'reset role';
  update public.feature_flags set enabled=false where key='wallet_withdrawal';
+ execute 'set local role service_role';
  b:=public.internal_withdrawal_balance(uid);assert not (b->>'enabled')::boolean,'Operational suspension is reflected in availability';
  failed:=false;
  begin perform public.internal_withdrawal_claim(uid,o.id,true);exception when insufficient_privilege then failed:=true;end;
  assert failed,'Operational suspension blocks an unsubmitted payout';
+ execute 'reset role';
  update public.feature_flags set enabled=true where key='wallet_withdrawal';
+ execute 'set local role service_role';
  c:=public.internal_withdrawal_claim(uid,o.id,true);assert (c->>'acquired')::boolean,'First dispatch claim wins';
  c:=public.internal_withdrawal_claim(uid,o.id,true);assert not (c->>'acquired')::boolean,'Second dispatch forbidden';
  perform public.internal_withdrawal_observe(uid,o.id,'PFI|SYNTHETIC01',3000,true,'pending',repeat('3',64));
@@ -77,6 +89,7 @@ begin
  failed:=false;
  begin perform public.internal_withdrawal_claim(other_id,o.id,false);exception when no_data_found then failed:=true;end;
  assert failed,'Non-owner cannot inspect private payout';
+ execute 'reset role';
 
  -- An already-submitted synthetic payout with an expired active reservation.
  -- Insert its initial historical fixture; do not weaken immutable-row triggers.
@@ -89,16 +102,31 @@ begin
    values(uid,late_tx.id,'pending',10000,3000,'Synthetic Bank','0000','Synthetic delayed payout') returning * into replay;
  insert into private.withdrawal_routes(order_id,user_id,idempotency_key,request_digest,encrypted_recipient,dispatch_started_at,provider_reference,submitted_fee_minor,submission_verified)
    values(replay.id,uid,'withdraw-late-test-001',repeat('6',64),repeat('x',50),now()-interval '1 hour','PFI|SYNTHETIC-LATE',3000,true);
+ execute 'set local role service_role';
  replay:=public.internal_withdrawal_observe(uid,replay.id,'PFI|SYNTHETIC-LATE',3000,true,'succeeded',repeat('7',64));
  assert replay.status='succeeded','Expired active reservation settles only with immutable success evidence';
  assert (select count(*)=1 from public.wallet_ledger where transaction_id=late_tx.id),'Delayed completion posts one ledger debit';
+ execute 'reset role';
 
  assert not has_function_privilege('anon','public.internal_withdrawal_create(uuid,uuid,text,bigint,bigint,text,text,text,text)','execute');
  assert not has_function_privilege('authenticated','public.internal_withdrawal_balance(uuid)','execute');
  assert not has_table_privilege('authenticated','public.withdrawal_orders','insert');
  assert not has_table_privilege('authenticated','private.withdrawal_routes','select');
+ assert not has_schema_privilege('anon','private','usage');
+ assert not has_schema_privilege('authenticated','private','usage');
+ assert not has_column_privilege('service_role','public.wallets','balance_minor','update'),
+   'The payout server must not gain direct balance mutation permission';
+ assert not exists(select 1 from pg_proc p where (p.proname like 'internal_withdrawal_%' or p.proname='internal_asset_settlement_due')
+   and (has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute'))),
+   'No internal payout RPC may be called by customers';
+ assert not exists(select 1 from pg_proc p where (p.proname like 'internal_withdrawal_%' or p.proname='internal_asset_settlement_due') and p.prosecdef),
+   'Payout RPCs must not elevate the caller';
  perform set_config('request.jwt.claim.sub',other_id::text,true);
  execute 'set local role authenticated';
  assert (select count(*)=0 from public.withdrawal_orders),'RLS hides another account payout';
+ execute 'reset role';
+ perform set_config('request.jwt.claim.sub',uid::text,true);
+ execute 'set local role authenticated';
+ assert (select count(*)=2 from public.withdrawal_orders),'Owner can read both of their own payouts';
  execute 'reset role';
 end; $$;

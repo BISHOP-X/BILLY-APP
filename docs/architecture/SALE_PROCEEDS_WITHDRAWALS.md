@@ -55,3 +55,13 @@ Recovery: suspend only wallet_withdrawal, retain all pending routes/holds and ru
 status reconciliation. Roll back application code if necessary. Do not drop the
 new tables or remove the provenance triggers while readers/writers use them.
 Any later schema rollback must be a separately reviewed forward migration.
+
+## Server privilege boundary verification
+
+Payout RPCs run as SECURITY INVOKER and are executable only by service_role.
+Migration `20261025082829` explicitly grants the trusted Edge Function role the
+required internal schema access, read-only asset-route access, append-only
+provider-evidence access and sequence usage. `UPDATE(id)` on wallets permits
+SELECT FOR UPDATE without granting direct balance-column writes. No anonymous
+or authenticated role receives access to private. Tests must switch to the actual
+service_role, not only run as postgres, before claiming an RPC works in production.

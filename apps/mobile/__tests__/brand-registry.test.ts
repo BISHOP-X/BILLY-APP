@@ -1,5 +1,6 @@
 import { brandTileBackground, serviceBrand, serviceInitials } from '@/features/numbers/brand-registry';
 import { brandArtwork } from '@/features/numbers/brand-artwork';
+import { brandRasters } from '@/features/numbers/brand-rasters';
 
 test('specific aliases win without substring false positives', () => {
   expect(serviceBrand('Uber Eats SMS')?.icon).toBe('ubereats');
@@ -33,4 +34,13 @@ test('unknown brands use deterministic readable initials without made-up logos',
 test('bright logos keep their brand colour on a contrasting tile', () => {
   expect(brandTileBackground('#FFFC00')).toBe('#15231B');
   expect(brandTileBackground('#000000')).toBe('#FFFFFF');
+});
+
+test('regional and homonymous apps cannot supply an unrelated service logo', () => {
+  expect(brandRasters['app-589653414'].source).toContain('7-eleven-rewards-shopping');
+  expect(brandRasters['app-1472322409'].source).toContain('soul-chat-match-party');
+  for(const id of ['403756560','6755092667','1551072628','6754170804','6785268852']) {
+    expect(brandRasters['app-'+id]).toBeUndefined();
+  }
+  for(const name of ['DOSH','Gamut','Cash Up'])expect(serviceBrand(name)).toBeNull();
 });

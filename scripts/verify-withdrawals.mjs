@@ -2,8 +2,9 @@
 import { readFile } from 'node:fs/promises';
 const token=process.env.CODEX_SUPABASE_TOKEN_BILLY;
 if(!token) throw new Error('Billy management credential required.');
-const migrationFiles=process.argv.includes('--controls-preflight')?['20261025082222_withdrawal_operational_controls.sql']:
-  process.argv.includes('--preflight')?['20261025074205_sale_proceeds_bank_withdrawals.sql','20261025082222_withdrawal_operational_controls.sql']:[];
+const migrationFiles=process.argv.includes('--boundary-preflight')?['20261025082829_withdrawal_service_role_boundary.sql']:
+  process.argv.includes('--controls-preflight')?['20261025082222_withdrawal_operational_controls.sql']:
+  process.argv.includes('--preflight')?['20261025074205_sale_proceeds_bank_withdrawals.sql','20261025082222_withdrawal_operational_controls.sql','20261025082829_withdrawal_service_role_boundary.sql']:[];
 const migration=(await Promise.all(migrationFiles.map(name=>readFile('supabase/migrations/'+name,'utf8'))))
   .map(sql=>sql.replace(/^begin;\s*$/gim,'').replace(/^commit;\s*$/gim,'')).join('\n');
 const tests=process.argv.includes('--schema-only')?'':await readFile('supabase/tests/database/withdrawal_assertions.sql','utf8');

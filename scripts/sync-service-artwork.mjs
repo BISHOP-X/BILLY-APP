@@ -81,9 +81,14 @@ for(const slug of ['bitcoin','ethereum','tether','solana','litecoin','dogecoin',
   if(match&&!existingSlugs.has(slug))extra[slug]={label:match.title,color:'#'+match.hex,path:match.path,source:match.source};
 }
 const target='apps/mobile/assets/service-brands';await mkdir(target,{recursive:true});
-const prior=process.argv.includes('--complete')?JSON.parse(await readFile('apps/mobile/.expo/artwork-audit/results.json','utf8')):null;
+const refreshOverrides=process.argv.includes('--refresh-app-overrides');
+const prior=process.argv.includes('--complete')||refreshOverrides?JSON.parse(await readFile('apps/mobile/.expo/artwork-audit/results.json','utf8')):null;
 const entries=prior?.entries??[], failures=[]; const done=new Set(entries.map(e=>e.source.replace('https://','')));
-const tasks=process.argv.includes('--app-store')?[]:[...new Set(Object.entries(domains).map(([,d])=>d))].filter(d=>!done.has(d));
+// These are homonyms or the wrong regional product, not verified SMS brands.
+// A matching app title alone is insufficient evidence of identity.
+const rejectedAppIds=new Set(['403756560','6755092667','1551072628','6754170804','6785268852']);
+for(let i=entries.length-1;i>=0;i--)if(rejectedAppIds.has(entries[i].slug.replace(/^app-/,'')))entries.splice(i,1);
+const tasks=process.argv.includes('--app-store')||refreshOverrides?[]:[...new Set(Object.entries(domains).map(([,d])=>d))].filter(d=>!done.has(d));
 let next=0;
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const generic=await fetch('https://www.google.com/s2/favicons?domain=invalid-billy-logo-test.invalid&sz=128').then(r=>r.arrayBuffer()).then(b=>hash(Buffer.from(b)));
@@ -127,7 +132,12 @@ if(process.argv.includes('--app-store')) {
       if(!response.ok)throw new Error('App listing unavailable');const data=await response.json();
       const app=data.results?.find(a=>normalize(a.trackName??'')===normalized)??
         data.results?.find(a=>normalized.length>=5&&normalize(a.trackName??'').startsWith(normalized));
-      if(!app?.artworkUrl512||!app.trackViewUrl)throw new Error('No exact app brand found');
+      if(!app?.artworkUrl512||!app.trackViewUrl||rejectedAppIds.has(String(app.trackId)))throw new Error('No verified app brand found');
+      const expectedDomain=domains[name]?.replace(/^www\./,'');
+      const sellerHost=app.sellerUrl?new URL(app.sellerUrl).hostname.replace(/^www\./,''):'';
+      if(!expectedDomain||!(sellerHost===expectedDomain||sellerHost.endsWith('.'+expectedDomain))) {
+        throw new Error('App publisher domain does not match the primary brand; review a stable listing ID');
+      }
       const image=await fetch(app.artworkUrl512,{signal:AbortSignal.timeout(12000)});const bytes=Buffer.from(await image.arrayBuffer());
       const ext=bytes.subarray(1,4).toString()==='PNG'?'png':bytes[0]===255&&bytes[1]===216?'jpg':null;
       if(!image.ok||!ext||bytes.length>500000)throw new Error('App artwork unavailable');
@@ -140,7 +150,8 @@ if(process.argv.includes('--app-store')) {
 }
 // Primary listings verified separately for renamed brands; use their stable
 // Apple IDs so a broad search cannot substitute another similarly named app.
-for(const [id,aliases] of Object.entries({1638253339:['AHEALTH MoneyWalk'],741292507:['RedNote Xiaohongshu'],1673723000:['Duet']})) {
+for(const [id,aliases] of Object.entries({1638253339:['AHEALTH MoneyWalk'],741292507:['RedNote Xiaohongshu'],1673723000:['Duet'],
+  589653414:['7-Eleven'],1472322409:['Soul App']})) {
   if(entries.some(e=>e.slug==='app-'+id))continue;
   try {
     const data=await(await fetch('https://itunes.apple.com/lookup?country=us&id='+id,{signal:AbortSignal.timeout(12000)})).json();
