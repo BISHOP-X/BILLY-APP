@@ -8,6 +8,10 @@ can be revealed by their signed-in owner without a PIN; encrypted delivery and a
 auditing remain. Withdrawals and external crypto sends still require PIN authorization.
 PIN setup/account security and the existing crypto/sell-gift-card KYC rules remain.
 
+Update, 25 October 2026: bank withdrawals are now implemented. See
+`../architecture/SALE_PROCEEDS_WITHDRAWALS.md` and the withdrawal release report.
+The paragraph below records the state of the 24 October release only.
+
 The NGN withdrawal screen is still the existing placeholder; this change does not turn it
 into a completed payout implementation. The server withdrawal reservation remains protected.
 

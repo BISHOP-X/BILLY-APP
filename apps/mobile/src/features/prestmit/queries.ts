@@ -44,8 +44,11 @@ export function usePrestmitMutation(service: CardServiceKey) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: prestmitRepository.purchase,
-    onSuccess: () =>
+    onSuccess: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: keys.orders(service) }),
+      queryClient.invalidateQueries({ queryKey: ['main'] }),
+      queryClient.invalidateQueries({ queryKey: ['withdrawal'] }),
+    ]),
   });
 }
 
@@ -53,7 +56,10 @@ export function useSellSubmitMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: prestmitRepository.submitSell,
-    onSuccess: () =>
+    onSuccess: () => Promise.all([
       queryClient.invalidateQueries({ queryKey: keys.orders('gift_cards') }),
+      queryClient.invalidateQueries({ queryKey: ['main'] }),
+      queryClient.invalidateQueries({ queryKey: ['withdrawal'] }),
+    ]),
   });
 }

@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/ui/button';
@@ -54,6 +54,8 @@ export function BuyCardJourney({
   const [quote, setQuote] = useState<BuyCardQuote | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const confirming=useRef(false);
+  const operationIdentity=useRef<{quoteId:string;key:string}|null>(null);
 
   function chooseProduct(value: BuyCardProduct) {
     setProduct(value);
@@ -102,13 +104,13 @@ export function BuyCardJourney({
   }
 
   async function confirm() {
-    if (!quote) return;
+    if (!quote || confirming.current) return;
+    confirming.current=true;
     setError(null);
     try {
+      if(operationIdentity.current?.quoteId!==quote.quoteId)operationIdentity.current={quoteId:quote.quoteId,key:createBillyOperationKey(service==='prepaid_cards'?'prepaid':'giftcard-buy')};
       const order = await purchase.mutateAsync({
-        idempotencyKey: createBillyOperationKey(
-          service === 'prepaid_cards' ? 'prepaid' : 'giftcard-buy',
-        ),
+        idempotencyKey: operationIdentity.current.key,
         quoteId: quote.quoteId,
         service,
       });
@@ -119,6 +121,8 @@ export function BuyCardJourney({
           ? purchaseError.message
           : 'Billy could not complete this order safely.',
       );
+    } finally {
+      confirming.current=false;
     }
   }
 

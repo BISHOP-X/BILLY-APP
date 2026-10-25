@@ -24,6 +24,7 @@ import {
 } from '@/features/wallet/money';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { ServiceAvatar } from '@/features/numbers/service-card';
 
 function validService(value: string | undefined): CardServiceKey {
   return value === 'prepaid_cards' ? 'prepaid_cards' : 'gift_cards';
@@ -148,13 +149,7 @@ export default function CardOrderScreen() {
           styles.hero,
           { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
         ]}>
-        <View style={[styles.heroIcon, { backgroundColor: theme.colors.brandMist }]}>
-          <Ionicons
-            color={theme.colors.brand}
-            name={isSell ? 'swap-horizontal-outline' : 'gift-outline'}
-            size={28}
-          />
-        </View>
+        <ServiceAvatar name={order.productTitle} size={56}/>
         <StatusChip status={order.status} />
         <Text style={[styles.heroTitle, { color: theme.colors.text }]}>
           {order.productTitle}
@@ -218,6 +213,10 @@ export default function CardOrderScreen() {
             onPress={() => void refresh()}
           />
         </View>
+      ) : null}
+
+      {isSell && order.status === 'succeeded' && !order.isPreview ? (
+        <AppButton label="Withdraw to bank" icon="arrow-up-circle-outline" onPress={()=>router.push('/wallet/withdraw')}/>
       ) : null}
 
       {order.fulfilmentAvailable && !fulfilment ? (

@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
@@ -8,6 +7,7 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 import type { PrestmitOrder } from '../domain';
+import { ServiceAvatar } from '@/features/numbers/service-card';
 
 export function PrestmitOrderCard({
   onPress,
@@ -28,13 +28,7 @@ export function PrestmitOrderCard({
         styles.card,
         { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
       ]}>
-      <View style={[styles.icon, { backgroundColor: theme.colors.brandMist }]}>
-        <Ionicons
-          color={theme.colors.brand}
-          name={isSell ? 'arrow-down-circle-outline' : 'gift-outline'}
-          size={22}
-        />
-      </View>
+      <ServiceAvatar name={order.productTitle} size={42}/>
       <View style={styles.copy}>
         <Text numberOfLines={1} style={[styles.title, { color: theme.colors.text }]}>
           {order.productTitle}

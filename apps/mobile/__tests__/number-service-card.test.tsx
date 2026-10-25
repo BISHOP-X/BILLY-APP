@@ -12,9 +12,9 @@ test('recognizable brand identities do not change the provider catalog', () => {
   expect(serviceBrand('Unknown service')).toBeNull();
 });
 
-test('unknown services have a readable local monogram instead of a broken image', async () => {
+test('unknown services retain a visible local service symbol instead of a broken image', async () => {
   await render(<ServiceAvatar name='New service' />);
-  expect(screen.getByText('NS')).toBeTruthy();
+  expect(screen.getByTestId('service-fallback-icon')).toBeTruthy();
 });
 
 test('a price card selects an offer, without starting a purchase', async () => {

@@ -32,6 +32,8 @@ import {
   type VtpassMockScenario,
 } from "../_shared/providers/vtpass.ts";
 import { createServiceDatabase } from "../_shared/service-api/database.ts";
+import { PocketFiPayoutAdapter } from "../_shared/providers/pocketfi-payout.ts";
+import { createWithdrawalDatabase } from "../_shared/service-api/withdrawal-service.ts";
 import { SecretPayloadCipher } from "../_shared/service-api/payload-cipher.ts";
 import { createPrestmitDatabase } from "../_shared/service-api/prestmit-database.ts";
 import type { PrestmitServiceRuntime } from "../_shared/service-api/prestmit-service.ts";
@@ -542,7 +544,7 @@ async function readyServices() {
   const prices=await pricingRows();
   const priced=(key:string)=>prices.some(p=>p.service_key===key && p.exchange_rate_minor_per_usd!==null && p.markup_bps!==null);
   return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter)&&priced("foreign_numbers"),
-    wallet_funding:providerMode("POCKETFI_MODE")==="live",bills:providerMode("VTPASS_MODE")==="live",
+    wallet_funding:providerMode("POCKETFI_MODE")==="live",wallet_withdrawal:providerMode("POCKETFI_MODE")==="live",bills:providerMode("VTPASS_MODE")==="live",
     crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:providerMode("PRESTMIT_MODE")==="live",
     prepaid_cards:providerMode("PRESTMIT_MODE")==="live",
     identity_verification:providerMode("PREMBLY_MODE")==="live" && Boolean(env("PREMBLY_API_KEY")) && Boolean(env("PREMBLY_BASE_URL"))};
@@ -619,6 +621,11 @@ const handler = createServiceApiHandler({
     };
   },
   database: createServiceDatabase(serviceClient),
+  withdrawal: {
+    adapter: providerMode("POCKETFI_MODE")==="live" ? new PocketFiPayoutAdapter(requiredEnv("POCKETFI_API_TOKEN"),requiredEnv("POCKETFI_BASE_URL")) : undefined,
+    database:createWithdrawalDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+    cipher:new SecretPayloadCipher(serviceApiSigningSecret,{context:"bank-recipient",additionalData:"billy-bank-recipient:v1",prefix:"bw1"}),
+  },
   digestEvidence,
   digestIdentity,
   pocketFi: pocketFiRuntime(),

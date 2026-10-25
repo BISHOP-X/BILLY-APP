@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
-import { brandTileBackground, serviceBrand, serviceInitials } from './brand-registry';
+import { brandTileBackground, serviceBrand, serviceInitials,serviceFallbackIcon } from './brand-registry';
+import { useState } from 'react';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
@@ -14,26 +15,29 @@ export function ServiceAvatar(
 ) {
   const brand = serviceBrand(name);
   const fallback = serviceInitials(name);
+  const [failedArtwork,setFailedArtwork]=useState<string|null>(null);
+  const hasArtwork=!!brand&&failedArtwork!==name;
   return (
     <View
       accessible={false}
       style={[styles.avatar, {
         width: size,
         height: size,
-        backgroundColor: brand ? brandTileBackground(brand.color) : fallback.color,
+        backgroundColor: hasArtwork&&brand ? (brand.asset?'#FFFFFF':brandTileBackground(brand.color)) : fallback.color,
       }]}
     >
-      {brand?.uri
+      {hasArtwork&&(brand?.uri||brand?.asset)
         ? (
           <Image
-            source={{ uri: brand.uri }}
-            style={{ width: size * 0.58, height: size * 0.58 }}
+            source={brand.asset??{ uri: brand.uri }}
+            style={{ width: size * (brand.asset?0.74:0.58), height: size * (brand.asset?0.74:0.58) }}
             contentFit="contain"
             transition={0}
             accessible={false}
+            onError={()=>setFailedArtwork(name)}
           />
         )
-        : brand
+        : hasArtwork&&brand
         ? (
           <FontAwesome5
             accessible={false}
@@ -44,9 +48,7 @@ export function ServiceAvatar(
           />
         )
         : (
-          <Text style={[styles.initials, { color: '#FFFFFF' }]}>
-            {fallback.initials}
-          </Text>
+          <Ionicons testID="service-fallback-icon" name={serviceFallbackIcon(name)} size={size*0.52} color="#FFFFFF" accessible={false}/>
         )}
     </View>
   );

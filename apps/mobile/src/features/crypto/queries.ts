@@ -39,6 +39,8 @@ export function useCryptoSubmit() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: cryptoKeys.orders }),
         queryClient.invalidateQueries({ queryKey: cryptoKeys.portfolio }),
+        queryClient.invalidateQueries({ queryKey: ['main'] }),
+        queryClient.invalidateQueries({ queryKey: ['withdrawal'] }),
       ]);
     },
   });

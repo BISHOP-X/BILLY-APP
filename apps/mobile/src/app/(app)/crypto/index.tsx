@@ -2,7 +2,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import { ServiceAvatar } from '@/features/numbers/service-card';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { AppScreen } from '@/components/layout/app-screen';
@@ -69,6 +71,8 @@ export default function CryptoScreen() {
     null,
   );
   const [busy, setBusy] = useState(false);
+  const confirmationLock=useRef(false);
+  const operationIdentity=useRef<{quoteId:string;key:string}|null>(null);
   const currentAsset =
     assets.data?.assets[assetIndex] ?? assets.data?.assets[0];
   const currentNetwork =
@@ -141,10 +145,12 @@ export default function CryptoScreen() {
   };
 
   const handleConfirm = async () => {
-    if (!quote) return;
+    if (!quote || confirmationLock.current) return;
+    confirmationLock.current=true;
     setBusy(true);
     try {
-      const idempotencyKey = `mobile-${operation}-${Crypto.randomUUID()}`;
+      if(operationIdentity.current?.quoteId!==quote.quoteId)operationIdentity.current={quoteId:quote.quoteId,key:`mobile-${operation}-${Crypto.randomUUID()}`};
+      const idempotencyKey = operationIdentity.current.key;
       const order =
         operation === 'send'
           ? await submitSend.mutateAsync({
@@ -169,9 +175,10 @@ export default function CryptoScreen() {
         'Transaction stopped safely',
         error instanceof Error
           ? error.message
-          : 'No new transaction was created.',
+          : 'Check your activity before trying again.',
       );
     } finally {
+      confirmationLock.current=false;
       setBusy(false);
     }
   };
@@ -322,16 +329,7 @@ export default function CryptoScreen() {
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.coin,
-                    {
-                      backgroundColor: theme.colors.brand,
-                    },
-                  ]}
-                >
-                  <Text style={styles.coinText}>{item.symbol.slice(0, 1)}</Text>
-                </View>
+                <ServiceAvatar name={item.name+' '+item.symbol} size={40}/>
                 <Text
                   style={[styles.assetSymbol, { color: theme.colors.text }]}
                 >
@@ -639,6 +637,8 @@ export default function CryptoScreen() {
 
       {orders.data?.length ? (
         <View style={styles.orders}>
+          {orders.data.some(order=>order.action==='sell'&&order.status==='succeeded'&&!order.isPreview)?
+            <AppButton label="Withdraw sale proceeds" icon="arrow-up-circle-outline" onPress={()=>router.push('/wallet/withdraw')}/>:null}
           <View style={styles.heading}>
             <Text style={[styles.title, { color: theme.colors.text }]}>
               Recent crypto activity
@@ -666,15 +666,7 @@ export default function CryptoScreen() {
                   },
                 ]}
               >
-                <Ionicons
-                  color={theme.colors.brand}
-                  name={
-                    order.action === 'send'
-                      ? 'paper-plane-outline'
-                      : 'swap-horizontal-outline'
-                  }
-                  size={20}
-                />
+                <ServiceAvatar name={order.asset} size={38}/>
               </View>
               <View style={styles.orderCopy}>
                 <Text style={[styles.orderTitle, { color: theme.colors.text }]}>

@@ -38,6 +38,7 @@ import {
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
 import { handleNumberAction, OperationsError, type NumberRuntime } from "./number-service.ts";
 import { handleAdminAction, type AdminRuntime } from "./admin-service.ts";
+import { handleWithdrawalAction, type WithdrawalRuntime } from "./withdrawal-service.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
@@ -348,6 +349,7 @@ export type ServiceApiDependencies = {
   resolveSocialBoost?: () => Promise<SocialBoostServiceRuntime>;
   resolveNumbers?: () => Promise<NumberRuntime>;
   admin?: AdminRuntime;
+  withdrawal?: WithdrawalRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -2963,6 +2965,8 @@ export function createServiceApiHandler(
       }
       const result = action.startsWith("admin.")
         ? await handleAdminAction(action, body.input ?? {}, user, dependencies.admin)
+        : action.startsWith("withdrawal.")
+        ? await handleWithdrawalAction(action,body.input ?? {},user,dependencies.withdrawal)
         : action.startsWith("numbers.")
         ? await handleNumberAction(action, body.input ?? {}, user, await dependencies.resolveNumbers?.())
         : isSocialBoostAction(action)

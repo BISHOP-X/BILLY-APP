@@ -20,7 +20,8 @@ test('every sourced mark has local SVG artwork and provenance', () => {
     expect(item.color).toMatch(/^#[A-Fa-f0-9]{6}$/);
     expect(item.source).toMatch(/^https:\/\//);
   }
-  expect(serviceBrand('WhatsApp')?.uri).toMatch(/^data:image\/svg\+xml/);
+  const whatsapp=serviceBrand('WhatsApp');
+  expect(whatsapp?.uri?.startsWith('data:image/svg+xml')||whatsapp?.asset!==undefined).toBe(true);
 });
 
 test('unknown brands use deterministic readable initials without made-up logos', () => {

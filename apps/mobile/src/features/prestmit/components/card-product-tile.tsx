@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { ScalePressable } from '@/components/ui/motion';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
+import { ServiceAvatar } from '@/features/numbers/service-card';
 
 import type { BuyCardProduct } from '../domain';
 
@@ -50,9 +51,7 @@ export function CardProductTile({
             style={styles.image}
           />
         ) : (
-          <Text style={[styles.monogram, { color: theme.colors.brand }]}>
-            {product.brand.slice(0, 1).toUpperCase()}
-          </Text>
+          <ServiceAvatar name={product.brand||product.title} size={60}/>
         )}
       </View>
       <View style={styles.copy}>

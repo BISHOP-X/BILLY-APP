@@ -1,4 +1,8 @@
 import { brandArtwork } from './brand-artwork';
+import { additionalArtwork } from './generated-brand-artwork';
+import { brandRasters } from './brand-rasters';
+
+const artwork: typeof brandArtwork = {...brandArtwork,...additionalArtwork};
 
 const aliases: Record<string, string[]> = {
   google: ['google / gmail / youtube', 'google voice', 'google'], gmail: ['gmail', 'g mail'],
@@ -16,6 +20,8 @@ const aliases: Record<string, string[]> = {
   playstation: ['playstation', 'psn'], ea: ['electronic arts', 'ea'],
   wechat: ['wechat', 'weixin'], vk: ['vkontakte', 'vk'],
   line: ['line'], steam: ['steam'], claude: ['claude'],
+  bitcoin:['bitcoin','btc'],ethereum:['ethereum','eth'],tether:['tether','usdt'],solana:['solana','sol'],litecoin:['litecoin','ltc'],
+  dogecoin:['dogecoin','doge'],cardano:['cardano','ada'],xrp:['xrp','ripple'],tron:['tron','trx'],usdcoin:['usd coin','usdc'],
 };
 const legacy: Record<string, { label: string; color: string; icon: string; aliases: string[] }> = {
   microsoft: { label: 'Microsoft', color: '#0078D4', icon: 'microsoft', aliases: ['microsoft', 'outlook', 'hotmail', 'azure', 'office 365', 'xbox'] },
@@ -27,17 +33,23 @@ function normalize(name: string) {
   return name.normalize('NFKC').toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 const matchers = [
-  ...Object.entries(brandArtwork).flatMap(([slug, item]) =>
+  ...Object.entries(artwork).flatMap(([slug, item]) =>
     (aliases[slug] ?? [item.label, slug]).map(alias => ({ slug, words: normalize(alias) }))),
   ...Object.entries(legacy).flatMap(([slug, item]) =>
     item.aliases.map(alias => ({ slug, words: normalize(alias) }))),
 ].sort((a, b) => b.words.length - a.words.length);
+const rasterMatchers=Object.entries(brandRasters).flatMap(([slug,item])=>item.aliases.flatMap(alias=>[alias,alias.split(/\s+\/\s+/)[0]]).map(alias=>({slug,words:normalize(alias)})))
+  .sort((a,b)=>b.words.length-a.words.length);
 
-export function serviceBrand(name: string) {
+type ServiceBrand={icon:string;label:string;color:string;uri?:string;asset?:number};
+
+export function serviceBrand(name: string):ServiceBrand|null {
   const normalized = ' ' + normalize(name) + ' ';
   const match = matchers.find(({ words }) => normalized.includes(' ' + words + ' '));
+  const rasterMatch=rasterMatchers.find(({words})=>normalized.includes(' '+words+' '));
+  if(rasterMatch){const raster=brandRasters[rasterMatch.slug];return {icon:match?.slug??rasterMatch.slug,label:raster.label,color:'#15231B',asset:raster.asset};}
   if (!match) return null;
-  const asset = brandArtwork[match.slug];
+  const asset = artwork[match.slug];
   if (asset) return {
     icon: match.slug, label: asset.label, color: asset.color,
     uri: 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -45,6 +57,17 @@ export function serviceBrand(name: string) {
       asset.color + '" d="' + asset.path + '"/></svg>'),
   };
   return { ...legacy[match.slug], uri: undefined };
+}
+
+export function serviceFallbackIcon(name:string):'phone-portrait-outline'|'chatbubbles-outline'|'wallet-outline'|'heart-outline'|'game-controller-outline'|'bag-handle-outline'|'apps-outline'{
+  const value=normalize(name);
+  if(/rental|generic|not listed|number/.test(value))return 'phone-portrait-outline';
+  if(/survey|opinion|reward|cash|money|pay|coin|earn/.test(value))return 'wallet-outline';
+  if(/dating|match|meet|love/.test(value))return 'heart-outline';
+  if(/game|play|pack|rips/.test(value))return 'game-controller-outline';
+  if(/shop|store|gift|buy/.test(value))return 'bag-handle-outline';
+  if(/chat|sms|text|mail/.test(value))return 'chatbubbles-outline';
+  return 'apps-outline';
 }
 
 const palette = ['#305C95', '#744AA1', '#99602F', '#A23D60', '#147878', '#6554A4'];
