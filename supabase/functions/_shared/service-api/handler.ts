@@ -36,9 +36,16 @@ import {
   type SocialBoostServiceRuntime,
 } from "./social-boost-service.ts";
 import { ServiceTokenCodec, ServiceTokenError } from "./tokens.ts";
-import { handleNumberAction, OperationsError, type NumberRuntime } from "./number-service.ts";
-import { handleAdminAction, type AdminRuntime } from "./admin-service.ts";
-import { handleWithdrawalAction, type WithdrawalRuntime } from "./withdrawal-service.ts";
+import {
+  handleNumberAction,
+  type NumberRuntime,
+  OperationsError,
+} from "./number-service.ts";
+import { type AdminRuntime, handleAdminAction } from "./admin-service.ts";
+import {
+  handleWithdrawalAction,
+  type WithdrawalRuntime,
+} from "./withdrawal-service.ts";
 
 const MAX_REQUEST_BYTES = 16 * 1024;
 const MAX_RESPONSE_BYTES = 512 * 1024;
@@ -267,7 +274,9 @@ export interface ServiceDatabase {
     outcomeReason: string;
     userId: string;
   }): Promise<KycCheckRow>;
-  recordKycUnfunded(input: { userId: string; checkId: string; responseDigest: string }): Promise<KycCheckRow>;
+  recordKycUnfunded(
+    input: { userId: string; checkId: string; responseDigest: string },
+  ): Promise<KycCheckRow>;
   deferKycCheckRequery(input: {
     checkId: string;
     failureCode: string;
@@ -987,7 +996,9 @@ function jsonResponse(
   const encoded = JSON.stringify(body);
   // Only the authenticated, read-only full catalogue can exceed the ordinary
   // response limit. Check the uncompressed size before streaming compression.
-  const maximumBytes = options.catalogueSnapshot ? 16 * 1024 * 1024 : MAX_RESPONSE_BYTES;
+  const maximumBytes = options.catalogueSnapshot
+    ? 16 * 1024 * 1024
+    : MAX_RESPONSE_BYTES;
   if (new TextEncoder().encode(encoded).byteLength > maximumBytes) {
     const fallback = JSON.stringify({
       error: {
@@ -1004,10 +1015,17 @@ function jsonResponse(
     });
   }
   if (options.catalogueSnapshot && options.acceptsGzip) {
-    return new Response(new Response(encoded).body!.pipeThrough(new CompressionStream("gzip")), {
-      headers: { ...commonHeaders(requestId), "content-encoding": "gzip", vary: "Accept-Encoding" },
-      status,
-    });
+    return new Response(
+      new Response(encoded).body!.pipeThrough(new CompressionStream("gzip")),
+      {
+        headers: {
+          ...commonHeaders(requestId),
+          "content-encoding": "gzip",
+          vary: "Accept-Encoding",
+        },
+        status,
+      },
+    );
   }
   return new Response(encoded, {
     headers: commonHeaders(requestId),
@@ -1251,6 +1269,7 @@ async function buildCatalog(
       amountMode: selection.amountMode,
       customerField: customerField(category, service.serviceId),
       description: serviceDescription(category, selection.serviceLabel),
+      imageUrl: publicCatalogImage(service.imageUrl),
       id: serviceToken,
       label: selection.serviceLabel,
       maximumAmountMinor: selection.maximumAmountMinor ?? null,
@@ -1275,6 +1294,22 @@ async function buildCatalog(
     isPreview: runtime.mode === "mock",
     services: normalizedServices,
   };
+}
+
+/** Display-only provider metadata; never used as a price, product or route. */
+function publicCatalogImage(value: string | undefined): string | null {
+  if (!value || value.length > 2048) return null;
+  try {
+    const url = new URL(value);
+    if (
+      url.protocol !== "https:" || url.username || url.password || url.port ||
+      !url.hostname.includes(".") || /^[\d.]+$/.test(url.hostname) ||
+      /(^|\.)(localhost|local|internal|lan)$/.test(url.hostname)
+    ) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 }
 
 type ParsedBillSelectionInput = {
@@ -2698,7 +2733,13 @@ async function handleAction(
         "Identity verification refresh request",
       );
       const checkId = requireUuid(input.checkId, "Identity check ID");
-      return refreshKycVerification(dependencies, adapter, verificationMode, user.id, checkId);
+      return refreshKycVerification(
+        dependencies,
+        adapter,
+        verificationMode,
+        user.id,
+        checkId,
+      );
     }
 
     case "kyc.history": {
@@ -2869,7 +2910,9 @@ async function handleAction(
       if (verification.status === "technical_error") {
         if (verification.definitiveFailure === "provider_unfunded") {
           const failed = await database.recordKycUnfunded({
-            userId: user.id, checkId: check.id, responseDigest,
+            userId: user.id,
+            checkId: check.id,
+            responseDigest,
           });
           return { data: kycCheckResponse(failed), status: 200 };
         }
@@ -2964,17 +3007,34 @@ export function createServiceApiHandler(
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
       const result = action.startsWith("admin.")
-        ? await handleAdminAction(action, body.input ?? {}, user, dependencies.admin)
+        ? await handleAdminAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies.admin,
+        )
         : action.startsWith("withdrawal.")
-        ? await handleWithdrawalAction(action,body.input ?? {},user,dependencies.withdrawal)
+        ? await handleWithdrawalAction(
+          action,
+          body.input ?? {},
+          user,
+          dependencies.withdrawal,
+        )
         : action.startsWith("numbers.")
-        ? await handleNumberAction(action, body.input ?? {}, user, await dependencies.resolveNumbers?.())
+        ? await handleNumberAction(
+          action,
+          body.input ?? {},
+          user,
+          await dependencies.resolveNumbers?.(),
+        )
         : isSocialBoostAction(action)
         ? await handleSocialBoostAction(
           action,
           body.input ?? {},
           user,
-          dependencies.resolveSocialBoost ? await dependencies.resolveSocialBoost() : dependencies.socialBoost,
+          dependencies.resolveSocialBoost
+            ? await dependencies.resolveSocialBoost()
+            : dependencies.socialBoost,
         )
         : isQuidaxAction(action)
         ? await handleQuidaxAction(
@@ -2996,17 +3056,25 @@ export function createServiceApiHandler(
           user,
           dependencies,
         );
-      return jsonResponse(requestId, {
-        data: result.data,
-        ok: true,
+      return jsonResponse(
         requestId,
-      }, result.status ?? 200, {
-        catalogueSnapshot: action === "social.catalog" && isRecord(body.input) && body.input.snapshot === true,
-        acceptsGzip: (request.headers.get("accept-encoding") ?? "").split(",").some(encoding => {
-          const [name, quality] = encoding.trim().split(";");
-          return name.trim().toLowerCase() === "gzip" && (!quality || Number(quality.trim().replace(/^q=/i, "")) > 0);
-        }),
-      });
+        {
+          data: result.data,
+          ok: true,
+          requestId,
+        },
+        result.status ?? 200,
+        {
+          catalogueSnapshot: action === "social.catalog" &&
+            isRecord(body.input) && body.input.snapshot === true,
+          acceptsGzip: (request.headers.get("accept-encoding") ?? "").split(",")
+            .some((encoding) => {
+              const [name, quality] = encoding.trim().split(";");
+              return name.trim().toLowerCase() === "gzip" &&
+                (!quality || Number(quality.trim().replace(/^q=/i, "")) > 0);
+            }),
+        },
+      );
     } catch (error) {
       const normalized = error instanceof OperationsError
         ? new ApiError(error.status, error.code, error.message, error.retryable)

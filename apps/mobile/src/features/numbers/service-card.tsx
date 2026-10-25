@@ -11,11 +11,13 @@ import { formatMinorUnits } from '@/features/wallet/money';
 export { serviceBrand } from './brand-registry';
 
 export function ServiceAvatar(
-  { name, size = 44 }: { name: string; size?: number },
+  { name, size = 44, imageUrl }: { name: string; size?: number; imageUrl?: string | null },
 ) {
   const brand = serviceBrand(name);
   const fallback = serviceInitials(name);
   const [failedArtwork,setFailedArtwork]=useState<string|null>(null);
+  const [failedImageUrl,setFailedImageUrl]=useState<string|null>(null);
+  const hasRemoteImage=!!imageUrl&&failedImageUrl!==imageUrl;
   const hasArtwork=!!brand&&failedArtwork!==name;
   return (
     <View
@@ -23,18 +25,19 @@ export function ServiceAvatar(
       style={[styles.avatar, {
         width: size,
         height: size,
-        backgroundColor: hasArtwork&&brand ? (brand.asset?'#FFFFFF':brandTileBackground(brand.color)) : fallback.color,
+        backgroundColor: hasRemoteImage?'#FFFFFF':hasArtwork&&brand ? (brand.asset?'#FFFFFF':brandTileBackground(brand.color)) : fallback.color,
       }]}
     >
-      {hasArtwork&&(brand?.uri||brand?.asset)
+      {hasRemoteImage||hasArtwork&&(brand?.uri||brand?.asset)
         ? (
           <Image
-            source={brand.asset??{ uri: brand.uri }}
-            style={{ width: size * (brand.asset?0.74:0.58), height: size * (brand.asset?0.74:0.58) }}
+            testID="service-artwork"
+            source={hasRemoteImage?{uri:imageUrl!}:brand?.asset??{ uri: brand?.uri }}
+            style={{ width: size * (hasRemoteImage||brand?.asset?0.74:0.58), height: size * (hasRemoteImage||brand?.asset?0.74:0.58) }}
             contentFit="contain"
             transition={0}
             accessible={false}
-            onError={()=>setFailedArtwork(name)}
+            onError={()=>hasRemoteImage?setFailedImageUrl(imageUrl!):setFailedArtwork(name)}
           />
         )
         : hasArtwork&&brand

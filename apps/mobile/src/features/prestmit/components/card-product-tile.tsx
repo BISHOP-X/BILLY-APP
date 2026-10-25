@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
@@ -43,16 +42,7 @@ export function CardProductTile({
         shadows.card,
       ]}>
       <View style={[styles.art, { backgroundColor: theme.colors.brandMist }]}>
-        {product.imageUrl ? (
-          <Image
-            accessibilityLabel=""
-            contentFit="contain"
-            source={{ uri: product.imageUrl }}
-            style={styles.image}
-          />
-        ) : (
-          <ServiceAvatar name={product.brand||product.title} size={60}/>
-        )}
+        <ServiceAvatar name={product.brand||product.title} imageUrl={product.imageUrl} size={60}/>
       </View>
       <View style={styles.copy}>
         <View style={styles.heading}>

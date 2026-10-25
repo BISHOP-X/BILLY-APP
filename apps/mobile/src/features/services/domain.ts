@@ -78,6 +78,7 @@ export type BillProduct = {
 };
 
 export type BillService = {
+  imageUrl?: string | null;
   amountMode: 'custom' | 'fixed';
   customerField: BillCustomerField;
   description: string;

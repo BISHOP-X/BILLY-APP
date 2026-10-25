@@ -3,9 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { ScalePressable } from '@/components/ui/motion';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { ServiceAvatar } from '@/features/numbers/service-card';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 type BillChoiceCardProps = {
+  artworkName?: string;
+  imageUrl?: string | null;
   description?: string;
   disabled?: boolean;
   label: string;
@@ -16,6 +19,8 @@ type BillChoiceCardProps = {
 };
 
 export function BillChoiceCard({
+  artworkName,
+  imageUrl,
   description,
   disabled = false,
   label,
@@ -44,6 +49,7 @@ export function BillChoiceCard({
         },
       ]}
       testID={testID}>
+      {artworkName ? <ServiceAvatar name={artworkName} imageUrl={imageUrl} size={40}/> : null}
       <View
         style={[
           styles.radio,

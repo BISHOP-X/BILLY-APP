@@ -409,8 +409,15 @@ class FakeDatabase implements ServiceDatabase {
     return Promise.resolve();
   }
 
-  recordKycUnfunded(input: { userId: string; checkId: string; responseDigest: string }) {
-    return this.failKycCheck({ ...input, failureCode: 'provider_unfunded', outcomeReason: 'Verification is temporarily unavailable. Please try again later.' });
+  recordKycUnfunded(
+    input: { userId: string; checkId: string; responseDigest: string },
+  ) {
+    return this.failKycCheck({
+      ...input,
+      failureCode: "provider_unfunded",
+      outcomeReason:
+        "Verification is temporarily unavailable. Please try again later.",
+    });
   }
 
   failKycCheck(input: {
@@ -1071,6 +1078,38 @@ Deno.test("unmapped VTpass data services fail closed", async () => {
   assert.match(response.body.error?.message ?? "", /routing configuration/i);
 });
 
+Deno.test("bill catalog carries public HTTPS artwork without accepting unsafe image URLs", async () => {
+  const fixture = dependencies();
+  const adapter = fixture.vtpass.adapter;
+  const list = adapter.listServices.bind(adapter);
+  let imageUrl = "https://example.test/current-provider.png";
+  adapter.listServices = async (category) =>
+    (await list(category)).map((service) => ({ ...service, imageUrl }));
+  const handler = createServiceApiHandler(fixture.value);
+  for (
+    const value of [
+      imageUrl,
+      "javascript:alert(1)",
+      "http://example.test/logo.png",
+      "https://127.0.0.1/logo.png",
+      "https://user:pass@example.test/logo.png",
+    ]
+  ) {
+    imageUrl = value;
+    const result = await invoke(handler, "bills.catalog", {
+      category: "airtime",
+    });
+    assert.equal(result.status, 200);
+    const service =
+      (result.body.data as { services: Array<{ imageUrl: string | null }> })
+        .services[0];
+    assert.equal(
+      service.imageUrl,
+      value === "https://example.test/current-provider.png" ? value : null,
+    );
+  }
+});
+
 Deno.test("catalog, validation, quote and delivered purchase complete end to end", async () => {
   const fixture = dependencies();
   const handler = createServiceApiHandler(fixture.value);
@@ -1531,19 +1570,35 @@ Deno.test("uncertain KYC outcomes stay pending and cannot be redispatched", asyn
 
 Deno.test("explicit uncharged Prembly refusal is recoverable without rejecting identity", async () => {
   const prembly = countingPrembly({
-    identityLast4: "8901", method: "bvn_basic", mode: "mock",
-    providerMessage: "Temporarily unavailable.", retryable: false,
-    status: "technical_error", definitiveFailure: "provider_unfunded",
+    identityLast4: "8901",
+    method: "bvn_basic",
+    mode: "mock",
+    providerMessage: "Temporarily unavailable.",
+    retryable: false,
+    status: "technical_error",
+    definitiveFailure: "provider_unfunded",
   });
   const fixture = dependencies({ prembly });
   const handler = createServiceApiHandler(fixture.value);
-  const input = { consentVersion: "billy-identity-consent-v1", method: "bvn_basic", number: RAW_IDENTITY, idempotencyKey: "kyc-unfunded-test-0001" };
+  const input = {
+    consentVersion: "billy-identity-consent-v1",
+    method: "bvn_basic",
+    number: RAW_IDENTITY,
+    idempotencyKey: "kyc-unfunded-test-0001",
+  };
   const result = await invoke(handler, "kyc.submit", input);
   assert.equal((result.body.data as { status: string }).status, "error");
   await invoke(handler, "kyc.submit", input);
-  assert.equal(prembly.calls(), 1, 'Same-key replay never redispatches');
-  await invoke(handler, "kyc.submit", { ...input, idempotencyKey: "kyc-unfunded-test-0002" });
-  assert.equal(prembly.calls(), 2, 'New user request may retry after an explicit refusal');
+  assert.equal(prembly.calls(), 1, "Same-key replay never redispatches");
+  await invoke(handler, "kyc.submit", {
+    ...input,
+    idempotencyKey: "kyc-unfunded-test-0002",
+  });
+  assert.equal(
+    prembly.calls(),
+    2,
+    "New user request may retry after an explicit refusal",
+  );
 });
 
 Deno.test("mock pending does not block live KYC while live pending blocks live redispatch", async () => {

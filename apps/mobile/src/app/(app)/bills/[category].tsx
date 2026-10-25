@@ -400,6 +400,8 @@ function BillJourney({
                   description={candidate.description}
                   disabled={preparing}
                   key={candidate.id}
+                  artworkName={candidate.label}
+                  imageUrl={candidate.imageUrl}
                   label={candidate.label}
                   onPress={() => selectService(candidate)}
                   selected={serviceId === candidate.id}

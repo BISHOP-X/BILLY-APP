@@ -28,9 +28,9 @@ operation key, and sale completion refreshes the wallet/proceeds views.
 
 ## Verification
 
-- 158 app tests / 31 suites passed, including four new withdrawal journey tests
+- 160 app tests / 31 suites passed, including four new withdrawal journey tests
   and a logo publisher/regional-identity regression check.
-- 155 backend tests passed, including ten new payout adapter/controller tests.
+- 156 backend tests passed, including ten new payout adapter/controller tests.
 - TypeScript and app ESLint passed.
 - Web export passed; Android and iOS Hermes exports passed.
 - The new migration was rehearsed with synthetic accounts in BEGIN/ROLLBACK,
@@ -45,7 +45,7 @@ operation key, and sale completion refreshes the wallet/proceeds views.
   existing suspension control at quote/first dispatch; submitted payouts can
   still reconcile. Its rollback rehearsal tests that a suspension blocks a
   reserved-but-unsubmitted payout without erasing its hold.
-- Live `service-api` version 32 and `provider-reconcile` version 17 are ACTIVE;
+- Live `service-api` version 33 and `provider-reconcile` version 17 are ACTIVE;
   both retain JWT verification. PocketFi funding/webhook functions were unchanged.
 - Production browser verification caught a missing internal-schema permission
   that SQL-editor tests had missed. Migration
@@ -96,6 +96,14 @@ Future automatic App Store matches must also match the primary publisher domain;
 name similarity alone cannot select an icon. Unknown identity does not prevent
 use of the service, but shows a neutral symbol rather than an invented logo.
 This is artwork coverage, not a guarantee of provider stock or capabilities.
+
+Bill service choices now use the current provider catalog's HTTPS image metadata;
+no biller image URL or catalog is invented/hardcoded. Invalid schemes, credentials,
+local hosts and IP addresses are rejected. Gift-card catalog images, bill images
+and the bundled brand registry share the same image-error fallback, so a failed
+remote image becomes the local brand mark or visible neutral service symbol.
+Tests verify catalog metadata sanitization, image-load failure and ordinary bill
+radio selection without submitting a purchase.
 
 ## Recovery
 

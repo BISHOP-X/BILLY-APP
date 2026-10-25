@@ -4,6 +4,7 @@ import {
   ServiceAvatar,
   serviceBrand,
 } from '@/features/numbers/service-card';
+import { BillChoiceCard } from '@/features/bills/components/bill-choice-card';
 
 test('recognizable brand identities do not change the provider catalog', () => {
   expect(serviceBrand('Google Voice')?.icon).toBe('google');
@@ -47,4 +48,21 @@ test('unavailable offers cannot be selected', async () => {
   expect(button).toBeDisabled();
   await fireEvent.press(button);
   expect(select).not.toHaveBeenCalled();
+});
+
+test('failed provider artwork falls back locally instead of leaving a broken image', async () => {
+  await render(<ServiceAvatar name="New service" imageUrl="https://example.test/provider.png"/>);
+  // expo-image normalizes even a single source to its native source array.
+  expect(screen.getByTestId('service-artwork').props.source).toEqual([{uri:'https://example.test/provider.png'}]);
+  await fireEvent(screen.getByTestId('service-artwork'),'error',{nativeEvent:{error:'Synthetic image failure'}});
+  expect(screen.getByTestId('service-fallback-icon')).toBeTruthy();
+});
+
+test('bill provider choices show their catalog logo and remain normal radio selections', async () => {
+  const select=jest.fn();
+  await render(<BillChoiceCard label="Provider" artworkName="Provider" imageUrl="https://example.test/bank.png"
+    selected={false} onPress={select}/>);
+  expect(screen.getByTestId('service-artwork').props.source).toEqual([{uri:'https://example.test/bank.png'}]);
+  await fireEvent.press(screen.getByRole('radio',{name:'Provider'}));
+  expect(select).toHaveBeenCalledTimes(1);
 });
