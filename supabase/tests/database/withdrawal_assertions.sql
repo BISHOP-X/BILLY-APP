@@ -2,7 +2,7 @@
 do $$
 declare uid uuid:='a6250000-0000-4000-8000-000000000001'; other_id uuid:='a6250000-0000-4000-8000-000000000002';
  consent jsonb; sale public.crypto_orders; gift public.prestmit_orders; credit public.transactions; purchase public.transactions;
- o public.withdrawal_orders; replay public.withdrawal_orders; pin_id uuid; wid uuid; b jsonb; c jsonb; failed boolean; late_tx public.transactions;
+ o public.withdrawal_orders; replay public.withdrawal_orders; pin_id uuid; wid uuid; b jsonb; c jsonb; failed boolean; late_tx public.transactions; scheduled_id bigint;
 begin
  assert not exists(select 1 from auth.users where id in(uid,other_id));
  select jsonb_build_object('terms_version',terms_version,'privacy_version',privacy_version,'legal_consent_source','billy_mobile_signup')
@@ -102,6 +102,16 @@ begin
    values(uid,late_tx.id,'pending',10000,3000,'Synthetic Bank','0000','Synthetic delayed payout') returning * into replay;
  insert into private.withdrawal_routes(order_id,user_id,idempotency_key,request_digest,encrypted_recipient,dispatch_started_at,provider_reference,submitted_fee_minor,submission_verified)
    values(replay.id,uid,'withdraw-late-test-001',repeat('6',64),repeat('x',50),now()-interval '1 hour','PFI|SYNTHETIC-LATE',3000,true);
+ -- pg_net dispatches only after COMMIT. This request queue row and the synthetic
+ -- payout both roll back, so this assertion cannot call a provider or move money.
+ assert exists(select 1 from public.internal_withdrawal_due(40) q where q.order_id=replay.id),'Delayed payout is due';
+ scheduled_id:=private.schedule_provider_reconciliation();
+ assert scheduled_id is not null,'A due payout wakes the authenticated worker';
+ assert exists(select 1 from net.http_request_queue where id=scheduled_id
+   and url='https://omsrzwwudskxpkyynnxw.supabase.co/functions/v1/provider-reconcile'
+   and method='POST' and octet_length(body)>0
+   and length(headers->>'Authorization')>10 and length(headers->>'x-billy-reconcile-key')>10),
+   'Scheduler queues the Billy worker with its existing authentication';
  execute 'set local role service_role';
  replay:=public.internal_withdrawal_observe(uid,replay.id,'PFI|SYNTHETIC-LATE',3000,true,'succeeded',repeat('7',64));
  assert replay.status='succeeded','Expired active reservation settles only with immutable success evidence';
@@ -114,6 +124,8 @@ begin
  assert not has_table_privilege('authenticated','private.withdrawal_routes','select');
  assert not has_schema_privilege('anon','private','usage');
  assert not has_schema_privilege('authenticated','private','usage');
+ assert not has_function_privilege('service_role','private.schedule_provider_reconciliation()','execute'),
+   'Only the database scheduler may initiate its cron request';
  assert not has_column_privilege('service_role','public.wallets','balance_minor','update'),
    'The payout server must not gain direct balance mutation permission';
  assert not exists(select 1 from pg_proc p where (p.proname like 'internal_withdrawal_%' or p.proname='internal_asset_settlement_due')

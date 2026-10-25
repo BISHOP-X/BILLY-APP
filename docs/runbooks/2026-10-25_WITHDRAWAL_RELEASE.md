@@ -26,6 +26,14 @@ crypto orders and card orders. It queries status and settles; it never initiates
 a new payout or paid order. Crypto/card purchase retries also retain their
 operation key, and sale completion refreshes the wallet/proceeds views.
 
+Scheduler audit found its old wake-up guard only considered numbers/boosting.
+Migration `20261025084953_withdrawal_reconciliation_scheduler` also considers
+withdrawals, both asset-settlement queues and the already-supported KYC queue.
+The existing Vault authentication and cron-only function access are preserved.
+The rollback test creates a due synthetic payout and verifies the authenticated
+Billy worker request was enqueued. pg_net sends only after COMMIT, so rolling
+back this test removes the queue item without contacting any provider.
+
 ## Verification
 
 - 160 app tests / 31 suites passed, including four new withdrawal journey tests
