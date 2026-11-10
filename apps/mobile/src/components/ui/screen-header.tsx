@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 type ScreenHeaderProps = {
@@ -47,7 +48,7 @@ export function ScreenHeader({
           </Text>
         ) : null}
       </View>
-      <View style={styles.placeholder} />
+      <AppearanceToggle />
     </View>
   );
 }

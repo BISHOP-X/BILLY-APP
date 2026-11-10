@@ -20,13 +20,11 @@ const onboardingStepRanks: Record<Exclude<OnboardingStep, 'complete'>, number> =
 
 export function setupDestinationForStep(
   step: OnboardingStep | null | undefined,
-  { supportsBiometrics = true }: { supportsBiometrics?: boolean } = {},
+  _options: { supportsBiometrics?: boolean } = {},
 ): SetupDestination {
   if (!step || step === 'profile') return '/(setup)/profile';
-  if (step === 'pin') return '/(setup)/pin';
-  if (step === 'biometrics') {
-    return supportsBiometrics ? '/(setup)/biometrics' : '/(app)/home';
-  }
+  // Existing accounts paused at the old security steps can enter immediately.
+  // PIN creation and biometric lock remain available from Account > Security.
   return '/(app)/home';
 }
 

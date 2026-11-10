@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 import { spacing, typography } from '@/theme/tokens';
 
 type SectionHeaderProps = {
@@ -8,6 +9,7 @@ type SectionHeaderProps = {
   onAction?: () => void;
   subtitle?: string;
   title: string;
+  appearance?: boolean;
 };
 
 export function SectionHeader({
@@ -15,6 +17,7 @@ export function SectionHeader({
   onAction,
   subtitle,
   title,
+  appearance = false,
 }: SectionHeaderProps) {
   const theme = useBillyTheme();
 
@@ -28,6 +31,7 @@ export function SectionHeader({
           <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>{subtitle}</Text>
         ) : null}
       </View>
+      {appearance ? <AppearanceToggle /> : null}
       {actionLabel && onAction ? (
         <Pressable
           accessibilityRole="button"

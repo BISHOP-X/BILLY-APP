@@ -7,6 +7,7 @@ import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { TextField } from '@/components/ui/text-field';
 import { getMyProfile, updateMyProfile } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
+import { splitFullName, validateFullName } from '@/features/auth/full-name';
 import {
   friendlyAuthError,
   validatePhoneNumber,
@@ -26,8 +27,7 @@ export function ProfileDetailsForm({
 }: ProfileDetailsFormProps) {
   const theme = useBillyTheme();
   const { user } = useAuth();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -43,14 +43,12 @@ export function ProfileDetailsForm({
       try {
         const profile = await getMyProfile();
         if (!active) return;
-        setFirstName(profile?.first_name || String(metadata.first_name || ''));
-        setLastName(profile?.last_name || String(metadata.last_name || ''));
+        setFullName([profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || String(metadata.full_name || [metadata.first_name, metadata.last_name].filter(Boolean).join(' ')));
         setDisplayName(profile?.display_name || String(metadata.first_name || ''));
         setPhone(profile?.phone || '');
       } catch (error) {
         if (!active) return;
-        setFirstName(String(metadata.first_name || ''));
-        setLastName(String(metadata.last_name || ''));
+        setFullName(String(metadata.full_name || [metadata.first_name, metadata.last_name].filter(Boolean).join(' ')));
         setDisplayName(String(metadata.first_name || ''));
         setFeedback(friendlyAuthError(error));
       } finally {
@@ -66,8 +64,8 @@ export function ProfileDetailsForm({
 
   async function submit() {
     const nextErrors: Record<string, string> = {};
-    if (!firstName.trim()) nextErrors.firstName = 'Enter your first name.';
-    if (!lastName.trim()) nextErrors.lastName = 'Enter your last name.';
+    const nameError = validateFullName(fullName);
+    if (nameError) nextErrors.fullName = nameError;
     if (!displayName.trim()) nextErrors.displayName = 'Choose the name Billy should use.';
     const phoneError = validatePhoneNumber(phone);
     if (phoneError) nextErrors.phone = phoneError;
@@ -78,8 +76,8 @@ export function ProfileDetailsForm({
     setLoading(true);
     try {
       const profile = await updateMyProfile({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        first_name: splitFullName(fullName).firstName,
+        last_name: splitFullName(fullName).lastName || null,
         display_name: displayName.trim(),
         phone: phone.trim(),
       });
@@ -111,29 +109,16 @@ export function ProfileDetailsForm({
       </View>
       <TextField
         autoCapitalize="words"
-        autoComplete="given-name"
-        error={errors.firstName}
+        autoComplete="name"
+        error={errors.fullName}
         icon="person-outline"
-        label="First name"
+        label="Full name"
         onChangeText={(value) => {
-          setFirstName(value);
-          setErrors((current) => ({ ...current, firstName: '' }));
+          setFullName(value);
+          setErrors((current) => ({ ...current, fullName: '' }));
         }}
-        placeholder="Your first name"
-        value={firstName}
-      />
-      <TextField
-        autoCapitalize="words"
-        autoComplete="family-name"
-        error={errors.lastName}
-        icon="person-outline"
-        label="Last name"
-        onChangeText={(value) => {
-          setLastName(value);
-          setErrors((current) => ({ ...current, lastName: '' }));
-        }}
-        placeholder="Your last name"
-        value={lastName}
+        placeholder="Your full name"
+        value={fullName}
       />
       <TextField
         autoCapitalize="words"

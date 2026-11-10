@@ -72,6 +72,7 @@ export default function CardsScreen() {
       testID="cards-screen">
       <DemoDataBanner />
       <SectionHeader
+        appearance
         subtitle="Your card space stays ready while Billy confirms service access."
         title="Cards"
       />

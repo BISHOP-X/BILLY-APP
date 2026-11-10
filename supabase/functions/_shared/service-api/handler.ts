@@ -1,3 +1,4 @@
+import { handleCommerceAction, type CommerceRuntime } from "./commerce-service.ts";
 import {
   isPocketFiProviderError,
   type PocketFiAdapter,
@@ -359,6 +360,7 @@ export type ServiceApiDependencies = {
   resolveNumbers?: () => Promise<NumberRuntime>;
   admin?: AdminRuntime;
   withdrawal?: WithdrawalRuntime;
+  commerce?: CommerceRuntime;
   randomId?: () => string;
   tokens: ServiceTokenCodec;
   vtpass: VtpassRuntime;
@@ -3006,7 +3008,9 @@ export function createServiceApiHandler(
       if (!/^[a-z]+(?:[.-][a-z]+)*$/.test(action)) {
         throw new ApiError(400, "invalid_request", "Action is invalid.");
       }
-      const result = action.startsWith("admin.")
+      const result = action.startsWith("commerce.")
+        ? await handleCommerceAction(action, body.input ?? {}, user, dependencies.commerce)
+        : action.startsWith("admin.")
         ? await handleAdminAction(
           action,
           body.input ?? {},

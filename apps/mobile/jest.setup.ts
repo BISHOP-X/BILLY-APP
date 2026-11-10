@@ -10,4 +10,5 @@ jest.mock('expo-haptics', () => ({
     Light: 'light',
   },
   impactAsync: jest.fn(() => Promise.resolve()),
+  selectionAsync: jest.fn(() => Promise.resolve()),
 }));

@@ -59,8 +59,7 @@ describe('PIN profile review', () => {
     await fireEvent.press(screen.getByLabelText('Go back'));
 
     expect(await screen.findByText('Review your details')).toBeTruthy();
-    expect(await screen.findByDisplayValue('WISDOM')).toBeTruthy();
-    expect(screen.getByDisplayValue('INNOCENT')).toBeTruthy();
+    expect(await screen.findByDisplayValue('WISDOM INNOCENT')).toBeTruthy();
     expect(screen.getByDisplayValue('Innocent Wisdom')).toBeTruthy();
     expect(screen.getByDisplayValue('+2349067679407')).toBeTruthy();
     expect(replaceFlowRoute).not.toHaveBeenCalled();

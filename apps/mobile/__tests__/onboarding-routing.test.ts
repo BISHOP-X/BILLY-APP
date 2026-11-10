@@ -8,20 +8,20 @@ describe('onboarding routing', () => {
   it.each([
     [null, '/(setup)/profile'],
     ['profile', '/(setup)/profile'],
-    ['pin', '/(setup)/pin'],
-    ['biometrics', '/(setup)/biometrics'],
+    ['pin', '/(app)/home'],
+    ['biometrics', '/(app)/home'],
     ['complete', '/(app)/home'],
   ] as const)('routes %s progress to %s', (step, destination) => {
     expect(setupDestinationForStep(step)).toBe(destination);
   });
 
-  it('skips the mobile-only biometric phase on web', () => {
+  it('keeps optional security setup out of onboarding on every platform', () => {
     expect(
       setupDestinationForStep('biometrics', { supportsBiometrics: false }),
     ).toBe('/(app)/home');
     expect(
       setupDestinationForStep('biometrics', { supportsBiometrics: true }),
-    ).toBe('/(setup)/biometrics');
+    ).toBe('/(app)/home');
   });
 
   it('allows a user to revisit completed setup pages', () => {

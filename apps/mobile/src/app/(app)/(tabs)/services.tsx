@@ -68,6 +68,7 @@ export default function ServicesScreen() {
       testID="services-screen">
       <DemoDataBanner />
       <SectionHeader
+        appearance
         subtitle="What would you like to do?"
         title="Services"
       />

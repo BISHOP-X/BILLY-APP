@@ -2,7 +2,7 @@ import type { BillCategory } from './domain';
 
 export const billCategories: BillCategory[] = [
   {
-    description: 'Top up any supported Nigerian mobile line.',
+    description: 'Top up supported mobile networks worldwide.',
     icon: 'phone-portrait-outline',
     key: 'airtime',
     label: 'Airtime',
@@ -14,28 +14,10 @@ export const billCategories: BillCategory[] = [
     label: 'Data',
   },
   {
-    description: 'Verify a meter and pay electricity bills.',
+    description: 'Pay supported electricity companies worldwide.',
     icon: 'flash-outline',
     key: 'electricity',
     label: 'Electricity',
-  },
-  {
-    description: 'Renew or change supported TV packages.',
-    icon: 'tv-outline',
-    key: 'cable',
-    label: 'TV',
-  },
-  {
-    description: 'Pay supported broadband subscriptions.',
-    icon: 'wifi-outline',
-    key: 'internet',
-    label: 'Internet',
-  },
-  {
-    description: 'Purchase supported exam and education products.',
-    icon: 'school-outline',
-    key: 'education',
-    label: 'Education',
   },
 ];
 

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 
@@ -136,8 +137,8 @@ export default function SecurityScreen() {
         <SecurityRow
           icon="keypad-outline"
           label="Transaction PIN"
-          note="Configured during setup. Changing it requires a dedicated recent-auth flow."
-          value="Set"
+          note="Required for withdrawals and external crypto sends, not purchases."
+          value="4 digits"
         />
         <SecurityRow
           icon="phone-portrait-outline"
@@ -152,6 +153,8 @@ export default function SecurityScreen() {
           value="On"
         />
       </View>
+
+      <AppButton label="Manage transaction PIN" icon="keypad-outline" variant="secondary" onPress={() => router.push('/(app)/security/transaction-pin')} />
 
       {isBiometricLockEnabled ? (
         <AppButton

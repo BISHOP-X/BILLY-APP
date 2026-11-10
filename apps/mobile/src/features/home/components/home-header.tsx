@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { IconButton } from '@/components/ui/icon-button';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 import type { ProfileSummary } from '@/features/main/domain';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
@@ -61,6 +62,7 @@ export function HomeHeader({
           </Text>
         </View>
       </View>
+      <AppearanceToggle />
       <IconButton
         accessibilityLabel={
           unreadCount

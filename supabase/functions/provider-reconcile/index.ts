@@ -14,6 +14,7 @@ import { handleQuidaxAction,type QuidaxServiceRuntime } from '../_shared/service
 import { createPrestmitDatabase } from '../_shared/service-api/prestmit-database.ts';
 import { handlePrestmitAction,type PrestmitServiceRuntime } from '../_shared/service-api/prestmit-service.ts';
 import { createServiceDatabase } from '../_shared/service-api/database.ts';
+import { createCommerceRuntime, refreshCommerce } from '../_shared/service-api/commerce-service.ts';
 import { refreshKycVerification } from '../_shared/service-api/handler.ts';
 import {
   createNumberDatabase,
@@ -41,6 +42,9 @@ const client = createClient(url, roleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const digest = createHmacHexDigester(signing);
+const commerce = createCommerceRuntime(client, signing, {
+  clientId: Deno.env.get('RELOADLY_CLIENT_ID'), clientSecret: Deno.env.get('RELOADLY_CLIENT_SECRET'),
+}, digest);
 const tokens = new ServiceTokenCodec(signing);
 const getEnv=(key:string)=>Deno.env.get(key)?.trim();
 const withdrawal:WithdrawalRuntime={database:createWithdrawalDatabase(client),tokens,digest,
@@ -130,7 +134,7 @@ Deno.serve(async (request) => {
     failed = 0;
   type Due = { user_id: string; order_id: string };
   try {
-    const [n, s, f, k, w, c, p] = await Promise.all([
+    const [n, s, f, k, w, c, p, r] = await Promise.all([
       numbers.adapter
         ? client.rpc('internal_number_due', { p_limit: 40 })
         : Promise.resolve({ data: [], error: null }),
@@ -146,10 +150,12 @@ Deno.serve(async (request) => {
       withdrawal.adapter?client.rpc('internal_withdrawal_due',{p_limit:20}):Promise.resolve({data:[],error:null}),
       cryptoRuntime?client.rpc('internal_asset_settlement_due',{p_service:'crypto',p_limit:20}):Promise.resolve({data:[],error:null}),
       cardsRuntime?client.rpc('internal_asset_settlement_due',{p_service:'cards',p_limit:20}):Promise.resolve({data:[],error:null}),
+      commerce.adapter?client.rpc('internal_commerce_due',{p_limit:20}):Promise.resolve({data:[],error:null}),
     ]);
-    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error) throw new Error('Queue unavailable');
+    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error || r.error) throw new Error('Queue unavailable');
     const queue = [
       ...(w.data as Due[]).map(row=>({...row,type:'withdrawal'})),
+      ...(r.data as Due[]).map(row=>({...row,type:'commerce'})),
       ...(c.data as Due[]).map(row=>({...row,type:'crypto'})),
       ...(p.data as Due[]).map(row=>({...row,type:'cards'})),
       ...(k.data as { user_id: string; check_id: string }[]).map((row) => ({ user_id: row.user_id, order_id: row.check_id, type: 'kyc' })),
@@ -162,6 +168,7 @@ Deno.serve(async (request) => {
         const item = queue.shift()!;
         try {
           if(item.type==='withdrawal') await refreshWithdrawal(withdrawal,item.user_id,item.order_id);
+          else if(item.type==='commerce') await refreshCommerce(commerce,item.user_id,item.order_id);
           else if(item.type==='crypto') {
             if(!await cryptoRuntime!.database.getAccount(item.user_id)) throw new Error('Existing crypto account required for reconciliation.');
             await handleQuidaxAction('crypto.order.refresh',{orderId:item.order_id},{id:item.user_id},cryptoRuntime);

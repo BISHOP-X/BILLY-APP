@@ -32,6 +32,7 @@ import {
   type VtpassMockScenario,
 } from "../_shared/providers/vtpass.ts";
 import { createServiceDatabase } from "../_shared/service-api/database.ts";
+import { createCommerceRuntime } from "../_shared/service-api/commerce-service.ts";
 import { PocketFiPayoutAdapter } from "../_shared/providers/pocketfi-payout.ts";
 import { createWithdrawalDatabase } from "../_shared/service-api/withdrawal-service.ts";
 import { SecretPayloadCipher } from "../_shared/service-api/payload-cipher.ts";
@@ -395,6 +396,9 @@ const serviceClient = createClient(supabaseUrl, secretKey, {
 const serviceApiSigningSecret = requiredEnv("SERVICE_API_SIGNING_SECRET");
 const tokenCodec = new ServiceTokenCodec(serviceApiSigningSecret);
 const digestEvidence = createHmacHexDigester(serviceApiSigningSecret);
+const commerce = createCommerceRuntime(serviceClient, serviceApiSigningSecret, {
+  clientId: env("RELOADLY_CLIENT_ID"), clientSecret: env("RELOADLY_CLIENT_SECRET"),
+}, digestEvidence);
 const digestIdentity = createHmacHexDigester(
   requiredEnv("KYC_IDENTITY_HMAC_SECRET"),
 );
@@ -544,8 +548,8 @@ async function readyServices() {
   const prices=await pricingRows();
   const priced=(key:string)=>prices.some(p=>p.service_key===key && p.exchange_rate_minor_per_usd!==null && p.markup_bps!==null);
   return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter)&&priced("foreign_numbers"),
-    wallet_funding:providerMode("POCKETFI_MODE")==="live",wallet_withdrawal:providerMode("POCKETFI_MODE")==="live",bills:providerMode("VTPASS_MODE")==="live",
-    crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:providerMode("PRESTMIT_MODE")==="live",
+    wallet_funding:providerMode("POCKETFI_MODE")==="live",wallet_withdrawal:providerMode("POCKETFI_MODE")==="live",bills:Boolean(commerce.adapter)&&priced("reloadly_topups")&&priced("reloadly_electricity"),
+    crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:Boolean(commerce.adapter)&&priced("reloadly_gift_cards"),
     prepaid_cards:providerMode("PRESTMIT_MODE")==="live",
     identity_verification:providerMode("PREMBLY_MODE")==="live" && Boolean(env("PREMBLY_API_KEY")) && Boolean(env("PREMBLY_BASE_URL"))};
 }
@@ -621,6 +625,7 @@ const handler = createServiceApiHandler({
     };
   },
   database: createServiceDatabase(serviceClient),
+  commerce,
   withdrawal: {
     adapter: providerMode("POCKETFI_MODE")==="live" ? new PocketFiPayoutAdapter(requiredEnv("POCKETFI_API_TOKEN"),requiredEnv("POCKETFI_BASE_URL")) : undefined,
     database:createWithdrawalDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,

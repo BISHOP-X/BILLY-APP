@@ -128,6 +128,7 @@ export default function WithdrawScreen() {
         subtitle="From your crypto and gift-card sales"
         onBack={back}
       />
+      <AppButton label="Need a PIN? Set one up" variant="ghost" onPress={() => router.push('/(app)/security/transaction-pin')} />
       <View style={[styles.balance, card]}>
         <Text style={[styles.body, muted]}>Available to withdraw</Text>
         <Text style={[styles.amount, text]}>

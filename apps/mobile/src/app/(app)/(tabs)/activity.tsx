@@ -132,6 +132,7 @@ export default function ActivityScreen() {
           <View style={styles.header}>
             <DemoDataBanner />
             <SectionHeader
+              appearance
               subtitle="Transactions, orders, refunds, and receipts."
               title="Activity"
             />

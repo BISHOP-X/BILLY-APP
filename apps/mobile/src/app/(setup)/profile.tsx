@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
@@ -18,16 +17,14 @@ import {
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
+import { splitFullName, validateFullName } from '@/features/auth/full-name';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 export default function ProfileSetupScreen() {
   const theme = useBillyTheme();
-  const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
   const { signOut, user } = useAuth();
-  const isReviewingFromPin = returnTo === 'pin';
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -42,15 +39,13 @@ export default function ProfileSetupScreen() {
         const profile = await getMyProfile();
         if (!active) return;
         const metadata = user?.user_metadata ?? {};
-        setFirstName(profile?.first_name || String(metadata.first_name || ''));
-        setLastName(profile?.last_name || String(metadata.last_name || ''));
+        setFullName([profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || String(metadata.full_name || [metadata.first_name, metadata.last_name].filter(Boolean).join(' ')));
         setDisplayName(profile?.display_name || String(metadata.first_name || ''));
         setPhone(profile?.phone || '');
       } catch {
         if (!active) return;
         const metadata = user?.user_metadata ?? {};
-        setFirstName(String(metadata.first_name || ''));
-        setLastName(String(metadata.last_name || ''));
+        setFullName(String(metadata.full_name || [metadata.first_name, metadata.last_name].filter(Boolean).join(' ')));
         setDisplayName(String(metadata.first_name || ''));
       } finally {
         if (active) setHydrating(false);
@@ -64,8 +59,8 @@ export default function ProfileSetupScreen() {
 
   async function submit() {
     const nextErrors: Record<string, string> = {};
-    if (!firstName.trim()) nextErrors.firstName = 'Enter your first name.';
-    if (!lastName.trim()) nextErrors.lastName = 'Enter your last name.';
+    const nameError = validateFullName(fullName);
+    if (nameError) nextErrors.fullName = nameError;
     if (!displayName.trim()) nextErrors.displayName = 'Choose the name Billy should use.';
     const phoneError = validatePhoneNumber(phone);
     if (phoneError) nextErrors.phone = phoneError;
@@ -76,15 +71,15 @@ export default function ProfileSetupScreen() {
     setLoading(true);
     try {
       const profile = await updateMyProfile({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
+        first_name: splitFullName(fullName).firstName,
+        last_name: splitFullName(fullName).lastName || null,
         display_name: displayName.trim(),
         phone: phone.trim(),
       });
-      if (profile.onboarding_step === 'profile') {
-        await updateOnboardingStep('pin');
+      if (profile.onboarding_step !== 'complete') {
+        await updateOnboardingStep('complete');
       }
-      replaceFlowRoute('/(setup)/pin', '/pin');
+      replaceFlowRoute('/(app)/home', '/home');
     } catch (error) {
       setFeedback(friendlyAuthError(error));
     } finally {
@@ -97,6 +92,7 @@ export default function ProfileSetupScreen() {
       <SetupShell
         eyebrow="MAKE IT YOURS"
         step={1}
+        totalSteps={1}
         subtitle="Loading your saved details."
         title="Tell us about you">
         <View style={styles.hydrating}>
@@ -113,10 +109,6 @@ export default function ProfileSetupScreen() {
     <SetupShell
       eyebrow="MAKE IT YOURS"
       onBack={() => {
-        if (isReviewingFromPin) {
-          replaceFlowRoute('/(setup)/pin', '/pin');
-          return;
-        }
         setLoading(true);
         void signOut()
           .then(() => replaceFlowRoute('/welcome', '/welcome'))
@@ -126,12 +118,9 @@ export default function ProfileSetupScreen() {
           });
       }}
       step={1}
-      subtitle={
-        isReviewingFromPin
-          ? 'Confirm your saved details or make any changes before creating your PIN.'
-          : 'These details help us personalise your experience. You can update them later.'
-      }
-      title={isReviewingFromPin ? 'Review your details' : 'Tell us about you'}>
+      totalSteps={1}
+      subtitle="These details help us personalise your experience. You can update them later."
+      title="Tell us about you">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
       <View style={[styles.avatar, { backgroundColor: theme.colors.brandMist }]}>
         <Text accessible={false} style={styles.avatarEmoji}>
@@ -143,29 +132,16 @@ export default function ProfileSetupScreen() {
       </View>
       <TextField
         autoCapitalize="words"
-        autoComplete="given-name"
-        error={errors.firstName}
+        autoComplete="name"
+        error={errors.fullName}
         icon="person-outline"
-        label="First name"
+        label="Full name"
         onChangeText={(value) => {
-          setFirstName(value);
-          setErrors((current) => ({ ...current, firstName: '' }));
+          setFullName(value);
+          setErrors((current) => ({ ...current, fullName: '' }));
         }}
-        placeholder="Your first name"
-        value={firstName}
-      />
-      <TextField
-        autoCapitalize="words"
-        autoComplete="family-name"
-        error={errors.lastName}
-        icon="person-outline"
-        label="Last name"
-        onChangeText={(value) => {
-          setLastName(value);
-          setErrors((current) => ({ ...current, lastName: '' }));
-        }}
-        placeholder="Your last name"
-        value={lastName}
+        placeholder="Your full name"
+        value={fullName}
       />
       <TextField
         autoCapitalize="words"

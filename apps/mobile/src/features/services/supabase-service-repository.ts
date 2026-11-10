@@ -110,7 +110,7 @@ async function normalizeActionError(error: unknown) {
   }
   return new ServiceApiError(
     'unavailable',
-    'This service is temporarily unavailable. Nothing was charged.',
+    'This request could not be confirmed. Check your activity before trying again.',
     { cause: error, retryable: true },
   );
 }

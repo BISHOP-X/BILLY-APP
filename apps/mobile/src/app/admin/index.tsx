@@ -36,6 +36,7 @@ import {
 import { invokeAction } from '@/features/services/supabase-service-repository';
 import { AdminNavigation } from '@/features/admin/navigation';
 import { AdminOverview } from '@/features/admin/overview';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 
 const sectionDetails: Record<AdminSection, string> = {
   overview: 'Your business, at a glance.',
@@ -227,6 +228,7 @@ export default function BillyAdmin() {
               </Text>
               <AdminText muted>{sectionDetails[section]}</AdminText>
             </View>
+            <AppearanceToggle />
             <AdminButton
               label="Refresh"
               secondary
@@ -476,8 +478,9 @@ function PricingCard({
   const [markup, setMarkup] = useState(inputTwoDecimals(p.markup_bps));
   const r = parseTwoDecimals(rate),
     m = parseTwoDecimals(markup);
-  const name =
-    p.service_key === 'social_boost' ? 'Social Boost' : 'US SMS numbers';
+  const name = ({social_boost: 'Social Boost', foreign_numbers: 'US SMS numbers',
+    reloadly_gift_cards: 'Gift cards', reloadly_topups: 'Airtime & data',
+    reloadly_electricity: 'Electricity'} as Record<string, string>)[p.service_key] ?? p.service_key;
   return (
     <Panel>
       <View style={styles.settingTitle}>

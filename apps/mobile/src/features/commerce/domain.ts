@@ -1,0 +1,60 @@
+export type CommerceKind = 'gift_cards' | 'airtime' | 'data' | 'electricity';
+export type CommerceProduct = {
+  kind: CommerceKind;
+  name: string;
+  countryCode: string;
+  countryName: string;
+  currency: string;
+  min: string;
+  max: string;
+  values: { value: string; label: string }[];
+  image: string | null;
+  instructions: string;
+  userIdRequired: boolean;
+  invoiceRequired: boolean;
+  emailRequired: boolean;
+  pinDelivery: boolean;
+  selectionToken: string;
+  regions: string[];
+  region?: string;
+  global: boolean;
+};
+export type CommerceCatalog = {
+  products: CommerceProduct[];
+  countries: { code: string; name: string }[];
+  page: number;
+  pages: number;
+  total: number;
+};
+export type CommerceQuote = {
+  quoteToken: string;
+  amountMinor: number;
+  feeMinor: number;
+  totalMinor: number;
+  title: string;
+  faceValue: string;
+  faceCurrency: string;
+  quantity: number;
+  delivery?: string;
+  expiresAt: string;
+};
+export type CommerceOrder = {
+  id: string;
+  transaction_id: string;
+  kind: CommerceKind;
+  title: string;
+  country_code: string;
+  face_value: string;
+  face_currency: string;
+  quantity: number;
+  amount_minor: number;
+  fee_minor: number;
+  status: 'pending' | 'succeeded' | 'failed';
+  status_message: string;
+  fulfilment_available: boolean;
+  created_at: string;
+};
+export type CommerceDelivery = {
+  codes: { number: string; pin: string; url: string; info: string }[];
+  instructions: string;
+};

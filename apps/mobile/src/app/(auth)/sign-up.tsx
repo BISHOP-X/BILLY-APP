@@ -1,4 +1,3 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -17,6 +16,7 @@ import {
 } from '@/features/auth/form-utils';
 import { useAuth } from '@/features/auth/auth-provider';
 import { SocialAuthButtons } from '@/features/auth/social-auth-buttons';
+import { splitFullName, validateFullName } from '@/features/auth/full-name';
 import { replaceFlowRoute } from '@/features/auth/setup-navigation';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { spacing, typography } from '@/theme/tokens';
@@ -24,12 +24,10 @@ import { spacing, typography } from '@/theme/tokens';
 export default function SignUpScreen() {
   const theme = useBillyTheme();
   const { signUp } = useAuth();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
   const [legalNotice, setLegalNotice] = useState('');
@@ -54,12 +52,10 @@ export default function SignUpScreen() {
 
   async function submit() {
     const nextErrors: Record<string, string> = {};
-    if (!firstName.trim()) nextErrors.firstName = 'Enter your first name.';
-    if (!lastName.trim()) nextErrors.lastName = 'Enter your last name.';
+    nextErrors.fullName = validateFullName(fullName);
     nextErrors.email = validateEmail(email);
     nextErrors.password = validatePassword(password);
     if (password !== confirmPassword) nextErrors.confirmPassword = 'Passwords do not match.';
-    if (!acceptedTerms) nextErrors.terms = 'Accept the terms to create your account.';
     if (!legalConfig.isApproved && !__DEV__) {
       nextErrors.terms =
         'Account creation is unavailable until Billy publishes approved legal documents.';
@@ -76,8 +72,9 @@ export default function SignUpScreen() {
       const result = await signUp({
         email: normalizeEmail(email),
         password,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        firstName: splitFullName(fullName).firstName,
+        lastName: splitFullName(fullName).lastName,
+        displayName: splitFullName(fullName).fullName,
         privacyVersion: legalConfig.privacyVersion,
         termsVersion: legalConfig.termsVersion,
       });
@@ -128,32 +125,17 @@ export default function SignUpScreen() {
       <TextField
         appearance="auth"
         autoCapitalize="words"
-        autoComplete="given-name"
-        error={errors.firstName}
+        autoComplete="name"
+        error={errors.fullName}
         icon="person-outline"
-        label="First name"
+        label="Full name"
         onChangeText={(value) => {
-          setFirstName(value);
-          setErrors((current) => ({ ...current, firstName: '' }));
+          setFullName(value);
+          setErrors((current) => ({ ...current, fullName: '' }));
         }}
-        placeholder="Your first name"
-        testID="sign-up-first-name"
-        value={firstName}
-      />
-      <TextField
-        appearance="auth"
-        autoCapitalize="words"
-        autoComplete="family-name"
-        error={errors.lastName}
-        icon="person-outline"
-        label="Last name"
-        onChangeText={(value) => {
-          setLastName(value);
-          setErrors((current) => ({ ...current, lastName: '' }));
-        }}
-        placeholder="Your last name"
-        testID="sign-up-last-name"
-        value={lastName}
+        placeholder="Your full name"
+        testID="sign-up-full-name"
+        value={fullName}
       />
       <TextField
         appearance="auth"
@@ -206,29 +188,17 @@ export default function SignUpScreen() {
         value={confirmPassword}
       />
 
-      <Pressable
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: acceptedTerms }}
-        onPress={() => {
-          setAcceptedTerms((value) => !value);
-          setErrors((current) => ({ ...current, terms: '' }));
-        }}
-        style={styles.termsRow}
-        testID="sign-up-terms">
-        <View
-          style={[
-            styles.checkbox,
-            {
-              backgroundColor: acceptedTerms ? theme.colors.brand : 'transparent',
-              borderColor: errors.terms ? theme.colors.danger : theme.colors.border,
-            },
-          ]}>
-          {acceptedTerms ? <Ionicons color={theme.colors.onBrand} name="checkmark" size={16} /> : null}
-        </View>
-        <Text style={[styles.terms, { color: theme.colors.textMuted }]}>
-          I agree to the Billy legal documents listed below.
-        </Text>
-      </Pressable>
+      <AppButton
+        disabled={!legalConfig.isApproved && !__DEV__}
+        icon="sparkles"
+        label="Create account"
+        loading={loading}
+        onPress={submit}
+        testID="sign-up-submit"
+      />
+      <Text style={[styles.terms, { color: theme.colors.textMuted }]}>
+        By creating an account, you agree to our Terms and acknowledge our Privacy Policy.
+      </Text>
       <View style={styles.legalLinks}>
         <Pressable
           accessibilityRole="link"
@@ -252,14 +222,6 @@ export default function SignUpScreen() {
         <Text style={[styles.termsError, { color: theme.colors.danger }]}>{errors.terms}</Text>
       ) : null}
 
-      <AppButton
-        disabled={!legalConfig.isApproved && !__DEV__}
-        icon="sparkles"
-        label="Create account"
-        loading={loading}
-        onPress={submit}
-        testID="sign-up-submit"
-      />
     </AuthShell>
   );
 }
@@ -296,10 +258,10 @@ const styles = StyleSheet.create({
   },
   terms: {
     color: '#5F6D64',
-    flex: 1,
     fontFamily: typography.family,
     fontSize: 13,
     lineHeight: 20,
+    textAlign: 'center',
   },
   termsError: {
     fontFamily: typography.family,
@@ -311,7 +273,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     marginTop: -spacing.sm,
-    paddingLeft: 35,
+    justifyContent: 'center',
   },
   legalLink: {
     color: '#146237',

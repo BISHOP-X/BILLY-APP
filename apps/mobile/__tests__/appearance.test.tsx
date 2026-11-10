@@ -45,10 +45,10 @@ test('saved appearance restores and selecting another theme updates screens and 
 
 test('auth card heading and inputs follow the same appearance', async () => {
   await render(<AppearanceProvider><AuthShell title="Welcome back" subtitle="Sign in securely"><TextField appearance="auth" label="Password" /></AuthShell></AppearanceProvider>);
-  await fireEvent.press(screen.getByLabelText('Dark appearance'));
+  await fireEvent.press(screen.getByRole('switch', { name: 'Dark mode' }));
   expect(screen.getByText('Welcome back')).toHaveStyle({ color: darkTheme.colors.text });
   expect(screen.getByText('Password')).toHaveStyle({ color: darkTheme.colors.text });
-  await fireEvent.press(screen.getByLabelText('Light appearance'));
+  await fireEvent.press(screen.getByRole('switch', { name: 'Dark mode' }));
   expect(screen.getByText('Welcome back')).toHaveStyle({ color: lightTheme.colors.text });
 });
 

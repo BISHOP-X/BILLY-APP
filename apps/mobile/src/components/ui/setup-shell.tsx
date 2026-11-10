@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FadeSlide } from '@/components/ui/motion';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 import { radii, spacing, typography } from '@/theme/tokens';
 
 type SetupShellProps = PropsWithChildren<{
@@ -62,6 +63,7 @@ export function SetupShell({
             <Text style={[styles.stepLabel, { color: theme.colors.textMuted }]}>
               Step {step} of {totalSteps}
             </Text>
+            <AppearanceToggle />
           </View>
 
           <View style={styles.progressTrack}>

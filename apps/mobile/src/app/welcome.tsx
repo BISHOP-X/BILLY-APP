@@ -14,7 +14,7 @@ import {
 } from '@/features/onboarding/onboarding-storage';
 import { radii, spacing, typography } from '@/theme/tokens';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { AppearancePicker } from '@/theme/appearance-picker';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 
 export default function WelcomeScreen() {
   const theme = useBillyTheme();
@@ -35,6 +35,7 @@ export default function WelcomeScreen() {
       style={styles.screen}>
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.safeArea}>
+        <View style={{ alignSelf: 'flex-end' }}><AppearanceToggle /></View>
         <View pointerEvents="none" style={styles.decoration}>
           <View style={[styles.orbit, styles.orbitLarge]} />
           <View style={[styles.orbit, styles.orbitSmall]} />
@@ -69,7 +70,6 @@ export default function WelcomeScreen() {
             <Ionicons color={theme.colors.textMuted} name="shield-checkmark" size={15} />
             <Text style={[styles.securityText, { color: theme.colors.textMuted }]}>Secure access. Clear control.</Text>
           </View>
-          <AppearancePicker />
         </FadeSlide>
       </SafeAreaView>
     </LinearGradient>

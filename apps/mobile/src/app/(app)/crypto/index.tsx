@@ -606,6 +606,9 @@ export default function CryptoScreen() {
                 <QuoteRow label="Destination" value={address} />
               ) : null}
               {operation === 'send' ? (
+                <AppButton variant="ghost" label="Need a PIN? Set one up" onPress={() => router.push('/(app)/security/transaction-pin')} />
+              ) : null}
+              {operation === 'send' ? (
                 <TextField
                 inputMode="numeric"
                 label="Transaction PIN"

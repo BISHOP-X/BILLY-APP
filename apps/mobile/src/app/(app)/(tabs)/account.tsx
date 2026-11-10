@@ -86,7 +86,7 @@ export default function AccountScreen() {
       refreshing={dashboard.isRefetching}
       testID="account-screen">
       <DemoDataBanner />
-      <SectionHeader title="Account" />
+      <SectionHeader title="Account" appearance />
 
       <View
         style={[

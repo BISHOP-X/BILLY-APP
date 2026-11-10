@@ -17,7 +17,7 @@ import { FadeSlide } from '@/components/ui/motion';
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
-import { AppearancePicker } from '@/theme/appearance-picker';
+import { AppearanceToggle } from '@/theme/appearance-toggle';
 
 type AuthShellProps = PropsWithChildren<{
   title: string;
@@ -75,10 +75,7 @@ export function AuthShell({
             <View pointerEvents="none" style={styles.centerLogo}>
               <BillyLogo size={86} tintColor={theme.colors.text} variant="wordmark" />
             </View>
-            <View style={[styles.securePill, { backgroundColor: theme.colors.brandMist, borderColor: theme.colors.border }]}>
-              <Ionicons color={theme.colors.brand} name="shield-checkmark" size={14} />
-              <Text style={[styles.secureText, { color: theme.colors.brand }]}>Secure</Text>
-            </View>
+            <AppearanceToggle />
           </View>
 
           <FadeSlide>
@@ -113,7 +110,6 @@ export function AuthShell({
               {footer}
             </FadeSlide>
           ) : null}
-          <View style={{ marginTop: spacing.xl, width: '100%' }}><AppearancePicker /></View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
