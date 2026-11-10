@@ -42,8 +42,10 @@ The existing minute-by-minute provider worker reconciles pending orders and retr
 - Gift-card USD and foreign-currency cost checks, electricity detail lookup and regional plan detail checks passed.
 - Fourteen provider/controller tests cover exact money, pagination, regional plans, matched evidence, late-response lookup, refusal classification, preserved code digits and no automatic paid-request retries.
 - Database assertions run in one rollback-only transaction: optional onboarding PIN, exact reserve/capture/refund, duplicate quote/key protection, non-owner rejection, RLS/grants, later PIN creation without onboarding regression, Admin pricing edits and non-admin rejection.
-- Customer journey tests use synthetic responses: browse → value → explicit NGN review → payment → delivery, no PIN prompt, and same-key retry after lost response.
-- All 170 Edge Function tests passed. App typecheck, lint and web export passed. The app suite includes the existing financial/provider/security regressions.
+- Customer journey tests use synthetic responses: browse → value → explicit NGN review → payment → delivery, no PIN prompt, same-key retry after lost response, and value controls locked while the exact quote is prepared.
+- All 170 Edge Function tests and 177 app tests passed. App typecheck, lint and web export passed. iOS and Android JavaScript/Hermes exports passed; these are build checks, not hands-on real-device certification.
+- Authenticated production browser checks passed for gift-card catalogue/detail/NGN quote (Amazon US USD 5 → NGN 7,140.70), worldwide data catalogue, Delhi-specific Airtel bundles and all 24 electricity listings. Signup was visually checked in light and dark mode without creating an account. The new commerce order count remained zero after these checks.
+- The production Admin pricing page displays all three new editable settings at NGN 1,400/USD and 1% markup. Existing numbers and boosting remain at their prior 0% markup. No pricing changes were submitted during browser verification.
 - No live purchase, wallet debit, airtime delivery, gift-code issuance or electricity payment was performed. Provider-paid fulfilment still needs an owner-approved small-value live test.
 
 Applied migrations: `20261110181918`, `20261110182211`, `20261110185736`. Deployed functions: service-api v35 and provider-reconcile v19, both with JWT verification retained. Service flags are open to all signed-in users, not tester-only.

@@ -37,6 +37,10 @@ export default function HomeScreen() {
       router.push('/(app)/bills');
       return;
     }
+    if (service.key === 'gift_cards' && service.canTransact) {
+      router.push('/(app)/gift-cards');
+      return;
+    }
     if (service.key === 'social_boost' && service.canTransact) {
       router.push('/(app)/social-boost');
       return;

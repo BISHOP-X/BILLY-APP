@@ -167,7 +167,7 @@ export default function ServiceDetailScreen() {
         />
         <Expectation
           icon="lock-closed-outline"
-          text="Confirm with your PIN."
+          text="Confirm your payment."
         />
         <Expectation
           icon="receipt-outline"

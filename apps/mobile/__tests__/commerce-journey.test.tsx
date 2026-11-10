@@ -138,3 +138,23 @@ test('lost response retries with the same operation key and never creates a new 
     .toHaveLength(1);
   await act(() => client.clear());
 });
+
+test('locks the selected value while its exact price is being prepared', async () => {
+  const implementation = jest.mocked(invokeAction).getMockImplementation()!;
+  let resolveQuote!: (value: typeof quote) => void;
+  const pendingQuote = new Promise<typeof quote>((resolve) => { resolveQuote = resolve; });
+  jest.mocked(invokeAction).mockImplementation(async (action, input) =>
+    action === 'commerce.quote' ? pendingQuote : implementation(action, input)
+  );
+  const client = await mount();
+  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
+  const choices = screen.getAllByRole('radio');
+  choices.forEach((choice) => expect(choice).toBeDisabled());
+  await fireEvent.press(choices[1]);
+  expect(invokeAction).toHaveBeenCalledWith('commerce.quote', expect.objectContaining({ value: '5' }));
+  await act(() => resolveQuote(quote));
+  expect(await screen.findByRole('button', { name: 'Pay ₦7,070.00' })).toBeTruthy();
+  expect(screen.getByText('Value: USD 5')).toBeTruthy();
+  expect(purchases).toBe(0);
+  await act(() => client.clear());
+});

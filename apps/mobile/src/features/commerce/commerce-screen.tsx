@@ -345,7 +345,8 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                       <Pressable
                         key={v.value}
                         accessibilityRole='radio'
-                        accessibilityState={{ checked: value === v.value }}
+                        accessibilityState={{ checked: value === v.value, disabled: busy }}
+                        disabled={busy}
                         onPress={() => setValue(v.value)}
                         style={[
                           styles.choice,
@@ -365,6 +366,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                 : (
                   <TextField
                     label={`Amount (${product.currency})`}
+                    disabled={busy}
                     keyboardType='decimal-pad'
                     value={value}
                     onChangeText={setValue}
@@ -385,6 +387,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                       ? 'Recipient email'
                       : 'Phone number with country code'}
                     value={recipient}
+                    disabled={busy}
                     onChangeText={setRecipient}
                     autoCapitalize='none'
                     keyboardType={product.emailRequired
@@ -401,7 +404,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                 )
                 : null}
               {product.invoiceRequired
-                ? <TextField label='Invoice number' value={invoice} onChangeText={setInvoice} />
+                ? <TextField label='Invoice number' value={invoice} disabled={busy} onChangeText={setInvoice} />
                 : null}
               {kind === 'electricity'
                 ? (
