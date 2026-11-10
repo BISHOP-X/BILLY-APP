@@ -59,8 +59,10 @@ const order = {
   created_at: '2026-11-10',
 };
 let purchases = 0;
+const onStepChange = jest.fn();
 beforeEach(() => {
   purchases = 0;
+  onStepChange.mockClear();
   jest.mocked(invokeAction).mockImplementation(async (action) => {
     if (action === 'commerce.catalog') {
       return {
@@ -94,7 +96,7 @@ async function mount() {
   await render(
     <QueryClientProvider client={client}>
       <SafeAreaInsetsContext.Provider value={{ top: 0, left: 0, right: 0, bottom: 34 }}>
-        <CommerceJourney kind='gift_cards' />
+        <CommerceJourney kind='gift_cards' onStepChange={onStepChange} />
       </SafeAreaInsetsContext.Provider>
     </QueryClientProvider>,
   );
@@ -106,6 +108,7 @@ async function mount() {
 }
 test('gift purchase requires exact price confirmation, no PIN, then owner delivery', async () => {
   const client = await mount();
+  expect(onStepChange).toHaveBeenCalledTimes(1);
   expect(purchases).toBe(0);
   expect(screen.queryByLabelText('Transaction PIN')).toBeNull();
   await fireEvent.press(screen.getByRole('button', { name: 'USD 5, ₦7,070.00' }));
@@ -114,6 +117,7 @@ test('gift purchase requires exact price confirmation, no PIN, then owner delive
   await fireEvent.press(pay);
   expect(await screen.findByText('All done')).toBeTruthy();
   expect(purchases).toBe(1);
+  expect(onStepChange).toHaveBeenCalledTimes(2);
   expect(invokeAction).toHaveBeenCalledWith('commerce.purchase', {
     quoteToken: 'quote',
     idempotencyKey: 'commerce-synthetic-operation',

@@ -1,4 +1,4 @@
-import { type PropsWithChildren, type ReactNode, useRef, useState } from 'react';
+import { type PropsWithChildren, type ReactNode, type Ref, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   type GestureResponderEvent,
@@ -27,6 +27,7 @@ type AppScreenProps = PropsWithChildren<{
   onRefresh?: () => void;
   refreshing?: boolean;
   scroll?: boolean;
+  scrollRef?: Ref<ScrollView>;
   testID?: string;
 }>;
 
@@ -38,6 +39,7 @@ export function AppScreen({
   onRefresh,
   refreshing = false,
   scroll = true,
+  scrollRef,
   testID,
 }: AppScreenProps) {
   const theme = useBillyTheme();
@@ -100,6 +102,7 @@ export function AppScreen({
       style={[styles.safeArea, { backgroundColor: theme.colors.canvas }]}
       testID={testID}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.scrollContent,
           contentFrame,

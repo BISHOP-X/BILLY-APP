@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AppState,
   Linking,
@@ -44,8 +44,12 @@ const titles: Record<CommerceKind, string> = {
 };
 export function CommerceScreen({ kind }: { kind: CommerceKind }) {
   const theme = useBillyTheme();
+  const scrollRef = useRef<ScrollView>(null);
+  const showStepFromTop = useCallback(() => {
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+  }, []);
   return (
-    <AppScreen bottomSafe contentStyle={styles.content} testID={`commerce-${kind}`}>
+    <AppScreen bottomSafe contentStyle={styles.content} scrollRef={scrollRef} testID={`commerce-${kind}`}>
       <ScreenHeader
         title={titles[kind]}
         subtitle={kind === 'gift_cards'
@@ -64,12 +68,12 @@ export function CommerceScreen({ kind }: { kind: CommerceKind }) {
           Choose a country and service. You’ll see the full naira price before you pay.
         </Text>
       </View> : null}
-      <CommerceJourney kind={kind} />
+      <CommerceJourney kind={kind} onStepChange={showStepFromTop} />
     </AppScreen>
   );
 }
 
-export function CommerceJourney({ kind }: { kind: CommerceKind }) {
+export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; onStepChange?: () => void }) {
   const theme = useBillyTheme();
   const { user } = useAuth();
   const cache = useQueryClient();
@@ -284,6 +288,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
   if (product && kind === 'gift_cards') {
     return <GiftCardCheckout key={product.selectionToken} product={product} onBack={reset} onPurchased={(next) => {
       setOrder(next);
+      onStepChange?.();
       void cache.invalidateQueries({ queryKey: ['commerce', user?.id, kind, 'orders'] });
       void cache.invalidateQueries({ queryKey: ['main'] });
     }} />;
@@ -334,6 +339,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                                 region,
                               });
                               setProduct(next);
+                              onStepChange?.();
                               setValue('');
                             })}
                         />
@@ -544,6 +550,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                 selectionToken: p.selectionToken,
               });
               setProduct(full);
+              onStepChange?.();
               setValue(full.values[0]?.value || '');
               setRecipient('');
               setInvoice('');
