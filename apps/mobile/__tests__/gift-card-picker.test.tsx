@@ -146,17 +146,19 @@ test('custom amounts fetch a naira price before Continue becomes available', asy
   });
   await act(() => client.clear());
 });
-test('country flags use bundled artwork including NG, US, and GB', async () => {
+test('country flags use bundled artwork including NG, US, GB and legacy AN', async () => {
   expect(Object.keys(countryFlagAssets).length).toBeGreaterThan(240);
   await render(
     <>
       <CountryFlag code='ng' name='Nigeria' />
       <CountryFlag code='US' name='United States' />
       <CountryFlag code='GB' name='United Kingdom' />
+      <CountryFlag code='AN' name='Netherlands Antilles' />
       <CountryFlag code='' />
     </>,
   );
   expect(screen.getByLabelText('Nigeria flag')).toBeTruthy();
   expect(screen.getByLabelText('United States flag')).toBeTruthy();
   expect(screen.getByLabelText('United Kingdom flag')).toBeTruthy();
+  expect(screen.getByLabelText('Netherlands Antilles flag')).toBeTruthy();
 });

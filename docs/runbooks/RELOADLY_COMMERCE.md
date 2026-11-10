@@ -58,9 +58,11 @@ The value screen shows six denominations per page with immediate local search. E
 
 `commerce.product` returns `valuePrices` calculated from the provider denomination map/FX, fees, discounts and the saved Admin rate/markup. `commerce.price` is an authenticated, owner-bound read-only preview for custom amounts. Neither route reserves funds or places orders. Final checkout still revalidates the product and Admin pricing. Lost purchase responses retain their original quote/idempotency key; a refreshed expired quote requires a fresh Pay confirmation.
 
-All active country selectors (gift cards, airtime, data and electricity), the selected-country label and the account country field use the shared `CountryFlag` component. The 252 two-letter-code PNGs are bundled locally so they do not depend on emoji support or an external flag request at render time. Artwork source: [Flagcdn / Flagpedia](https://flagcdn.com/), based on Wikimedia Commons. `scripts/sync-country-flags.mjs` refreshes the assets and generated static registry. Global/All countries uses a globe instead of an arbitrary flag.
+All active country selectors (gift cards, airtime, data and electricity), the selected-country label and the account country field use the shared `CountryFlag` component. The 253 two-letter-code PNGs are bundled locally so they do not depend on emoji support or an external flag request at render time. Artwork source: [Flagcdn / Flagpedia](https://flagcdn.com/), based on Wikimedia Commons, plus the public-domain [Netherlands Antilles historical flag](https://commons.wikimedia.org/wiki/File:Flag_of_the_Netherlands_Antilles_(1986%E2%80%932010).svg) because the provider still returns AN. All 158 country codes in the live catalogue were checked against these assets. `scripts/sync-country-flags.mjs` refreshes the assets and generated static registry. Global/All countries uses a globe instead of an arbitrary flag.
 
 Verification: 182 app tests and 173 Edge Function tests passed, including a 35-denomination picker, instant search/pagination, full NGN fee/discount/markup calculations, foreign face-value conversion, read-only custom pricing, insufficient balance, required player IDs and retry safety. No live purchases are authorized for this verification pass.
+
+Web, iOS and Android JavaScript/Hermes exports passed (not a substitute for real-device QA). Pricing additions deployed as service-api v36 with JWT verification retained. No schema or settlement changes were needed.
 
 ## Recovery and retained providers
 

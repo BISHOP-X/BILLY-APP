@@ -7,6 +7,7 @@ export const countryFlagAssets: Record<string, number> = {
   AI: require('../../../assets/country-flags/ai.png'),
   AL: require('../../../assets/country-flags/al.png'),
   AM: require('../../../assets/country-flags/am.png'),
+  AN: require('../../../assets/country-flags/an.png'),
   AO: require('../../../assets/country-flags/ao.png'),
   AQ: require('../../../assets/country-flags/aq.png'),
   AR: require('../../../assets/country-flags/ar.png'),

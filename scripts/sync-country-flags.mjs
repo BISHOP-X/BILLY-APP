@@ -8,9 +8,15 @@ await mkdir(directory, { recursive: true });
 const response = await fetch('https://flagcdn.com/en/codes.json');
 if (!response.ok) throw new Error(`Flag index: ${response.status}`);
 const codes = Object.keys(await response.json()).filter((code) => /^[a-z]{2}$/.test(code)).sort();
+// The live provider still uses AN. Preserve its actual historical flag, not the Netherlands flag.
+const legacyFlags = {
+  an: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Flag_of_the_Netherlands_Antilles_%281986%E2%80%932010%29.svg/330px-Flag_of_the_Netherlands_Antilles_%281986%E2%80%932010%29.svg.png',
+};
+codes.push(...Object.keys(legacyFlags).filter((code) => !codes.includes(code)));
+codes.sort();
 for (let offset = 0; offset < codes.length; offset += 8) {
   await Promise.all(codes.slice(offset, offset + 8).map(async (code) => {
-    const image = await fetch(`https://flagcdn.com/w80/${code}.png`);
+    const image = await fetch(legacyFlags[code] ?? `https://flagcdn.com/w80/${code}.png`);
     if (!image.ok) throw new Error(`Flag ${code}: ${image.status}`);
     const bytes = Buffer.from(await image.arrayBuffer());
     if (bytes.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') throw new Error('Invalid PNG');
