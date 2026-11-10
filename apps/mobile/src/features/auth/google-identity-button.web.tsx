@@ -59,16 +59,16 @@ export function GoogleIdentityButton({
 
   if (!googleClientId) {
     return (
-      <View accessibilityRole="alert" style={styles.unavailable}>
-        <Text style={styles.unavailableText}>Google sign-in is temporarily unavailable.</Text>
+      <View accessibilityRole="alert" style={[styles.unavailable, { backgroundColor: theme.colors.surfaceMuted, borderColor: theme.colors.border }]}>
+        <Text style={[styles.unavailableText, { color: theme.colors.textMuted }]}>Google sign-in is temporarily unavailable.</Text>
       </View>
     );
   }
 
   if (!noncePair) {
     return (
-      <View accessibilityLabel="Preparing Google sign-in" style={styles.loadingButton}>
-        <ActivityIndicator color="#146237" />
+      <View accessibilityLabel="Preparing Google sign-in" style={[styles.loadingButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <ActivityIndicator color={theme.colors.brand} />
       </View>
     );
   }
@@ -86,7 +86,9 @@ export function GoogleIdentityButton({
     <GoogleOAuthProvider clientId={googleClientId}>
       <View style={[styles.googleContainer, disabled || loading ? styles.disabled : null]}>
         <GoogleLogin
-          containerProps={{ style: styles.googleHost }}
+          // Google's embedded document uses a light UA color scheme even for
+          // filled_black. Match its host scheme so the iframe stays transparent.
+          containerProps={{ style: { ...styles.googleHost, colorScheme: 'light' } }}
           logo_alignment="left"
           nonce={noncePair.hashed}
           onError={() =>
@@ -104,8 +106,8 @@ export function GoogleIdentityButton({
           <View
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
-            style={styles.overlay}>
-            {loading ? <ActivityIndicator color="#146237" /> : null}
+            style={[styles.overlay, { backgroundColor: `${theme.colors.surface}E0` }]}>
+            {loading ? <ActivityIndicator color={theme.colors.brand} /> : null}
           </View>
         ) : null}
       </View>

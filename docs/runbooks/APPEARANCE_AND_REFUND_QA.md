@@ -17,6 +17,7 @@
 - Local browser inspection: sign-in in both modes; light preference after reload; account appearance selection; dashboard in both modes at 390 × 844; services at 320 × 568.
 - Local demo screenshots are in `output/appearance-qa/`. Their balances and account names are synthetic; they are not live account evidence.
 - The local Google button reports that the QA origin is not authorized. No OAuth client/origin changes were made and no Google login was performed during this appearance pass.
+- Production commit `f6b68de` reached READY and was assigned to `app.billyapp.org`. Public sign-in returned HTTP 200, both selections persisted after reload, and the live check recorded no new client errors. The subsequent visual pass identified an embedded Google button color-scheme mismatch; the host now uses a light UA scheme while Google's supported `filled_black`/`outline` button theme follows Billy. Loading/error surfaces follow Billy as well. No iframe content or login protocol was modified.
 - Physical Android/iOS builds, OS splash and device biometric dialogs were not exercised in this environment. Native splash config requires a fresh native build.
 
 ## Provider boundaries
