@@ -92,21 +92,21 @@ export default function UnlockScreen() {
 
   if (authStatus === 'loading' || lockStatus === 'loading') {
     return (
-      <View style={[styles.loading, { backgroundColor: theme.colors.brandDeep }]}>
-        <BillyLogo size={90} />
-        <ActivityIndicator color={theme.colors.white} />
-        <Text style={styles.loadingText}>Securing Billy…</Text>
+      <View style={[styles.loading, { backgroundColor: theme.colors.canvas }]}>
+        <BillyLogo size={90} tintColor={theme.colors.text} />
+        <ActivityIndicator color={theme.colors.brand} />
+        <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Securing Billy…</Text>
       </View>
     );
   }
 
   return (
     <LinearGradient
-      colors={[theme.colors.brandDeep, '#0E6A3A', '#0A3C24']}
+      colors={[theme.colors.canvas, theme.colors.surface, theme.colors.brandMist]}
       end={{ x: 0.9, y: 1 }}
       start={{ x: 0.05, y: 0 }}
       style={styles.screen}>
-      <StatusBar style="light" />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <ScrollView
         contentContainerStyle={[
           styles.scrollContent,
@@ -117,21 +117,21 @@ export default function UnlockScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
       <FadeSlide style={[styles.content, compact && styles.contentCompact]}>
-        <BillyLogo size={compact ? 72 : 94} />
+        <BillyLogo size={compact ? 72 : 94} tintColor={theme.colors.text} />
         <View style={styles.hero}>
-          <View style={[styles.outerHalo, compact && styles.outerHaloCompact]}>
-            <View style={[styles.innerHalo, compact && styles.innerHaloCompact]}>
+          <View style={[styles.outerHalo, compact && styles.outerHaloCompact, { backgroundColor: theme.colors.brandMist }]}>
+            <View style={[styles.innerHalo, compact && styles.innerHaloCompact, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <Ionicons
-                color={theme.colors.white}
+                color={theme.colors.brand}
                 name={Platform.OS === 'ios' ? 'scan-outline' : 'finger-print'}
                 size={compact ? 44 : 58}
               />
             </View>
           </View>
-          <Text style={[styles.title, compact && styles.titleCompact]}>
+          <Text style={[styles.title, compact && styles.titleCompact, { color: theme.colors.text }]}>
             Welcome back
           </Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
             Confirm it is you with your biometric or device passcode.
           </Text>
         </View>
@@ -146,7 +146,7 @@ export default function UnlockScreen() {
             label="Unlock Billy"
             loading={busy}
             onPress={() => void requestUnlock()}
-            variant="light"
+            variant="primary"
           />
           {initializationError ? (
             <AppButton
@@ -174,7 +174,7 @@ export default function UnlockScreen() {
             variant="secondary"
           />
         </View>
-        <Text style={styles.privacy}>
+        <Text style={[styles.privacy, { color: theme.colors.textMuted }]}>
           Billy never receives or stores your fingerprint or face data.
         </Text>
       </FadeSlide>

@@ -79,7 +79,7 @@ export default function LegalConsentScreen() {
       title="Your agreement">
       {feedback ? <FeedbackBanner message={feedback} tone="error" /> : null}
 
-      <View style={[styles.documentCard, { borderColor: '#C9D4CD' }]}>
+      <View style={[styles.documentCard, { borderColor: theme.colors.border }]}>
         <DocumentLink
           label="Terms of service"
           onPress={() => void WebBrowser.openBrowserAsync(legalConfig.termsUrl)}
@@ -108,9 +108,9 @@ export default function LegalConsentScreen() {
               borderColor: accepted ? theme.colors.brand : theme.colors.border,
             },
           ]}>
-          {accepted ? <Ionicons color="#FFFFFF" name="checkmark" size={17} /> : null}
+          {accepted ? <Ionicons color={theme.colors.onBrand} name="checkmark" size={17} /> : null}
         </View>
-        <Text style={[styles.acceptanceText, { color: '#18211B' }]}>
+        <Text style={[styles.acceptanceText, { color: theme.colors.text }]}>
           I have read and agree to Billy&apos;s Terms of Service and Privacy Policy.
         </Text>
       </Pressable>
@@ -138,14 +138,14 @@ function DocumentLink({
   const theme = useBillyTheme();
   return (
     <Pressable accessibilityRole="link" onPress={onPress} style={styles.documentRow}>
-      <View style={[styles.documentIcon, { backgroundColor: '#E1F3E8' }]}>
+      <View style={[styles.documentIcon, { backgroundColor: theme.colors.brandMist }]}>
         <Ionicons color={theme.colors.brand} name="document-text-outline" size={19} />
       </View>
       <View style={styles.documentCopy}>
-        <Text style={[styles.documentLabel, { color: '#18211B' }]}>{label}</Text>
-        <Text style={[styles.documentVersion, { color: '#66736B' }]}>Version {version}</Text>
+        <Text style={[styles.documentLabel, { color: theme.colors.text }]}>{label}</Text>
+        <Text style={[styles.documentVersion, { color: theme.colors.textMuted }]}>Version {version}</Text>
       </View>
-      <Ionicons color="#728078" name="open-outline" size={18} />
+      <Ionicons color={theme.colors.textMuted} name="open-outline" size={18} />
     </Pressable>
   );
 }

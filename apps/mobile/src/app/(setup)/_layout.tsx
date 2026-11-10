@@ -1,3 +1,4 @@
+import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { Redirect, Stack, usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
@@ -25,6 +26,7 @@ type ProfileState =
     };
 
 export default function SetupLayout() {
+  const theme = useBillyTheme();
   const pathname = usePathname();
   const activePathname = resolveSetupPathname(
     pathname,
@@ -160,7 +162,7 @@ export default function SetupLayout() {
     <Stack
       screenOptions={{
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: '#07160D' },
+        contentStyle: { backgroundColor: theme.colors.canvas },
         gestureEnabled: false,
         headerShown: false,
       }}

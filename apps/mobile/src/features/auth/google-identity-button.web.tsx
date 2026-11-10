@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import { typography } from '@/theme/tokens';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
 
 import type { GoogleIdentityButtonProps } from './google-identity-button.types';
 
@@ -33,6 +34,7 @@ export function GoogleIdentityButton({
   onConfigurationError,
   onIdToken,
 }: GoogleIdentityButtonProps) {
+  const theme = useBillyTheme();
   const { width: viewportWidth } = useWindowDimensions();
   const [noncePair, setNoncePair] = useState<NoncePair | null>(null);
   const buttonWidth = Math.min(320, Math.max(220, viewportWidth - 112));
@@ -94,7 +96,7 @@ export function GoogleIdentityButton({
           shape="pill"
           size="large"
           text={intent === 'sign-up' ? 'signup_with' : 'signin_with'}
-          theme="outline"
+          theme={theme.dark ? 'filled_black' : 'outline'}
           type="standard"
           width={buttonWidth}
         />

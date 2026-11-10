@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BillyLogo } from '@/components/ui/billy-logo';
-import { AdminButton, adminColors as c } from './components';
+import { AdminButton, useAdminColors, type AdminPalette } from './components';
 import { adminSections, type AdminSection } from './domain';
 
 export const adminNavigationGroups: {
@@ -39,6 +39,8 @@ export function AdminNavigation({
   onUserSection,
   onSignOut,
 }: Props) {
+  const c = useAdminColors();
+  const s = createStyles(c);
   const [open, setOpen] = useState(false);
   const closeAnd = (action: () => void) => {
     setOpen(false);
@@ -47,7 +49,7 @@ export function AdminNavigation({
   const contents = (
     <>
       <View style={s.brand}>
-        <BillyLogo variant="wordmark" size={90} />
+        <BillyLogo tintColor={c.ink} variant="wordmark" size={90} />
         <Text style={s.adminLabel}>ADMIN</Text>
         {!wide ? (
           <Pressable
@@ -142,7 +144,7 @@ export function AdminNavigation({
         >
           <Ionicons name="menu-outline" size={24} color={c.ink} />
         </Pressable>
-        <BillyLogo variant="wordmark" size={76} />
+        <BillyLogo tintColor={c.ink} variant="wordmark" size={76} />
         <AdminButton label="User Section" secondary onPress={onUserSection} />
       </View>
       <Modal
@@ -167,7 +169,7 @@ export function AdminNavigation({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: AdminPalette) => StyleSheet.create({
   sidebar: {
     width: 252,
     backgroundColor: c.nav,

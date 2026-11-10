@@ -6,7 +6,7 @@ import {
   AdminText,
   Badge,
   Panel,
-  adminColors as c,
+  useAdminColors, type AdminPalette,
 } from './components';
 import {
   adminMoney,
@@ -37,6 +37,8 @@ export function AdminOverview({
   onNavigate,
   onRetryRecent,
 }: Props) {
+  const c = useAdminColors();
+  const s = createStyles(c);
   return (
     <>
       <View style={[s.summary, wide && s.horizontal]}>
@@ -240,6 +242,8 @@ function Metric({
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
 }) {
+  const c = useAdminColors();
+  const s = createStyles(c);
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={s.metric}>
       <Ionicons name={icon} color={c.green} size={20} />
@@ -249,7 +253,7 @@ function Metric({
   );
 }
 
-const s = StyleSheet.create({
+const createStyles = (c: AdminPalette) => StyleSheet.create({
   horizontal: { flexDirection: 'row' },
   summary: { gap: 16 },
   balanceCard: {
@@ -257,9 +261,9 @@ const s = StyleSheet.create({
     minWidth: 0,
     borderRadius: 22,
     padding: 24,
-    backgroundColor: '#193526',
+    backgroundColor: c.raised,
     borderWidth: 1,
-    borderColor: '#365540',
+    borderColor: c.line,
     gap: 24,
   },
   cardTop: {
@@ -269,13 +273,13 @@ const s = StyleSheet.create({
     gap: 12,
   },
   label: {
-    color: '#B9D8C4',
+    color: c.muted,
     fontSize: 10,
     letterSpacing: 1.8,
     fontWeight: '600',
   },
   balance: {
-    color: '#F3F9F3',
+    color: c.ink,
     fontSize: 40,
     fontWeight: '600',
     letterSpacing: -1.5,
@@ -287,7 +291,7 @@ const s = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
   },
-  reserved: { fontSize: 12, color: '#C1D5C6' },
+  reserved: { fontSize: 12, color: c.muted },
   smallMetrics: { flex: 1, flexDirection: 'row', gap: 16, minWidth: 0 },
   metric: {
     flex: 1,

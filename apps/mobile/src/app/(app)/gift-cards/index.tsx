@@ -187,14 +187,14 @@ function ModeButton({
         active && { backgroundColor: theme.colors.brand },
       ]}>
       <Ionicons
-        color={active ? '#FFFFFF' : theme.colors.brand}
+        color={active ? theme.colors.onBrand : theme.colors.brand}
         name={icon}
         size={18}
       />
       <Text
         style={[
           styles.modeText,
-          { color: active ? '#FFFFFF' : theme.colors.brand },
+          { color: active ? theme.colors.onBrand : theme.colors.brand },
         ]}>
         {label}
       </Text>

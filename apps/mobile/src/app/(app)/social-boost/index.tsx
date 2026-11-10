@@ -411,7 +411,7 @@ export default function SocialBoostScreen() {
           actionBusy={refresh.isPending || cancel.isPending || refill.isPending}
           onCancel={(order) => {
             notify(
-              'Request cancellation?',
+              'Cancel and request a refund?',
               'Cancellation depends on the order’s progress. Any confirmed refund goes to your wallet.',
               [
                 { style: 'cancel', text: 'Keep order' },
@@ -426,7 +426,7 @@ export default function SocialBoostScreen() {
                       ),
                     ),
                   style: 'destructive',
-                  text: 'Request cancellation',
+                  text: 'Cancel & request refund',
                 },
               ],
             );
@@ -787,7 +787,7 @@ function OrdersPanel({
                   danger
                   disabled={actionBusy}
                   icon="close-circle-outline"
-                  label="Cancel"
+                  label="Cancel & request refund"
                   onPress={() => onCancel(order)}
                 />
               ) : null}
@@ -841,7 +841,7 @@ function MiniAction({
   onPress: () => void;
 }) {
   const theme = useBillyTheme();
-  const color = danger ? theme.colors.danger : theme.colors.brand;
+  const color = danger ? (theme.dark ? '#DCC7FF' : '#6837A2') : theme.colors.brand;
   return (
     <ScalePressable
       accessibilityRole="button"

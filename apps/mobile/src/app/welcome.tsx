@@ -13,8 +13,11 @@ import {
   hasSeenOnboarding,
 } from '@/features/onboarding/onboarding-storage';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { AppearancePicker } from '@/theme/appearance-picker';
 
 export default function WelcomeScreen() {
+  const theme = useBillyTheme();
   const [loading, setLoading] = useState(false);
 
   async function createAccount() {
@@ -26,11 +29,11 @@ export default function WelcomeScreen() {
 
   return (
     <LinearGradient
-      colors={['#082F1D', '#0B4829', '#146237']}
+      colors={theme.dark ? ['#0C1511', '#10291B', '#123B24'] : ['#F5F6F3', '#EDF3EC', '#DCEDE2']}
       end={{ x: 0.9, y: 1 }}
       start={{ x: 0.1, y: 0 }}
       style={styles.screen}>
-      <StatusBar style="light" />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.safeArea}>
         <View pointerEvents="none" style={styles.decoration}>
           <View style={[styles.orbit, styles.orbitLarge]} />
@@ -40,8 +43,8 @@ export default function WelcomeScreen() {
         </View>
 
         <FadeSlide delay={60} distance={12} style={styles.brand}>
-          <BillyLogo size={246} variant="wordmark" />
-          <Text style={styles.tagline}>Everyday possibilities, all in one place.</Text>
+          <BillyLogo size={246} tintColor={theme.colors.text} variant="wordmark" />
+          <Text style={[styles.tagline, { color: theme.colors.textMuted }]}>Everyday possibilities, all in one place.</Text>
         </FadeSlide>
 
         <FadeSlide delay={150} distance={16} style={styles.actions}>
@@ -52,20 +55,21 @@ export default function WelcomeScreen() {
             loading={loading}
             onPress={() => void createAccount()}
             testID="welcome-create-account"
-            variant="light"
+            variant="primary"
           />
           <ScalePressable
             accessibilityLabel="Sign in"
             accessibilityRole="button"
             onPress={() => router.push('/(auth)/sign-in')}
-            style={styles.signInButton}
+            style={[styles.signInButton, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
             testID="welcome-sign-in">
-            <Text style={styles.signInText}>Sign in</Text>
+            <Text style={[styles.signInText, { color: theme.colors.text }]}>Sign in</Text>
           </ScalePressable>
           <View style={styles.securityNote}>
-            <Ionicons color="rgba(255,255,255,0.72)" name="shield-checkmark" size={15} />
-            <Text style={styles.securityText}>Secure access. Clear control.</Text>
+            <Ionicons color={theme.colors.textMuted} name="shield-checkmark" size={15} />
+            <Text style={[styles.securityText, { color: theme.colors.textMuted }]}>Secure access. Clear control.</Text>
           </View>
+          <AppearancePicker />
         </FadeSlide>
       </SafeAreaView>
     </LinearGradient>

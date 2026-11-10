@@ -1,4 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 
 const outputPath = resolve('dist', 'index.html');
@@ -7,14 +8,27 @@ const original = await readFile(outputPath, 'utf8');
 const logoData = await readFile(logoPath);
 const logoSource = `data:image/png;base64,${logoData.toString('base64')}`;
 const headMarker = '    <title>Billy</title>';
+// A same-origin file keeps the pre-paint preference restore compatible with
+// Billy's strict script-src policy; do not enable unsafe-inline for this.
+const appearanceBootstrap = `(function () {
+  var choice = 'system';
+  try { choice = localStorage.getItem('billy.appearance.v1') || 'system'; } catch (_) {}
+  var dark = choice === 'dark' || (choice !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.dataset.billyTheme = dark ? 'dark' : 'light';
+  document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+  document.documentElement.style.setProperty('--billy-canvas', dark ? '#0C1511' : '#F5F6F3');
+  document.querySelector('meta[name="theme-color"]').content = dark ? '#0C1511' : '#F5F6F3';
+})();`;
+const appearanceScript = `appearance-${createHash('sha256').update(appearanceBootstrap).digest('hex').slice(0, 16)}.js`;
 
 if (!original.includes(headMarker)) {
   throw new Error('Billy web export is missing its expected document title.');
 }
 
 const metadata = `${headMarker}
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#07160D" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#F5F6F3" />
+    <script src="/${appearanceScript}"></script>
     <meta name="format-detection" content="telephone=no" />
     <meta name="robots" content="noindex, nofollow" />
     <meta
@@ -29,13 +43,11 @@ const metadata = `${headMarker}
 
 const bootstrapStyles = `    <style id="billy-bootstrap-styles">
       html, body, #root {
-        background: #07160d;
+        background: var(--billy-canvas, #f5f6f3);
       }
       #billy-bootstrap {
         align-items: center;
-        background:
-          radial-gradient(circle at 50% 42%, rgba(69, 185, 121, 0.18), transparent 34%),
-          #07160d;
+        background: var(--billy-canvas, #f5f6f3);
         color: #f5faf7;
         display: flex;
         flex-direction: column;
@@ -52,6 +64,7 @@ const bootstrapStyles = `    <style id="billy-bootstrap-styles">
         height: auto;
         width: min(42vw, 164px);
       }
+      html[data-billy-theme="light"] #billy-bootstrap img { filter: brightness(0) saturate(100%); }
       #billy-bootstrap span {
         color: #a9b9af;
         font: 600 12px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
@@ -74,9 +87,9 @@ const bootstrapMarkup = `<div id="billy-bootstrap" aria-label="Getting Billy rea
 const prepared = original
   .replace(
     '<html lang="en">',
-    '<html lang="en-NG" style="background:#07160d;color-scheme:dark">',
+    '<html lang="en-NG">',
   )
-  .replace('<body>', '<body style="background:#07160d;margin:0">')
+  .replace('<body>', '<body style="margin:0">')
   .replace(
     '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />',
@@ -84,4 +97,5 @@ const prepared = original
   .replace(headMarker, `${metadata}\n${bootstrapStyles}`)
   .replace('<div id="root"></div>', `<div id="root"></div>\n    ${bootstrapMarkup}`);
 
+await writeFile(resolve('dist', appearanceScript), appearanceBootstrap, 'utf8');
 await writeFile(outputPath, prepared, 'utf8');

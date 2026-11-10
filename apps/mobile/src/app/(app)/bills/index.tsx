@@ -16,6 +16,7 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
 
 export default function BillsScreen() {
+  const theme = useBillyTheme();
   const dashboard = useDashboardQuery();
   const billsAccess =
     dashboard.data?.services.find((service) => service.key === 'bills') ?? null;
@@ -107,11 +108,11 @@ export default function BillsScreen() {
       </View>
 
       <FadeSlide delay={280}>
-        <View style={styles.safety}>
-          <Ionicons color="#146237" name="shield-checkmark-outline" size={23} />
+        <View style={[styles.safety, { backgroundColor: theme.colors.brandMist }]}>
+          <Ionicons color={theme.colors.brand} name="shield-checkmark-outline" size={23} />
           <View style={styles.safetyCopy}>
-            <Text style={styles.safetyTitle}>Track your payment</Text>
-            <Text style={styles.safetyText}>
+            <Text style={[styles.safetyTitle, { color: theme.colors.text }]}>Track your payment</Text>
+            <Text style={[styles.safetyText, { color: theme.colors.textMuted }]}>
               Check progress in Activity. If a payment is pending, wait for
               an update before trying again.
             </Text>

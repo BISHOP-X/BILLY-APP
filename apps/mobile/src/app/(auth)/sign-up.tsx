@@ -223,9 +223,9 @@ export default function SignUpScreen() {
               borderColor: errors.terms ? theme.colors.danger : theme.colors.border,
             },
           ]}>
-          {acceptedTerms ? <Ionicons color="#FFFFFF" name="checkmark" size={16} /> : null}
+          {acceptedTerms ? <Ionicons color={theme.colors.onBrand} name="checkmark" size={16} /> : null}
         </View>
-        <Text style={styles.terms}>
+        <Text style={[styles.terms, { color: theme.colors.textMuted }]}>
           I agree to the Billy legal documents listed below.
         </Text>
       </Pressable>
@@ -235,15 +235,15 @@ export default function SignUpScreen() {
           hitSlop={8}
           onPress={() => void openLegalDocument('terms')}
           style={styles.legalLinkButton}>
-          <Text style={styles.legalLink}>Terms</Text>
+          <Text style={[styles.legalLink, { color: theme.colors.brand }]}>Terms</Text>
         </Pressable>
-        <Text style={styles.legalSeparator}>and</Text>
+        <Text style={[styles.legalSeparator, { color: theme.colors.textMuted }]}>and</Text>
         <Pressable
           accessibilityRole="link"
           hitSlop={8}
           onPress={() => void openLegalDocument('privacy')}
           style={styles.legalLinkButton}>
-          <Text style={styles.legalLink}>
+          <Text style={[styles.legalLink, { color: theme.colors.brand }]}>
             Privacy Policy
           </Text>
         </Pressable>

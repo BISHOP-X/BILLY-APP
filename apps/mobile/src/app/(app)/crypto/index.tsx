@@ -253,14 +253,14 @@ export default function CryptoScreen() {
                 ]}
               >
                 <Ionicons
-                  color={selected ? '#FFFFFF' : theme.colors.textMuted}
+                  color={selected ? theme.colors.onBrand : theme.colors.textMuted}
                   name={item.icon}
                   size={19}
                 />
                 <Text
                   style={[
                     styles.operationLabel,
-                    { color: selected ? '#FFFFFF' : theme.colors.textMuted },
+                    { color: selected ? theme.colors.onBrand : theme.colors.textMuted },
                   ]}
                 >
                   {item.label}
@@ -383,7 +383,7 @@ export default function CryptoScreen() {
                     {
                       color:
                         currentNetwork?.id === network.id
-                          ? '#FFFFFF'
+                          ? theme.colors.onBrand
                           : theme.colors.text,
                     },
                   ]}

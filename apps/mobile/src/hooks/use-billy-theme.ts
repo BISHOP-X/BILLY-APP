@@ -1,8 +1,10 @@
 import { useColorScheme } from 'react-native';
 
 import { darkTheme, lightTheme } from '@/theme/tokens';
+import { useAppearance } from '@/theme/appearance-provider';
 
 export function useBillyTheme() {
   const scheme = useColorScheme();
-  return scheme === 'dark' ? darkTheme : lightTheme;
+  const { preference } = useAppearance();
+  return (preference === 'system' ? scheme : preference) === 'dark' ? darkTheme : lightTheme;
 }

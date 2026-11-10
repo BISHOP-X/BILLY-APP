@@ -25,6 +25,7 @@ import { AppButton } from '@/components/ui/button';
 import { FadeSlide } from '@/components/ui/motion';
 import { markOnboardingSeen } from '@/features/onboarding/onboarding-storage';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
 
 type Slide = {
   id: string;
@@ -176,6 +177,7 @@ function OnboardingCell({
 }
 
 export default function OnboardingScreen() {
+  const theme = useBillyTheme();
   const { height, width } = useWindowDimensions();
   const listRef = useRef<FlatList<Slide>>(null);
   const [scrollX] = useState(() => new Animated.Value(0));
@@ -207,17 +209,17 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <LinearGradient colors={['#0A492B', '#146237', '#1B7847']} style={styles.container}>
-      <StatusBar style="light" />
+    <LinearGradient colors={[theme.colors.canvas, theme.colors.brandMist, theme.colors.canvas]} style={styles.container}>
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.topBar, { maxWidth: contentWidth }]}>
-          <BillyLogo size={54} />
+          <BillyLogo size={54} tintColor={theme.colors.brand} />
           <Pressable
             accessibilityRole="button"
             hitSlop={10}
             onPress={() => void leaveOnboarding('/(auth)/sign-up')}
             testID="onboarding-skip">
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={[styles.skipText, { color: theme.colors.textMuted }]}>Skip</Text>
           </Pressable>
         </View>
 
@@ -270,11 +272,11 @@ export default function OnboardingScreen() {
                   <SlideVisual scale={visualScale} type={item.visual} />
                 </Animated.View>
 
-                <View style={styles.sheet}>
+                <View style={[styles.sheet, { backgroundColor: theme.colors.surface }]}>
                   <FadeSlide key={`${item.id}-${activeIndex}`} distance={12}>
-                    <Text style={styles.eyebrow}>{item.eyebrow}</Text>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.description}>{item.description}</Text>
+                    <Text style={[styles.eyebrow, { color: theme.colors.brand }]}>{item.eyebrow}</Text>
+                    <Text style={[styles.title, { color: theme.colors.text }]}>{item.title}</Text>
+                    <Text style={[styles.description, { color: theme.colors.textMuted }]}>{item.description}</Text>
                   </FadeSlide>
 
                   <View style={styles.dots}>
@@ -285,7 +287,7 @@ export default function OnboardingScreen() {
                           styles.dot,
                           {
                             backgroundColor:
-                              dotIndex === activeIndex ? '#146237' : '#D8E5DD',
+                              dotIndex === activeIndex ? theme.colors.brand : theme.colors.border,
                             width: dotIndex === activeIndex ? 24 : 8,
                           },
                         ]}
@@ -303,8 +305,8 @@ export default function OnboardingScreen() {
                     accessibilityRole="button"
                     onPress={() => void leaveOnboarding('/(auth)/sign-in')}
                     style={styles.signInLink}>
-                    <Text style={styles.signInMuted}>Already use Billy? </Text>
-                    <Text style={styles.signInStrong}>Sign in</Text>
+                    <Text style={[styles.signInMuted, { color: theme.colors.textMuted }]}>Already use Billy? </Text>
+                    <Text style={[styles.signInStrong, { color: theme.colors.brand }]}>Sign in</Text>
                   </Pressable>
                 </View>
               </View>

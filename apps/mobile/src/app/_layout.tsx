@@ -23,10 +23,9 @@ import { isBillyDevDemo } from '@/features/main/repository';
 import { AppProviders } from '@/providers/app-providers';
 import { PrivacyShield } from '@/components/ui/privacy-shield';
 import { FatalErrorScreen } from '@/components/ui/fatal-error-screen';
+import { AppearanceProvider, useAppearance } from '@/theme/appearance-provider';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
-
-const startupBackground = '#07160D';
 
 function WebBootstrapController() {
   useEffect(() => {
@@ -76,14 +75,15 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 }
 
 function SplashController() {
+  const { ready } = useAppearance();
   const { status: authStatus } = useAuth();
   const { status: lockStatus } = useAppLock();
 
   useEffect(() => {
-    if (authStatus !== 'loading' && lockStatus !== 'loading') {
+    if (ready && authStatus !== 'loading' && lockStatus !== 'loading') {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [authStatus, lockStatus]);
+  }, [authStatus, lockStatus, ready]);
 
   return null;
 }
@@ -111,7 +111,7 @@ function RootNavigator() {
         <Stack
           screenOptions={{
             animation: 'none',
-            contentStyle: { backgroundColor: theme.colors.brandDeep },
+            contentStyle: { backgroundColor: theme.colors.canvas },
             headerShown: false,
           }}
         />
@@ -122,9 +122,14 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  return <AppearanceProvider><ThemedRoot /></AppearanceProvider>;
+}
+
+function ThemedRoot() {
+  const theme = useBillyTheme();
   return (
     <GestureHandlerRootView
-      style={{ backgroundColor: startupBackground, flex: 1 }}>
+      style={{ backgroundColor: theme.colors.canvas, flex: 1 }}>
       <SafeAreaProvider>
         <AppProviders>
           <AuthProvider>

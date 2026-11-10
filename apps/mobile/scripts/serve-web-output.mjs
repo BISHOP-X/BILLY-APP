@@ -1,10 +1,13 @@
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 
 const root = resolve('dist');
 const port = Number.parseInt(process.env.BILLY_WEB_PORT ?? '8087', 10);
+// Exercise the same security headers as production during local export QA.
+const deploymentConfig = JSON.parse(await readFile(resolve('../../vercel.json'), 'utf8'));
+const commonHeaders = deploymentConfig.headers.find(rule => rule.source === '/(.*)')?.headers ?? [];
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
@@ -33,6 +36,7 @@ async function resolveRequest(pathname) {
 }
 
 createServer(async (request, response) => {
+  for (const { key, value } of commonHeaders) response.setHeader(key, value);
   const url = new URL(request.url ?? '/', 'http://localhost');
   const filePath = await resolveRequest(url.pathname);
   response.setHeader(

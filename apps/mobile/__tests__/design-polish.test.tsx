@@ -4,7 +4,8 @@ import {
   adminNavigationGroups,
 } from '@/features/admin/navigation';
 import { adminSections, adminRecordAmount } from '@/features/admin/domain';
-import { adminColors } from '@/features/admin/components';
+import { getAdminColors } from '@/features/admin/components';
+import { darkTheme, lightTheme } from '@/theme/tokens';
 import { ServiceBanner } from '@/features/home/components/service-banner';
 import type { KycSummary } from '@/features/main/domain';
 
@@ -112,12 +113,15 @@ function luminance(hex: string) {
     );
   return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
 }
-test.each([
+test.each([lightTheme, darkTheme].flatMap(theme => {
+  const adminColors = getAdminColors(theme);
+  return [
   [adminColors.ink, adminColors.paper],
   [adminColors.muted, adminColors.paper],
   [adminColors.onGreen, adminColors.green],
   [adminColors.ink, adminColors.raised],
-])('admin text %s remains readable on %s', (foreground, background) => {
+];
+}))('admin text %s remains readable on %s', (foreground, background) => {
   const values = [luminance(foreground), luminance(background)].sort(
     (a, b) => b - a,
   );

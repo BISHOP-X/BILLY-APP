@@ -9,7 +9,7 @@ import { radii, shadows, spacing, typography } from '@/theme/tokens';
 type AppButtonProps = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'light' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'light' | 'danger' | 'refund';
   icon?: keyof typeof Ionicons.glyphMap;
   iconPosition?: 'left' | 'right';
   loading?: boolean;
@@ -33,6 +33,11 @@ export function AppButton({
   const isDisabled = disabled || loading;
 
   const palette = {
+    refund: {
+      background: theme.dark ? '#302442' : '#F0E9FA',
+      foreground: theme.dark ? '#DCC7FF' : '#6837A2',
+      border: theme.dark ? '#72528F' : '#CCB8E5',
+    },
     danger: {
       background: theme.dark ? '#442326' : '#FFF0F0',
       foreground: theme.dark ? '#FFB3B8' : '#A32230',
@@ -40,7 +45,7 @@ export function AppButton({
     },
     primary: {
       background: theme.colors.brand,
-      foreground: theme.dark ? theme.colors.canvas : theme.colors.white,
+      foreground: theme.colors.onBrand,
       border: theme.colors.brand,
     },
     secondary: {

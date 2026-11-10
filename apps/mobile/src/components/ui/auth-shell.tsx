@@ -16,6 +16,8 @@ import { StatusBar } from 'expo-status-bar';
 import { FadeSlide } from '@/components/ui/motion';
 import { BillyLogo } from '@/components/ui/billy-logo';
 import { radii, shadows, spacing, typography } from '@/theme/tokens';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
+import { AppearancePicker } from '@/theme/appearance-picker';
 
 type AuthShellProps = PropsWithChildren<{
   title: string;
@@ -35,13 +37,14 @@ export function AuthShell({
   footer,
   compact = false,
 }: AuthShellProps) {
+  const theme = useBillyTheme();
   const { height, width } = useWindowDimensions();
   const isNarrow = width < 370;
   const isShort = height < 760;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" />
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.canvas }]}>
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <View pointerEvents="none" style={styles.glowTop} />
       <View pointerEvents="none" style={styles.glowBottom} />
       <KeyboardAvoidingView
@@ -63,30 +66,30 @@ export function AuthShell({
                 accessibilityRole="button"
                 hitSlop={10}
                 onPress={onBack}
-                style={styles.backButton}>
-                <Ionicons color="#F5FAF7" name="chevron-back" size={22} />
+                style={[styles.backButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+                <Ionicons color={theme.colors.text} name="chevron-back" size={22} />
               </Pressable>
             ) : (
               <View style={styles.backPlaceholder} />
             )}
             <View pointerEvents="none" style={styles.centerLogo}>
-              <BillyLogo size={86} tintColor="#FFFFFF" variant="wordmark" />
+              <BillyLogo size={86} tintColor={theme.colors.text} variant="wordmark" />
             </View>
-            <View style={styles.securePill}>
-              <Ionicons color="#80DFA7" name="shield-checkmark" size={14} />
-              <Text style={styles.secureText}>Secure</Text>
+            <View style={[styles.securePill, { backgroundColor: theme.colors.brandMist, borderColor: theme.colors.border }]}>
+              <Ionicons color={theme.colors.brand} name="shield-checkmark" size={14} />
+              <Text style={[styles.secureText, { color: theme.colors.brand }]}>Secure</Text>
             </View>
           </View>
 
           <FadeSlide>
             <View style={[styles.heading, (compact || isShort) && styles.headingCompact]}>
-              <Text style={styles.eyebrow}>{eyebrow}</Text>
+              <Text style={[styles.eyebrow, { color: theme.colors.brand }]}>{eyebrow}</Text>
               <Text
                 accessibilityRole="header"
-                style={[styles.title, isNarrow && styles.titleNarrow]}>
+                style={[styles.title, isNarrow && styles.titleNarrow, { color: theme.colors.text }]}>
                 {title}
               </Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>{subtitle}</Text>
             </View>
           </FadeSlide>
 
@@ -97,8 +100,8 @@ export function AuthShell({
                 (compact || isShort) && styles.cardCompact,
                 shadows.card,
                 {
-                  backgroundColor: '#F7FAF8',
-                  borderColor: 'rgba(255, 255, 255, 0.72)',
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
                 },
               ]}>
               {children}
@@ -110,6 +113,7 @@ export function AuthShell({
               {footer}
             </FadeSlide>
           ) : null}
+          <View style={{ marginTop: spacing.xl, width: '100%' }}><AppearancePicker /></View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

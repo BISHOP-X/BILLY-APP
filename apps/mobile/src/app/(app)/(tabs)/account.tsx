@@ -15,6 +15,7 @@ import { useDashboardQuery } from '@/features/main/queries';
 import { invokeAction } from '@/features/services/supabase-service-repository';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { AppearancePicker } from '@/theme/appearance-picker';
 
 export default function AccountScreen() {
   const theme = useBillyTheme();
@@ -173,6 +174,10 @@ export default function AccountScreen() {
         />
       </View>
 
+      <View style={{ gap: spacing.sm }}>
+        <Text style={[styles.name, { color: theme.colors.text }]}>Appearance</Text>
+        <AppearancePicker />
+      </View>
       <AppButton label="Sign out" onPress={confirmSignOut} variant="ghost" />
       <Text style={[styles.version, { color: theme.colors.textSoft }]}>
         Billy

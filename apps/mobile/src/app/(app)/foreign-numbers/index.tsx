@@ -409,8 +409,8 @@ export default function ForeignNumbersScreen() {
                   />
                   {o.status === 'waiting' && !o.cancel_requested ? (
                     <AppButton
-                      label="Request cancellation"
-                      variant="danger"
+                      label={o.rental_kind && o.rental_kind !== 'short' ? 'Cancel & request refund' : 'Cancel & refund'}
+                      variant="refund"
                       onPress={() => setCancelOrder(o)}
                     />
                   ) : null}
@@ -423,8 +423,8 @@ export default function ForeignNumbersScreen() {
                     {o.rental_kind && o.rental_kind !== 'short' ? ' Any eligible refund must be confirmed.' : ' Your payment returns after cancellation is confirmed.'}
                   </Text>
                   <AppButton
-                    label="Confirm cancellation"
-                    variant="danger"
+                    label={o.rental_kind && o.rental_kind !== 'short' ? 'Cancel & request refund' : 'Cancel & refund'}
+                    variant="refund"
                     loading={update.isPending}
                     onPress={() => void refresh(o.id, true)}
                   />

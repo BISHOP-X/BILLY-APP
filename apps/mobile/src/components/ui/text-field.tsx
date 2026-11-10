@@ -35,24 +35,14 @@ export function TextField({
   const [focused, setFocused] = useState(false);
   const [visible, setVisible] = useState(false);
   const isPassword = Boolean(secureTextEntry);
-  const isAuth = appearance === 'auth';
-  const colors = isAuth
-    ? {
-        field: '#FFFFFF',
-        label: '#1A241E',
-        muted: '#748078',
-        text: '#18211B',
-        border: '#DCE5DF',
-        focus: '#146237',
-      }
-    : {
-        field: theme.colors.surface,
-        label: theme.colors.text,
-        muted: theme.colors.textSoft,
-        text: theme.colors.text,
-        border: theme.colors.border,
-        focus: theme.colors.brand,
-      };
+  const colors = {
+    field: appearance === 'auth' ? theme.colors.canvas : theme.colors.surface,
+    label: theme.colors.text,
+    muted: theme.colors.textSoft,
+    text: theme.colors.text,
+    border: theme.colors.border,
+    focus: theme.colors.brand,
+  };
 
   return (
     <View style={styles.wrapper}>
@@ -77,6 +67,7 @@ export function TextField({
           />
         ) : null}
         <TextInput
+          keyboardAppearance={theme.dark ? 'dark' : 'light'}
           {...inputProps}
           accessibilityLabel={inputProps.accessibilityLabel ?? label}
           accessibilityState={{ disabled }}

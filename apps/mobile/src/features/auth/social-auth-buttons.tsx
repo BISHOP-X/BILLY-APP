@@ -7,6 +7,7 @@ import { AppButton } from '@/components/ui/button';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { oauthConfig } from '@/config/oauth';
 import { spacing, typography } from '@/theme/tokens';
+import { useBillyTheme } from '@/hooks/use-billy-theme';
 
 import type { BillyOAuthProvider } from './auth-api';
 import { useAuth } from './auth-provider';
@@ -15,6 +16,7 @@ import { GoogleIdentityButton } from './google-identity-button';
 import type { GoogleAuthIntent } from './google-identity-button.types';
 
 export function SocialAuthButtons({ intent }: { intent: GoogleAuthIntent }) {
+  const theme = useBillyTheme();
   const { signInWithGoogleToken, signInWithProvider } = useAuth();
   const [loadingProvider, setLoadingProvider] = useState<BillyOAuthProvider | null>(null);
   const [feedback, setFeedback] = useState('');
@@ -85,15 +87,15 @@ export function SocialAuthButtons({ intent }: { intent: GoogleAuthIntent }) {
         ),
       )}
       <View style={styles.legalHint}>
-        <Ionicons color="#66736B" name="shield-checkmark-outline" size={15} />
-        <Text style={styles.legalText}>
+        <Ionicons color={theme.colors.textMuted} name="shield-checkmark-outline" size={15} />
+        <Text style={[styles.legalText, { color: theme.colors.textMuted }]}>
           New accounts review Billy&apos;s Terms and Privacy Policy before setup.
         </Text>
       </View>
       <View style={styles.dividerRow}>
-        <View style={styles.divider} />
-        <Text style={styles.dividerText}>or use email</Text>
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+        <Text style={[styles.dividerText, { color: theme.colors.textMuted }]}>or use email</Text>
+        <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
       </View>
     </View>
   );

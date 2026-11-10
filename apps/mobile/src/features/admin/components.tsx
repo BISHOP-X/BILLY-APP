@@ -8,19 +8,26 @@ import {
   type TextInputProps,
   View,
 } from 'react-native';
-export const adminColors = {
-  ink: '#F0F5F1',
-  muted: '#A4B5AA',
-  line: '#293B31',
-  paper: '#13221A',
-  canvas: '#0C1711',
-  green: '#96E0B4',
-  nav: '#0F1D16',
-  raised: '#1B3024',
-  onGreen: '#092617',
-  gold: '#E8C78A',
-};
+import { useBillyTheme } from '@/hooks/use-billy-theme';
+import type { BillyTheme } from '@/theme/tokens';
+
+export function useAdminColors() {
+  return getAdminColors(useBillyTheme());
+}
+export function getAdminColors(theme: BillyTheme) {
+  return {
+    ink: theme.colors.text, muted: theme.colors.textMuted,
+    line: theme.colors.border, paper: theme.colors.surface,
+    canvas: theme.colors.canvas, green: theme.colors.brand,
+    nav: theme.colors.surface, raised: theme.colors.surfaceRaised,
+    onGreen: theme.colors.onBrand,
+    gold: theme.colors.warning,
+  };
+}
+export type AdminPalette = ReturnType<typeof useAdminColors>;
 export function Panel({ children }: { children: ReactNode }) {
+  const adminColors = useAdminColors();
+  const s = createStyles(adminColors);
   return <View style={s.panel}>{children}</View>;
 }
 export function AdminButton({
@@ -36,6 +43,8 @@ export function AdminButton({
   busy?: boolean;
   secondary?: boolean;
 }) {
+  const adminColors = useAdminColors();
+  const s = createStyles(adminColors);
   return (
     <Pressable
       accessibilityRole="button"
@@ -64,12 +73,14 @@ export function AdminInput({
   label,
   ...props
 }: TextInputProps & { label: string }) {
+  const adminColors = useAdminColors();
+  const s = createStyles(adminColors);
   return (
     <View style={{ gap: 7, flexGrow: 1, minWidth: 180, maxWidth: '100%' }}>
       <Text style={s.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor="#82958A"
+        placeholderTextColor={adminColors.muted}
         selectionColor={adminColors.green}
         {...props}
         style={[s.input, props.style]}
@@ -86,6 +97,8 @@ export function AdminText({
   muted?: boolean;
   large?: boolean;
 }) {
+  const adminColors = useAdminColors();
+  const s = createStyles(adminColors);
   return (
     <Text
       style={[
@@ -99,6 +112,8 @@ export function AdminText({
   );
 }
 export function Badge({ value }: { value: unknown }) {
+  const adminColors = useAdminColors();
+  const s = createStyles(adminColors);
   const text = String(value ?? 'unknown');
   const good = [
     'available',
@@ -114,12 +129,12 @@ export function Badge({ value }: { value: unknown }) {
     <View
       style={[
         s.badge,
-        { backgroundColor: good ? '#203E2D' : bad ? '#402E27' : '#26352C' },
+        { backgroundColor: good ? `${adminColors.green}18` : bad ? `${adminColors.gold}18` : adminColors.raised },
       ]}
     >
       <Text
         style={{
-          color: good ? '#A4E9BD' : bad ? '#F0B9A5' : '#C0CDC4',
+          color: good ? adminColors.green : bad ? adminColors.gold : adminColors.muted,
           fontSize: 11,
           fontWeight: '700',
         }}
@@ -129,7 +144,7 @@ export function Badge({ value }: { value: unknown }) {
     </View>
   );
 }
-const s = StyleSheet.create({
+const createStyles = (adminColors: AdminPalette) => StyleSheet.create({
   panel: {
     backgroundColor: adminColors.paper,
     borderWidth: 1,

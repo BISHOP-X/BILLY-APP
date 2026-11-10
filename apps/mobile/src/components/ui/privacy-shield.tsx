@@ -23,9 +23,9 @@ export function PrivacyShield() {
     <View
       accessibilityLabel="Billy is protecting your private information"
       accessibilityViewIsModal
-      style={[styles.shield, { backgroundColor: theme.colors.brandDeep }]}>
-      <BillyLogo size={180} variant="wordmark" />
-      <Text style={styles.text}>Your information is protected</Text>
+      style={[styles.shield, { backgroundColor: theme.colors.canvas }]}>
+      <BillyLogo size={180} tintColor={theme.colors.text} variant="wordmark" />
+      <Text style={[styles.text, { color: theme.colors.textMuted }]}>Your information is protected</Text>
     </View>
   );
 }

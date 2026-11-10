@@ -106,7 +106,7 @@ export default function SignInScreen() {
           accessibilityRole="button"
           hitSlop={8}
           onPress={() => replaceFlowRoute('/(auth)/forgot-password', '/forgot-password')}>
-          <Text style={styles.forgot}>Forgot password?</Text>
+          <Text style={[styles.forgot, { color: theme.colors.brand }]}>Forgot password?</Text>
         </Pressable>
       </View>
       <AppButton

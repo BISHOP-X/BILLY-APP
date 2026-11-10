@@ -567,14 +567,14 @@ function EvidenceButton({
         },
       ]}>
       <Ionicons
-        color={active ? '#FFFFFF' : theme.colors.brand}
+        color={active ? theme.colors.onBrand : theme.colors.brand}
         name={icon}
         size={18}
       />
       <Text
         style={[
           styles.evidenceText,
-          { color: active ? '#FFFFFF' : theme.colors.text },
+          { color: active ? theme.colors.onBrand : theme.colors.text },
         ]}>
         {label}
       </Text>

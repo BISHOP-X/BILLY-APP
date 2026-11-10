@@ -1,3 +1,4 @@
+import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { Redirect, Stack } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Platform } from 'react-native';
@@ -19,6 +20,7 @@ function setupDestination(profile: Profile | null) {
 }
 
 export default function AppLayout() {
+  const theme = useBillyTheme();
   const { signOut, status, user } = useAuth();
   const { status: lockStatus } = useAppLock();
   const userId = user?.id;
@@ -45,7 +47,7 @@ export default function AppLayout() {
       <Stack
         screenOptions={{
           animation: 'none',
-          contentStyle: { backgroundColor: '#07160D' },
+          contentStyle: { backgroundColor: theme.colors.canvas },
           headerShown: false,
         }}
       />
@@ -120,7 +122,7 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         animation: 'none',
-        contentStyle: { backgroundColor: '#07160D' },
+        contentStyle: { backgroundColor: theme.colors.canvas },
         headerShown: false,
       }}
     />

@@ -19,7 +19,7 @@ import {
   AdminText,
   Badge,
   Panel,
-  adminColors as c,
+  useAdminColors, type AdminPalette,
 } from '@/features/admin/components';
 import {
   adminMoney,
@@ -59,6 +59,8 @@ const valueText = (value: unknown) =>
       : String(value);
 
 export default function BillyAdmin() {
+  const c = useAdminColors();
+  const styles = createStyles(c);
   const auth = useAuth();
   const qc = useQueryClient();
   const { width } = useWindowDimensions();
@@ -466,6 +468,8 @@ function PricingCard({
   pricing: Pricing;
   propose: (title: string, input: Record<string, unknown>) => void;
 }) {
+  const c = useAdminColors();
+  const styles = createStyles(c);
   const [rate, setRate] = useState(
     inputTwoDecimals(p.exchange_rate_minor_per_usd),
   );
@@ -542,6 +546,8 @@ function RecordCard({
   refresh: () => void;
   busy: boolean;
 }) {
+  const c = useAdminColors();
+  const styles = createStyles(c);
   const title =
     row.title ??
     row.service_name ??
@@ -712,7 +718,7 @@ function RecordCard({
     </Panel>
   );
 }
-const styles = StyleSheet.create({
+const createStyles = (c: AdminPalette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.canvas },
   workspace: { flex: 1 },
   loading: {
