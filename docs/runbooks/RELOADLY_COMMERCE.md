@@ -64,6 +64,26 @@ Verification: 182 app tests and 173 Edge Function tests passed, including a 35-d
 
 Web, iOS and Android JavaScript/Hermes exports passed (not a substitute for real-device QA). Pricing additions deployed as service-api v36 with JWT verification retained. No schema or settlement changes were needed.
 
+## Phone-first airtime and data — 10 November 2026
+
+Flow: international recipient number → detected country/flag and network → network-specific airtime or data choices → exact NGN price → explicit wallet confirmation → existing order tracking. Country/network correction does not reload the page. Going back retains the entered number. Numbers must include `+` and the calling code (`00` is also normalized); local-only numbers get a clear prompt. Shared calling codes are resolved using pinned `libphonenumber-js` metadata, with explicit country confirmation when ambiguous. The phone parser is server-only and adds no client bundle weight.
+
+`commerce.recipient` is authenticated and read-only apart from the existing bounded catalogue cache. It uses Reloadly's documented GET `/operators/auto-detect/phone/{nationalNumber}/countries/{isoCode}`. It returns only the number's country's current product choices. Detection failure leaves manual country-scoped network selection available; it does not claim a carrier was verified. An inferred network is not phone ownership verification or a guarantee against porting.
+
+Reloadly supplies no parent-network ID linking a base airtime operator to all its data/bundle products. Billy uses exact IDs and country-scoped full-name-prefix matches **only for display suggestions**, based on verified live catalogue names (for example a base network name followed by `Data` or `Bundles`). It never substitutes a provider order ID. Unmatched products require manual selection; Change network exposes all choices for that country. No carrier ID, prefix table, plan, amount or price is hardcoded. Regions and email-recipient products keep their required additional steps.
+
+Selections are opaque, user-bound and bind the normalized recipient. Product-detail refresh retains that binding; quote creation checks the recipient and product country before preparing payment. Top-ups reuse the existing gift-card value/confirmation component, including wallet insufficiency handling and the original quote/idempotency key on an uncertain retry. No purchase PIN was added; no ledger, database schema, reservation, settlement or refund rules changed.
+
+All fixed plans now show their server-calculated NGN totals; custom airtime uses read-only price preview. Data descriptions are matched by decimal value so `0.40` descriptions are not lost when the provider sends amount `0.4`. Search filters plan names/validity locally, with six plans per page. Data confirmation shows the selected plan; airtime confirmation includes the provider's local-currency delivery quote.
+
+Authoritative references: [Reloadly Operators](https://docs.reloadly.com/airtime/Operators?lang=javascript), the provider's [OpenAPI contract](https://docs.reloadly.com/assets/api/airtime.json), and [phone metadata/parsing](https://github.com/catamphetamine/libphonenumber-js). No paid MNP lookup is used.
+
+Verification: 179 Edge Function tests passed. New automated customer journeys cover the complete synthetic payment path, missing calling-code errors/retry, instant network change, preserved back-navigation state, recipient binding, correct NGN plan prices, custom airtime, and same-key payment retry. Live authenticated preview against service-api v37 (JWT verification retained) detected Nigeria/MTN, returned only MTN data suggestions, expanded all Nigerian networks on correction, and produced matching data/airtime prices in review. A current MTN 1GB daily plan showed NGN 548.64 in both the picker and review; USD 1 airtime quoted NGN 1,371.58 payable and NGN 1,244 recipient value. These are time-specific observations, not hardcoded prices. The zero-balance account showed Add money and no paid request was made.
+
+Supabase Management API secret-list `value` fields are digests, not retrievable credentials. Local direct probes must receive original credentials securely through the environment; deployment/API verification uses the existing server-side secrets. No original keys or auth sessions were saved in this change.
+
+Additional checks: all 187 app tests passed, with typecheck, lint and web export passing. A live shared-code example required country confirmation with a flag before continuing, and an omitted calling code produced the expected inline correction. No accounts, credentials, pricing settings, or orders were created or changed during browser QA.
+
 ## Recovery and retained providers
 
 Admin can suspend Bills or Gift cards if needed; leave reconciliation running so accepted orders can finish. Do not delete orders, encrypted delivery, ledger entries, migrations or provider secrets to roll back. Rate edits are versioned and audited. Restore prior schema behavior through a new reviewed migration, never by rewriting applied migration history.

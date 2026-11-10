@@ -18,6 +18,9 @@ import {
 import { OperationsError, requestObject, requestPage, requestText } from './number-service.ts';
 import { SecretPayloadCipher } from './payload-cipher.ts';
 import { ServiceTokenCodec } from './tokens.ts';
+import { internationalPhone } from '../providers/international-phone.ts';
+
+type ProductSelection = { kind: CommerceKind; id: string; region?: string; recipientPhone?: string };
 
 type Price = {
   service_key: string;
@@ -182,7 +185,7 @@ export async function giftValuePrices(
   raw: JsonObject,
   p: CommerceProduct,
 ) {
-  const pricing = await price(r, 'gift_cards');
+  const pricing = await price(r, p.kind);
   const values: { value: string; totalMinor: number }[] = [];
   // Bound any FX lookups; most fixed products already supply their full denomination map.
   for (let offset = 0; offset < p.values.length; offset += 4) {
@@ -205,19 +208,15 @@ function publicOrder(o: CommerceOrder) {
   const { user_id: _user, ...rest } = o;
   return rest;
 }
-function phone(value: unknown) {
-  const text = requestText(value, 'Phone number', 40).replace(/[\s()-]/g, '');
-  if (!/^\+?[0-9]{7,15}$/.test(text)) {
-    throw new OperationsError(
-      400,
-      'invalid_request',
-      'Enter a valid phone number including its country code.',
-    );
+function phone(value: unknown, country?: string) {
+  try {
+    return internationalPhone(requestText(value, 'Phone number', 40), country);
+  } catch (e) {
+    throw new OperationsError(400, 'invalid_request', e instanceof Error ? e.message : 'Check your phone number.');
   }
-  return text;
 }
 async function makeQuote(r: CommerceRuntime, userId: string, input: JsonObject) {
-  const selection = await r.tokens.readOpaque<{ kind: CommerceKind; id: string; region?: string }>(
+  const selection = await r.tokens.readOpaque<ProductSelection>(
     requestText(input.selectionToken, 'Product', 8000),
     'commerce_product',
     userId,
@@ -285,7 +284,13 @@ async function makeQuote(r: CommerceRuntime, userId: string, input: JsonObject) 
         throw new OperationsError(400, 'invalid_request', 'Enter a valid recipient email.');
       }
       body.recipientEmail = email;
-    } else body.recipientPhone = { countryCode: p.countryCode, number: phone(input.recipient) };
+    } else {
+      const recipient = phone(input.recipient, p.countryCode);
+      if (selection.recipientPhone && selection.recipientPhone !== recipient.number) {
+        throw new OperationsError(409, 'conflict', 'The recipient changed. Enter the number again.');
+      }
+      body.recipientPhone = { countryCode: p.countryCode, number: recipient.number };
+    }
   }
   const pricing = await price(r, p.kind);
   const costMicro = (await cost(r, raw, p, value)) * BigInt(quantity);
@@ -302,7 +307,9 @@ async function makeQuote(r: CommerceRuntime, userId: string, input: JsonObject) 
     ...totals,
   };
   let delivery: string | undefined;
-  if (p.kind === 'airtime' || p.kind === 'data') {
+  if (p.kind === 'data' && p.values.some((v) => micro(v.value) === micro(value))) {
+    delivery = p.values.find((v) => micro(v.value) === micro(value))?.label;
+  } else if (p.kind === 'airtime' || p.kind === 'data') {
     const fx = object(
       await adapter(r).request('topups', '/operators/fx-rate', {
         operatorId: Number(p.id),
@@ -461,6 +468,45 @@ export async function handleCommerceAction(
 ): Promise<{ data: unknown; status?: number }> {
   if (!r) throw new OperationsError(503, 'unavailable', 'This service is temporarily unavailable.');
   const input = requestObject(body);
+  if (action === 'commerce.recipient') {
+    const k = kind(input.kind);
+    if (k !== 'airtime' && k !== 'data') {
+      throw new OperationsError(400, 'invalid_request', 'Choose airtime or data.');
+    }
+    const recipient = phone(input.phone, typeof input.country === 'string' ? input.country : undefined);
+    const rows = await catalogue(r, 'topups');
+    const all = rows.map((raw) => normalizeProduct(raw, 'topups'))
+      .filter((p): p is CommerceProduct => p !== null);
+    const countries = [...new Map(all.filter((p) => recipient.candidates.includes(p.countryCode))
+      .map((p) => [p.countryCode, { code: p.countryCode, name: p.countryName }])).values()];
+    if (!recipient.country) {
+      return { data: { phone: recipient.number, formattedPhone: recipient.formatted,
+        country: null, countries, network: null, products: [], needsCountry: true } };
+    }
+    const country = countries.find((c) => c.code === recipient.country);
+    if (!country) throw new OperationsError(400, 'invalid_request', 'Airtime and data are not available for this country yet.');
+    let detected: JsonObject = {};
+    try { detected = await adapter(r).detectOperator(recipient.nationalNumber, country.code); }
+    catch { /* Detection is a convenience. Country-scoped manual choices stay available. */ }
+    if (object(detected.country).isoName !== country.code) detected = {};
+    const detectedName = str(detected.name);
+    const detectedId = str(detected.operatorId ?? detected.id);
+    // Provider has no parent-network ID. Exact full-name prefix is a display suggestion only,
+    // never a routing substitution. Unknown relations require the customer's explicit choice.
+    const label = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const prefix = label(detectedName);
+    const products = await Promise.all(all.filter((p) => p.countryCode === country.code && p.kind === k)
+      .sort((a, b) => a.name.localeCompare(b.name)).map(async (p) => {
+        const { id, ...publicProduct } = p;
+        return { ...publicProduct, values: [],
+          recommended: !!detectedId && (id === detectedId || !!prefix && label(p.name).startsWith(`${prefix} `)),
+          selectionToken: await r.tokens.issueOpaque('commerce_product', user.id,
+            { id, kind: k, recipientPhone: recipient.number }, 30 * 60_000),
+        };
+      }));
+    return { data: { phone: recipient.number, formattedPhone: recipient.formatted, country, countries,
+      network: detectedName || null, products, needsCountry: false } };
+  }
   if (action === 'commerce.catalog') {
     const k = kind(input.kind);
     const page = requestPage(input.page);
@@ -501,7 +547,7 @@ export async function handleCommerceAction(
     };
   }
   if (action === 'commerce.product') {
-    const selected = await r.tokens.readOpaque<{ kind: CommerceKind; id: string }>(
+    const selected = await r.tokens.readOpaque<ProductSelection>(
       requestText(input.selectionToken, 'Product', 8000),
       'commerce_product',
       user.id,
@@ -511,7 +557,7 @@ export async function handleCommerceAction(
       ? undefined
       : requestText(input.region, 'Region', 100);
     const p = normalizeProduct(raw, familyOf(selected.kind), region);
-    if (!p || p.id !== selected.id) {
+    if (!p || p.id !== selected.id || p.kind !== selected.kind) {
       throw new OperationsError(
         409,
         'conflict',
@@ -522,29 +568,28 @@ export async function handleCommerceAction(
     return {
       data: {
         ...publicProduct,
-        ...(p.kind === 'gift_cards' ? { valuePrices: await giftValuePrices(r, raw, p) } : {}),
+        ...(p.kind !== 'electricity' ? { valuePrices: await giftValuePrices(r, raw, p) } : {}),
         selectionToken: await r.tokens.issueOpaque('commerce_product', user.id, {
           id: p.id,
           kind: p.kind,
           region,
+          recipientPhone: selected.recipientPhone,
         }, 30 * 60_000),
       },
     };
   }
   if (action === 'commerce.price') {
-    const selected = await r.tokens.readOpaque<
-      { kind: CommerceKind; id: string }
-    >(
+    const selected = await r.tokens.readOpaque<ProductSelection>(
       requestText(input.selectionToken, 'Product', 8000),
       'commerce_product',
       user.id,
     );
-    if (selected.kind !== 'gift_cards') {
-      throw new OperationsError(400, 'invalid_request', 'Choose a gift card.');
+    if (selected.kind === 'electricity') {
+      throw new OperationsError(400, 'invalid_request', 'Choose a gift card, airtime or data.');
     }
-    const raw = await adapter(r).product('gift_cards', selected.id);
-    const p = normalizeProduct(raw, 'gift_cards');
-    if (!p || p.id !== selected.id) {
+    const raw = await adapter(r).product(familyOf(selected.kind), selected.id);
+    const p = normalizeProduct(raw, familyOf(selected.kind), selected.region);
+    if (!p || p.id !== selected.id || p.kind !== selected.kind) {
       throw new OperationsError(
         409,
         'conflict',
@@ -553,7 +598,7 @@ export async function handleCommerceAction(
     }
     const value = decimal(micro(requestText(input.value, 'Amount', 24)));
     validateAmount(p, value);
-    const pricing = await price(r, 'gift_cards');
+    const pricing = await price(r, p.kind);
     return {
       data: {
         value,

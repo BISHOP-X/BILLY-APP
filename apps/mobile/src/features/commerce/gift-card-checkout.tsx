@@ -29,11 +29,15 @@ import type { CommerceOrder, CommerceProduct, CommerceQuote } from './domain';
 
 const PAGE_SIZE = 6;
 type PricePreview = { value: string; totalMinor: number };
-export function GiftCardCheckout({ product, onBack, onPurchased }: {
+// Shared confirmation keeps gifts and phone top-ups on the same wallet/idempotency path.
+export function GiftCardCheckout({ product, onBack, onPurchased, phoneNumber }: {
   product: CommerceProduct;
   onBack: () => void;
   onPurchased: (order: CommerceOrder) => void;
+  phoneNumber?: string;
 }) {
+  const topup = product.kind === 'airtime' || product.kind === 'data';
+  const needsRecipient = product.userIdRequired || product.emailRequired;
   const theme = useBillyTheme();
   const insets = useSafeAreaInsets();
   const dashboard = useDashboardQuery();
@@ -42,7 +46,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
   const [customValue, setCustomValue] = useState('');
   const [debouncedValue, setDebouncedValue] = useState('');
   const [selected, setSelected] = useState('');
-  const [recipient, setRecipient] = useState('');
+  const [recipient, setRecipient] = useState(product.emailRequired ? '' : phoneNumber ?? '');
   const [open, setOpen] = useState(false);
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [quote, setQuote] = useState<CommerceQuote | null>(null);
@@ -74,7 +78,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
   const customPrice = useQuery({
     queryKey: [
       'commerce',
-      'gift-value-price',
+      'value-price',
       product.selectionToken,
       debouncedValue,
     ],
@@ -91,7 +95,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
     ? customPrice.data
     : undefined;
   const filtered = product.values.filter((v) =>
-    `${product.currency} ${v.value}`.toLowerCase().includes(
+    `${v.label} ${product.currency} ${v.value}`.toLowerCase().includes(
       search.trim().toLowerCase(),
     )
   );
@@ -155,7 +159,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
     setQuote(null);
     setError('');
     setOpen(true);
-    if (!product.userIdRequired) void prepare(value, '');
+    if (!needsRecipient) void prepare(value, recipient);
   }
   function close() {
     if (!inFlight.current) setOpen(false);
@@ -183,7 +187,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
       <AppButton
         variant='ghost'
         icon='arrow-back'
-        label='Back to gift cards'
+        label={topup ? 'Change network or number' : 'Back to gift cards'}
         disabled={busy}
         onPress={onBack}
       />
@@ -212,17 +216,20 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
               name={product.countryName}
             />
             <Text style={[styles.caption, muted, { flex: 1 }]}>
-              {product.global ? 'Global' : `${product.countryName} · Redeem here only`}
+              {product.global ? 'Global' : topup ? product.countryName : `${product.countryName} · Redeem here only`}
             </Text>
           </View>
         </View>
       </View>
+      {topup && !product.emailRequired ? <Text selectable style={[styles.body, text]}>To: {phoneNumber}</Text> : null}
+      {topup && product.pinDelivery ? <FeedbackBanner message='Delivered as a recharge code. Redeem the code on the recipient’s phone after payment.' /> : null}
+      {topup && product.emailRequired ? <Text style={[styles.caption, muted]}>This service uses an email address. Enter the recipient’s email at checkout.</Text> : null}
       <View style={styles.row}>
-        <Text style={[styles.heading, text, { flex: 1 }]}>Choose a value</Text>
+        <Text style={[styles.heading, text, { flex: 1 }]}>{product.kind === 'data' ? 'Choose a plan' : topup ? 'Choose an amount' : 'Choose a value'}</Text>
         <Text style={[styles.caption, muted]}>{product.currency} → NGN</Text>
       </View>
       <Text style={[styles.caption, muted]}>
-        Card value on top. Your naira total below, including fees.
+        {topup ? 'Your naira price includes all fees. Nothing is charged until you confirm.' : 'Card value on top. Your naira total below, including fees.'}
       </Text>
       {attempted ? <AppButton label='Continue payment' onPress={() => setOpen(true)} /> : null}
       {product.values.length
@@ -231,15 +238,15 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
             {product.values.length > PAGE_SIZE
               ? (
                 <TextField
-                  label='Find a value'
+                  label={topup ? 'Find a plan or amount' : 'Find a value'}
                   icon='search-outline'
-                  keyboardType='decimal-pad'
+                  keyboardType={topup ? 'default' : 'decimal-pad'}
                   value={search}
                   onChangeText={(s) => {
                     setSearch(s);
                     setPage(0);
                   }}
-                  placeholder={`Search ${product.currency} amount`}
+                  placeholder={topup ? 'Search data, validity or amount' : `Search ${product.currency} amount`}
                   disabled={busy || attempted}
                 />
               )
@@ -251,7 +258,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
                   <Pressable
                     key={v.value}
                     accessibilityRole='button'
-                    accessibilityLabel={`${product.currency} ${v.value}, ${
+                    accessibilityLabel={`${topup ? v.label : `${product.currency} ${v.value}`}, ${
                       amount === undefined ? 'price unavailable' : formatMinorUnits(amount)
                     }`}
                     accessibilityState={{
@@ -272,14 +279,14 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
                     ]}
                   >
                     <Text style={[styles.valueTitle, text]}>
-                      {product.currency} {v.value}
+                      {topup ? v.label : `${product.currency} ${v.value}`}
                     </Text>
                     <Text style={[styles.price, { color: theme.colors.brand }]}>
                       {amount === undefined ? 'Price unavailable' : formatMinorUnits(amount)}
                     </Text>
                     <View style={styles.row}>
                       <Text style={[styles.caption, muted, { flex: 1 }]}>
-                        Select value
+                        {topup ? 'Select' : 'Select value'}
                       </Text>
                       <Ionicons
                         name='arrow-forward'
@@ -324,7 +331,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
         : (
           <View style={[styles.box, panel]}>
             <TextField
-              label={`Card value (${product.currency})`}
+              label={`${topup ? 'Top-up amount' : 'Card value'} (${product.currency})`}
               value={customValue}
               onChangeText={setCustomValue}
               keyboardType='decimal-pad'
@@ -436,8 +443,11 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
               style={{ flexShrink: 1 }}
             >
               <Text style={[styles.body, text]}>
-                {product.name} · {product.currency} {selected}
+                {product.name} · {topup ? product.values.find((v) => v.value === selected)?.label || `${product.currency} ${selected}` : `${product.currency} ${selected}`}
               </Text>
+              {topup && !product.emailRequired ? <Text testID='payment-recipient' selectable style={[styles.body, text]}>To: {phoneNumber}</Text> : null}
+              {topup && quote?.delivery && quote.delivery !== product.values.find((v) => v.value === selected)?.label
+                ? <Text style={[styles.body, text]}>You receive: {quote.delivery}</Text> : null}
               <View
                 style={[styles.box, {
                   backgroundColor: theme.colors.brandMist,
@@ -451,10 +461,11 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
                   Includes all fees · Paid from your Billy wallet
                 </Text>
               </View>
-              {product.userIdRequired
+              {needsRecipient
                 ? (
                   <TextField
-                    label='Player / user ID'
+                    label={product.emailRequired ? 'Recipient email' : 'Player / user ID'}
+                    keyboardType={product.emailRequired ? 'email-address' : 'default'}
                     value={recipient}
                     disabled={busy || attempted}
                     onChangeText={(v) => {
@@ -535,7 +546,7 @@ export function GiftCardCheckout({ product, onBack, onPurchased }: {
                 <AppButton
                   label={busy ? 'Checking price' : 'Review price'}
                   loading={busy}
-                  disabled={product.userIdRequired && !recipient.trim()}
+                  disabled={needsRecipient && !recipient.trim()}
                   onPress={() => void prepare(selected, recipient)}
                 />
               )}

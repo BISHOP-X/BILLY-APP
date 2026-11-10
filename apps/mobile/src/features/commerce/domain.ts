@@ -27,6 +27,15 @@ export type CommerceCatalog = {
   pages: number;
   total: number;
 };
+export type TopupRecipient = {
+  phone: string;
+  formattedPhone: string;
+  country: { code: string; name: string } | null;
+  countries: { code: string; name: string }[];
+  network: string | null;
+  needsCountry: boolean;
+  products: (CommerceProduct & { recommended: boolean })[];
+};
 export type CommerceQuote = {
   quoteToken: string;
   amountMinor: number;

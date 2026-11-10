@@ -112,13 +112,17 @@ export function normalizeProduct(
       ? raw.internationalFixedAmounts
       : raw.fixedAmounts,
   );
-  const descriptions = object(raw.fixedAmountsDescriptions);
+  // Providers may use "0.40" as a description key but 0.4 as the denomination.
+  const descriptions = new Map(Object.entries(object(raw.fixedAmountsDescriptions))
+    .filter(([key]) => /^\d+(?:\.\d{1,6})?$/.test(key))
+    .map(([key, label]) => [decimal(micro(key)), str(label)]));
   const values = fixed.map((v) => {
     const row = object(v);
     const value = str(typeof v === 'object' ? row.amount : v);
     return {
       value,
-      label: str(row.description) || str(descriptions[value]) || `${currency} ${value}`,
+      label: str(row.description) || (/^\d+(?:\.\d{1,6})?$/.test(value)
+        ? descriptions.get(decimal(micro(value))) : '') || `${currency} ${value}`,
     };
   }).filter((v) => /^\d+(?:\.\d{1,6})?$/.test(v.value));
   const bounds =
@@ -362,6 +366,13 @@ export class ReloadlyAdapter {
     return family === 'electricity'
       ? object(array(object(result).content)[0] ?? array(result)[0] ?? result)
       : object(result);
+  }
+  async detectOperator(nationalNumber: string, country: string): Promise<JsonObject> {
+    if (!/^\d{4,15}$/.test(nationalNumber) || !/^[A-Z]{2}$/.test(country)) {
+      throw new Error('Invalid phone lookup.');
+    }
+    return object(await this.request('topups',
+      `/operators/auto-detect/phone/${nationalNumber}/countries/${country}`));
   }
   async giftCost(raw: JsonObject, value: string): Promise<bigint> {
     if (raw.senderCurrencyCode !== 'USD') throw new Error('Unsupported supplier wallet currency.');

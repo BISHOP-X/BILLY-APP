@@ -35,6 +35,7 @@ import type {
   CommerceQuote,
 } from './domain';
 import { GiftCardCheckout } from './gift-card-checkout';
+import { TopupRecipientPicker, type TopupDraft } from './topup-recipient';
 
 const titles: Record<CommerceKind, string> = {
   gift_cards: 'Gift cards',
@@ -56,7 +57,7 @@ export function CommerceScreen({ kind }: { kind: CommerceKind }) {
           ? 'Find a favourite. Send a little joy.'
           : 'Everyday essentials, wherever home is.'}
       />
-      {kind !== 'gift_cards' ? <View style={[styles.intro, { backgroundColor: theme.colors.brandMist }]}>
+      {kind === 'electricity' ? <View style={[styles.intro, { backgroundColor: theme.colors.brandMist }]}>
         <Ionicons
           name={kind === 'electricity'
             ? 'flash-outline'
@@ -68,12 +69,13 @@ export function CommerceScreen({ kind }: { kind: CommerceKind }) {
           Choose a country and service. You’ll see the full naira price before you pay.
         </Text>
       </View> : null}
-      <CommerceJourney kind={kind} onStepChange={showStepFromTop} />
+      <CommerceJourney key={kind} kind={kind} onStepChange={showStepFromTop} />
     </AppScreen>
   );
 }
 
 export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; onStepChange?: () => void }) {
+  const topup = kind === 'airtime' || kind === 'data';
   const theme = useBillyTheme();
   const { user } = useAuth();
   const cache = useQueryClient();
@@ -86,6 +88,7 @@ export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; on
   const [product, setProduct] = useState<CommerceProduct | null>(null);
   const [value, setValue] = useState('');
   const [recipient, setRecipient] = useState('');
+  const [topupDraft, setTopupDraft] = useState<TopupDraft>({ phone: '', result: null });
   const [invoice, setInvoice] = useState('');
   const [quote, setQuote] = useState<CommerceQuote | null>(null);
   const [busy, setBusy] = useState(false);
@@ -113,7 +116,7 @@ export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; on
     queryKey: ['commerce', user?.id, kind, 'catalog', country, debounced, page],
     queryFn: () =>
       invokeAction<CommerceCatalog>('commerce.catalog', { kind, country, query: debounced, page }),
-    enabled: !!user,
+    enabled: !!user && !topup,
     staleTime: 5 * 60_000,
     placeholderData: keepPreviousData,
   });
@@ -285,13 +288,27 @@ export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; on
       </View>
     );
   }
-  if (product && kind === 'gift_cards') {
-    return <GiftCardCheckout key={product.selectionToken} product={product} onBack={reset} onPurchased={(next) => {
+  if (product && (kind === 'gift_cards' || topup)) {
+    return <GiftCardCheckout key={product.selectionToken} product={product} phoneNumber={topup ? recipient : undefined} onBack={() => { reset(); onStepChange?.(); }} onPurchased={(next) => {
       setOrder(next);
       onStepChange?.();
       void cache.invalidateQueries({ queryKey: ['commerce', user?.id, kind, 'orders'] });
       void cache.invalidateQueries({ queryKey: ['main'] });
     }} />;
+  }
+  if (topup) {
+    return <View style={styles.content}>
+      <TopupRecipientPicker kind={kind} draft={topupDraft} onDraft={setTopupDraft} onStepChange={onStepChange}
+        onChoose={(p, phone) => { setProduct(p); setRecipient(phone); setError(''); onStepChange?.(); }} />
+      {orders.data?.length ? <View style={styles.content}>
+        <Text style={[styles.heading, text]}>Recent orders</Text>
+        {orders.data.map((o) => <Pressable key={o.id} accessibilityRole='button'
+          onPress={() => { setOrder(o); setDelivery(null); setError(''); onStepChange?.(); }} style={[styles.choice, panel]}>
+          <Text style={[styles.label, text]}>{o.title}</Text>
+          <Text style={[styles.caption, muted]}>{formatMinorUnits(o.amount_minor + o.fee_minor)} · {o.status === 'failed' ? 'Failed · refunded' : o.status === 'succeeded' ? 'Completed' : 'Processing'}</Text>
+        </Pressable>)}
+      </View> : null}
+    </View>;
   }
   if (product) {
     return (
