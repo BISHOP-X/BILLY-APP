@@ -176,6 +176,31 @@ async function cost(
     fees.internationalPercentage,
   );
 }
+/** Read-only display prices use the same fees, discounts and Admin rates as checkout. */
+export async function giftValuePrices(
+  r: CommerceRuntime,
+  raw: JsonObject,
+  p: CommerceProduct,
+) {
+  const pricing = await price(r, 'gift_cards');
+  const values: { value: string; totalMinor: number }[] = [];
+  // Bound any FX lookups; most fixed products already supply their full denomination map.
+  for (let offset = 0; offset < p.values.length; offset += 4) {
+    values.push(
+      ...await Promise.all(
+        p.values.slice(offset, offset + 4).map(async (v) => ({
+          value: v.value,
+          totalMinor: sellingPrice(
+            await cost(r, raw, p, v.value),
+            pricing.exchange_rate_minor_per_usd,
+            pricing.markup_bps,
+          ).totalMinor,
+        })),
+      ),
+    );
+  }
+  return values;
+}
 function publicOrder(o: CommerceOrder) {
   const { user_id: _user, ...rest } = o;
   return rest;
@@ -497,11 +522,46 @@ export async function handleCommerceAction(
     return {
       data: {
         ...publicProduct,
+        ...(p.kind === 'gift_cards' ? { valuePrices: await giftValuePrices(r, raw, p) } : {}),
         selectionToken: await r.tokens.issueOpaque('commerce_product', user.id, {
           id: p.id,
           kind: p.kind,
           region,
         }, 30 * 60_000),
+      },
+    };
+  }
+  if (action === 'commerce.price') {
+    const selected = await r.tokens.readOpaque<
+      { kind: CommerceKind; id: string }
+    >(
+      requestText(input.selectionToken, 'Product', 8000),
+      'commerce_product',
+      user.id,
+    );
+    if (selected.kind !== 'gift_cards') {
+      throw new OperationsError(400, 'invalid_request', 'Choose a gift card.');
+    }
+    const raw = await adapter(r).product('gift_cards', selected.id);
+    const p = normalizeProduct(raw, 'gift_cards');
+    if (!p || p.id !== selected.id) {
+      throw new OperationsError(
+        409,
+        'conflict',
+        'This product is unavailable. Please choose another.',
+      );
+    }
+    const value = decimal(micro(requestText(input.value, 'Amount', 24)));
+    validateAmount(p, value);
+    const pricing = await price(r, 'gift_cards');
+    return {
+      data: {
+        value,
+        ...sellingPrice(
+          await cost(r, raw, p, value),
+          pricing.exchange_rate_minor_per_usd,
+          pricing.markup_bps,
+        ),
       },
     };
   }

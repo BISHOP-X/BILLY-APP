@@ -52,6 +52,16 @@ Applied migrations: `20261110181918`, `20261110182211`, `20261110185736`. Deploy
 
 Advisors found no new commerce FK-index gap. Private RLS-without-policy notices are intentional server-only tables. The existing leaked-password-protection warning and pre-existing unrelated index recommendations remain separate work.
 
+## Gift-card picker and country flags — 10 November 2026
+
+The value screen shows six denominations per page with immediate local search. Each tile includes its exact NGN selling total. Selecting a value opens a bottom payment sheet; only the explicit Pay action can purchase. The sheet shows wallet balance, amount due and balance after payment, or Add money when the wallet is insufficient. Custom-value cards obtain a read-only price before continuing. Player-ID cards collect the ID before generating the final quote. Redemption instructions stay available behind a disclosure rather than extending the value list.
+
+`commerce.product` returns `valuePrices` calculated from the provider denomination map/FX, fees, discounts and the saved Admin rate/markup. `commerce.price` is an authenticated, owner-bound read-only preview for custom amounts. Neither route reserves funds or places orders. Final checkout still revalidates the product and Admin pricing. Lost purchase responses retain their original quote/idempotency key; a refreshed expired quote requires a fresh Pay confirmation.
+
+All active country selectors (gift cards, airtime, data and electricity), the selected-country label and the account country field use the shared `CountryFlag` component. The 252 two-letter-code PNGs are bundled locally so they do not depend on emoji support or an external flag request at render time. Artwork source: [Flagcdn / Flagpedia](https://flagcdn.com/), based on Wikimedia Commons. `scripts/sync-country-flags.mjs` refreshes the assets and generated static registry. Global/All countries uses a globe instead of an arbitrary flag.
+
+Verification: 182 app tests and 173 Edge Function tests passed, including a 35-denomination picker, instant search/pagination, full NGN fee/discount/markup calculations, foreign face-value conversion, read-only custom pricing, insufficient balance, required player IDs and retry safety. No live purchases are authorized for this verification pass.
+
 ## Recovery and retained providers
 
 Admin can suspend Bills or Gift cards if needed; leave reconciliation running so accepted orders can finish. Do not delete orders, encrypted delivery, ledger entries, migrations or provider secrets to roll back. Rate edits are versioned and audited. Restore prior schema behavior through a new reviewed migration, never by rewriting applied migration history.

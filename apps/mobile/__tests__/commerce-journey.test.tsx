@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { CommerceJourney } from '@/features/commerce/commerce-screen';
 import { invokeAction } from '@/features/services/supabase-service-repository';
 import type { CommerceProduct } from '@/features/commerce/domain';
@@ -9,6 +10,7 @@ jest.mock(
 );
 jest.mock('@/features/services/supabase-service-repository', () => ({ invokeAction: jest.fn() }));
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'synthetic-operation' }));
+jest.mock('@/features/main/queries', () => ({ useDashboardQuery: () => ({ data: { wallet: { availableMinor: 50000000 } } }) }));
 const product: CommerceProduct = {
   kind: 'gift_cards',
   name: 'Synthetic card',
@@ -18,6 +20,7 @@ const product: CommerceProduct = {
   min: '5',
   max: '10',
   values: [{ value: '5', label: 'USD 5' }, { value: '10', label: 'USD 10' }],
+  valuePrices: [{ value: '5', totalMinor: 707000 }, { value: '10', totalMinor: 1414000 }],
   image: null,
   instructions: 'Redeem online',
   userIdRequired: false,
@@ -90,12 +93,14 @@ async function mount() {
   });
   await render(
     <QueryClientProvider client={client}>
-      <CommerceJourney kind='gift_cards' />
+      <SafeAreaInsetsContext.Provider value={{ top: 0, left: 0, right: 0, bottom: 34 }}>
+        <CommerceJourney kind='gift_cards' />
+      </SafeAreaInsetsContext.Provider>
     </QueryClientProvider>,
   );
   await fireEvent.press(await screen.findByRole('button', { name: 'Choose Synthetic card' }));
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Review price' })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: 'USD 5, ₦7,070.00' })).not.toBeDisabled()
   );
   return client;
 }
@@ -103,7 +108,7 @@ test('gift purchase requires exact price confirmation, no PIN, then owner delive
   const client = await mount();
   expect(purchases).toBe(0);
   expect(screen.queryByLabelText('Transaction PIN')).toBeNull();
-  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'USD 5, ₦7,070.00' }));
   const pay = await screen.findByRole('button', { name: 'Pay ₦7,070.00' });
   expect(purchases).toBe(0);
   await fireEvent.press(pay);
@@ -126,7 +131,7 @@ test('lost response retries with the same operation key and never creates a new 
     return implementation(action, input);
   });
   const client = await mount();
-  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'USD 5, ₦7,070.00' }));
   await fireEvent.press(await screen.findByRole('button', { name: 'Pay ₦7,070.00' }));
   expect(await screen.findByText('Connection lost. Check your orders.')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'Pay ₦7,070.00' }));
@@ -147,14 +152,15 @@ test('locks the selected value while its exact price is being prepared', async (
     action === 'commerce.quote' ? pendingQuote : implementation(action, input)
   );
   const client = await mount();
-  await fireEvent.press(screen.getByRole('button', { name: 'Review price' }));
-  const choices = screen.getAllByRole('radio');
-  choices.forEach((choice) => expect(choice).toBeDisabled());
-  await fireEvent.press(choices[1]);
+  await fireEvent.press(screen.getByRole('button', { name: 'USD 5, ₦7,070.00' }));
+  expect(screen.getByRole('button', { name: 'Close' })).toBeDisabled();
+  const otherValue = screen.getByRole('button', { name: 'USD 10, ₦14,140.00', includeHiddenElements: true });
+  expect(otherValue).toBeDisabled();
+  await fireEvent.press(otherValue);
   expect(invokeAction).toHaveBeenCalledWith('commerce.quote', expect.objectContaining({ value: '5' }));
   await act(() => resolveQuote(quote));
   expect(await screen.findByRole('button', { name: 'Pay ₦7,070.00' })).toBeTruthy();
-  expect(screen.getByText('Value: USD 5')).toBeTruthy();
+  expect(screen.getByText('Synthetic card · USD 5')).toBeTruthy();
   expect(purchases).toBe(0);
   await act(() => client.clear());
 });

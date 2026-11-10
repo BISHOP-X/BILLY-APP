@@ -8,9 +8,18 @@ import {
   ReloadlyError,
   sellingPrice,
 } from '../_shared/providers/reloadly.ts';
-import { observation } from '../_shared/service-api/commerce-service.ts';
+import {
+  createCommerceRuntime,
+  giftValuePrices,
+  handleCommerceAction,
+  observation,
+} from '../_shared/service-api/commerce-service.ts';
+import type { SupabaseClient } from '@supabase/supabase-js';
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 const gift = {
   productId: 11,
   productName: 'Synthetic US card',
@@ -47,7 +56,10 @@ Deno.test('gift catalogue preserves fixed denominations, image and redemption co
   assert.equal(p.min, '5');
   assert.equal(p.max, '10');
   assert.equal(p.image, 'https://cdn.example.test/logo.png');
-  assert.equal(normalizeProduct({ ...gift, status: 'INACTIVE' }, 'gift_cards'), null);
+  assert.equal(
+    normalizeProduct({ ...gift, status: 'INACTIVE' }, 'gift_cards'),
+    null,
+  );
 });
 Deno.test('electricity excludes television and validates international currency support', () => {
   const base = {
@@ -62,9 +74,15 @@ Deno.test('electricity excludes television and validates international currency 
     type: 'ELECTRICITY_BILL_PAYMENT',
   };
   assert.equal(normalizeProduct(base, 'electricity')?.kind, 'electricity');
-  assert.equal(normalizeProduct({ ...base, type: 'TV_BILL_PAYMENT' }, 'electricity'), null);
   assert.equal(
-    normalizeProduct({ ...base, internationalAmountSupported: false }, 'electricity'),
+    normalizeProduct({ ...base, type: 'TV_BILL_PAYMENT' }, 'electricity'),
+    null,
+  );
+  assert.equal(
+    normalizeProduct(
+      { ...base, internationalAmountSupported: false },
+      'electricity',
+    ),
     null,
   );
 });
@@ -79,7 +97,10 @@ Deno.test('topup bundles appear as data, not plain airtime', () => {
     bundle: true,
   };
   assert.equal(normalizeProduct(base, 'topups')?.kind, 'data');
-  assert.equal(normalizeProduct({ ...base, bundle: false }, 'topups')?.kind, 'airtime');
+  assert.equal(
+    normalizeProduct({ ...base, bundle: false }, 'topups')?.kind,
+    'airtime',
+  );
 });
 Deno.test('provider fee and discount arithmetic uses integer micro-dollars', async () => {
   const a = new ReloadlyAdapter('synthetic', 'synthetic');
@@ -99,7 +120,10 @@ Deno.test('catalog pagination fetches every page and shares OAuth tokens', async
     const page = Number(new URL(url).searchParams.get('page'));
     pages.push(page);
     return json({
-      content: Array.from({ length: 200 }, (_, i) => ({ ...gift, productId: page * 200 + i })),
+      content: Array.from(
+        { length: 200 },
+        (_, i) => ({ ...gift, productId: page * 200 + i }),
+      ),
       totalPages: 2,
     });
   });
@@ -166,19 +190,29 @@ Deno.test('HTTP success without matching order evidence stays pending', () => {
     'pending',
   );
   assert.equal(
-    observation({ ...delivered, product: { ...delivered.product, unitPrice: 10 } }, quote).status,
+    observation({
+      ...delivered,
+      product: { ...delivered.product, unitPrice: 10 },
+    }, quote).status,
     'pending',
   );
   assert.equal(
-    observation({ ...delivered, code: 'PAYMENT_PROCESSING_IN_PROGRESS' }, quote).status,
+    observation({ ...delivered, code: 'PAYMENT_PROCESSING_IN_PROGRESS' }, quote)
+      .status,
     'pending',
   );
   assert.equal(observation(delivered, quote).status, 'succeeded');
 });
 Deno.test('confirmed failure is distinct from a missing or delayed transaction', () => {
   assert.equal(observation(null, quote).status, 'pending');
-  assert.equal(observation({ ...delivered, status: 'PROCESSING' }, quote).status, 'pending');
-  assert.equal(observation({ ...delivered, status: 'FAILED' }, quote).status, 'failed');
+  assert.equal(
+    observation({ ...delivered, status: 'PROCESSING' }, quote).status,
+    'pending',
+  );
+  assert.equal(
+    observation({ ...delivered, status: 'FAILED' }, quote).status,
+    'failed',
+  );
 });
 Deno.test('regional plans include every operator without inventing a purchase parameter', () => {
   const raw = {
@@ -243,7 +277,117 @@ Deno.test('explicit rejection releases funds; ambiguous or duplicate-reference e
 });
 Deno.test('numeric card and electricity codes retain every digit', () => {
   assert.deepEqual(
-    parseProviderJson('{"cardNumber":12345678901234567890,"token":98765432109876543210}'),
+    parseProviderJson(
+      '{"cardNumber":12345678901234567890,"token":98765432109876543210}',
+    ),
     { cardNumber: '12345678901234567890', token: '98765432109876543210' },
+  );
+});
+
+function priceRuntime(raw: typeof gift = gift) {
+  const calls: string[] = [];
+  const client = {
+    rpc(name: string) {
+      calls.push(name);
+      if (name !== 'internal_provider_pricing') {
+        throw new Error(
+          `Unexpected write or RPC: ${name}`,
+        );
+      }
+      return Promise.resolve({
+        data: [{
+          service_key: 'reloadly_gift_cards',
+          exchange_rate_minor_per_usd: 140000,
+          markup_bps: 100,
+          version: 1,
+        }],
+        error: null,
+      });
+    },
+  } as unknown as SupabaseClient;
+  const runtime = createCommerceRuntime(
+    client,
+    'synthetic-pricing-secret-long-enough-for-testing',
+    {},
+    async () => 'synthetic',
+  );
+  runtime.adapter = new ReloadlyAdapter(
+    'synthetic',
+    'synthetic',
+    async (input) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes('oauth/token')) {
+        return json({
+          access_token: 'synthetic-token',
+          expires_in: 3600,
+        });
+      }
+      if (url.endsWith('/products/11')) return json(raw);
+      throw new Error(`Unexpected provider request: ${url}`);
+    },
+  );
+  return { runtime, calls };
+}
+Deno.test('every gift value displays the exact NGN total including fees, discount and markup', async () => {
+  const { runtime, calls } = priceRuntime();
+  const result = await giftValuePrices(runtime, gift, product);
+  assert.deepEqual(result, [
+    { value: '5', totalMinor: 827190 }, // (5 - 5% + 2% + $1) * 1400 + 1%.
+    { value: '10', totalMinor: 1512980 },
+  ]);
+  assert.deepEqual(calls, ['internal_provider_pricing']);
+});
+Deno.test('custom amount preview is owner-bound, read-only and uses checkout pricing', async () => {
+  const raw = {
+    ...gift,
+    fixedRecipientDenominations: [],
+    minRecipientDenomination: 5,
+    maxRecipientDenomination: 100,
+  };
+  const { runtime, calls } = priceRuntime(raw);
+  const selectionToken = await runtime.tokens.issueOpaque(
+    'commerce_product',
+    '11111111-1111-4111-8111-111111111111',
+    { kind: 'gift_cards', id: '11' },
+    60000,
+  );
+  const preview = await handleCommerceAction(
+    'commerce.price',
+    { selectionToken, value: '7' },
+    { id: '11111111-1111-4111-8111-111111111111' },
+    runtime,
+  );
+  assert.deepEqual(preview.data, {
+    value: '7',
+    ...sellingPrice(7790000n, 140000, 100),
+  });
+  await assert.rejects(() =>
+    handleCommerceAction('commerce.price', { selectionToken, value: '7' }, {
+      id: '22222222-2222-4222-8222-222222222222',
+    }, runtime)
+  );
+  await assert.rejects(() =>
+    handleCommerceAction('commerce.price', { selectionToken, value: '500' }, {
+      id: '11111111-1111-4111-8111-111111111111',
+    }, runtime)
+  );
+  assert.ok(!calls.some((name) => /create|observe|orders/.test(name)));
+});
+Deno.test('non-USD denominations use the authoritative denomination map, not face-value conversion', async () => {
+  const raw = {
+    ...gift,
+    recipientCurrencyCode: 'EUR',
+    fixedRecipientToSenderDenominationsMap: { 5: 6, 10: 12 },
+  };
+  const { runtime } = priceRuntime(raw);
+  const values = await giftValuePrices(
+    runtime,
+    raw,
+    normalizeProduct(raw, 'gift_cards')!,
+  );
+  assert.equal(
+    values[0].totalMinor,
+    sellingPrice(6820000n, 140000, 100).totalMinor,
   );
 });

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { AppScreen } from '@/components/layout/app-screen';
 import { AppButton } from '@/components/ui/button';
+import { CountryFlag } from '@/components/ui/country-flag';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { ScreenHeader } from '@/components/ui/screen-header';
 import { SkeletonBlock } from '@/components/ui/skeleton';
@@ -33,6 +34,7 @@ import type {
   CommerceProduct,
   CommerceQuote,
 } from './domain';
+import { GiftCardCheckout } from './gift-card-checkout';
 
 const titles: Record<CommerceKind, string> = {
   gift_cards: 'Gift cards',
@@ -50,22 +52,18 @@ export function CommerceScreen({ kind }: { kind: CommerceKind }) {
           ? 'Find a favourite. Send a little joy.'
           : 'Everyday essentials, wherever home is.'}
       />
-      <View style={[styles.intro, { backgroundColor: theme.colors.brandMist }]}>
+      {kind !== 'gift_cards' ? <View style={[styles.intro, { backgroundColor: theme.colors.brandMist }]}>
         <Ionicons
-          name={kind === 'gift_cards'
-            ? 'gift-outline'
-            : kind === 'electricity'
+          name={kind === 'electricity'
             ? 'flash-outline'
             : 'globe-outline'}
           color={theme.colors.brand}
           size={28}
         />
         <Text style={[styles.body, { color: theme.colors.text, flex: 1 }]}>
-          {kind === 'gift_cards'
-            ? 'Digital cards from brands around the world. Delivered privately in Billy.'
-            : 'Choose a country and service. You’ll see the full naira price before you pay.'}
+          Choose a country and service. You’ll see the full naira price before you pay.
         </Text>
-      </View>
+      </View> : null}
       <CommerceJourney kind={kind} />
     </AppScreen>
   );
@@ -283,6 +281,13 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
       </View>
     );
   }
+  if (product && kind === 'gift_cards') {
+    return <GiftCardCheckout key={product.selectionToken} product={product} onBack={reset} onPurchased={(next) => {
+      setOrder(next);
+      void cache.invalidateQueries({ queryKey: ['commerce', user?.id, kind, 'orders'] });
+      void cache.invalidateQueries({ queryKey: ['main'] });
+    }} />;
+  }
   if (product) {
     return (
       <View style={styles.content}>
@@ -499,7 +504,7 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
         }}
         style={[styles.country, panel]}
       >
-        <Ionicons name='globe-outline' color={theme.colors.brand} size={22} />
+        <CountryFlag code={country} name={catalog.data?.countries.find((c) => c.code === country)?.name} />
         <Text style={[styles.label, text, { flex: 1 }]}>
           {country
             ? catalog.data?.countries.find((c) => c.code === country)?.name || country
@@ -637,9 +642,13 @@ export function CommerceJourney({ kind }: { kind: CommerceKind }) {
                     setPage(1);
                     setCountriesOpen(false);
                   }}
-                  style={styles.choice}
+                  accessibilityLabel={c.name}
+                  accessibilityState={{ selected: country === c.code }}
+                  style={[styles.choice, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}
                 >
-                  <Text style={[styles.body, text]}>{c.name}</Text>
+                  <CountryFlag code={c.code} name={c.name} />
+                  <Text style={[styles.body, text, { flex: 1 }]}>{c.name}</Text>
+                  {country === c.code ? <Ionicons name='checkmark' size={20} color={theme.colors.brand} /> : null}
                 </Pressable>
               ))}
             </ScrollView>

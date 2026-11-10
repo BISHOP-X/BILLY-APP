@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppScreen } from '@/components/layout/app-screen';
 import { AppButton } from '@/components/ui/button';
+import { CountryFlag } from '@/components/ui/country-flag';
 import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { ScreenHeader } from '@/components/ui/screen-header';
@@ -161,6 +162,7 @@ function ProfileForm({ profile, userId }: { profile: Profile; userId: string }) 
           autoCapitalize="characters"
           icon="flag-outline"
           label="Country code"
+          rightSlot={<CountryFlag code={country} />}
           maxLength={2}
           onChangeText={setCountry}
           value={country}

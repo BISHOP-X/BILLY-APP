@@ -8,6 +8,7 @@ export type CommerceProduct = {
   min: string;
   max: string;
   values: { value: string; label: string }[];
+  valuePrices?: { value: string; totalMinor: number }[];
   image: string | null;
   instructions: string;
   userIdRequired: boolean;
