@@ -73,6 +73,7 @@ const identity = identityKey && identityHmacSecret && Deno.env.get('PREMBLY_MODE
 const identityDependencies = { database: createServiceDatabase(client),
   digestIdentity: identityHmacSecret ? createHmacHexDigester(identityHmacSecret) : digest };
 const numbers: NumberRuntime = {
+  receiptCipher: new SecretPayloadCipher(signing,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
   extended: numberKey ? new GetatextRentals(numberKey, fetch, Deno.env.get('GETATEXT_API_TIER') !== 'standard') : undefined,
   additionalAdapters: { daisysms: Deno.env.get('DAISYSMS_API_KEY')
     ? new DaisySmsAdapter(Deno.env.get('DAISYSMS_API_KEY')!) : undefined },

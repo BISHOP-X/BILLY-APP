@@ -14,6 +14,13 @@ export type NumberAllocation = {
   priceMicroUsd?: number;
   expiresAt?: string;
 };
+// Server-only evidence. Never serialize these fields into a customer response.
+export type NumberFailureEvidence = {
+  code: string;
+  httpStatus?: number;
+  rentalId?: string;
+  response?: string;
+};
 export type NumberStatus =
   | { state: 'received'; code: string }
   | { state: 'waiting' | 'cancelled' | 'unknown' | 'locked' };
@@ -30,6 +37,7 @@ export class NumberProviderError extends Error {
     readonly uncertain: boolean,
     message: string,
     readonly fallbackReason?: 'stock' | 'balance' | 'limit' | 'price',
+    readonly evidence?: NumberFailureEvidence,
   ) {
     super(message);
     this.name = 'NumberProviderError';
@@ -192,6 +200,8 @@ export class GetatextAdapter implements NumberAdapter {
       throw new NumberProviderError(
         true,
         'We are confirming your number request. Check your orders before trying again.',
+        undefined,
+        { code: 'TRANSPORT_OR_PARSE_ERROR' },
       );
     }
     const row = object(payload);
@@ -212,6 +222,8 @@ export class GetatextAdapter implements NumberAdapter {
           : /^The price of the service exceeds the maximum price you are willing to pay, actual price is: \d+(?:\.\d+)?$/.test(row.errors) ? 'price'
           : undefined
           : undefined,
+        { code: 'ALLOCATION_REJECTED', httpStatus: response.status,
+          response: JSON.stringify(payload).replaceAll(this.#key, '[redacted]').slice(0, 8192) },
       );
     }
     const id = String(row?.id ?? '');
@@ -227,6 +239,10 @@ export class GetatextAdapter implements NumberAdapter {
       throw new NumberProviderError(
         true,
         'We are confirming your number request. Check your orders before trying again.',
+        undefined,
+        { code: 'UNRECOGNIZED_ALLOCATION', httpStatus: response.status,
+          rentalId: /^\d{1,30}$/.test(id) ? id : undefined,
+          response: JSON.stringify(payload).replaceAll(this.#key, '[redacted]').slice(0, 8192) },
       );
     }
     // Unzoned provider dates cannot safely be interpreted as UTC.

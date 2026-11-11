@@ -41,8 +41,9 @@ Deno.test("Daisy IO purchase is US-only, price-capped and single-dispatch", asyn
   const adapter = new DaisySmsAdapter(
     "synthetic-key",
     (async (input, init) => {
-      calls++;
       const url = new URL(String(input));
+      if (url.searchParams.get('action') === 'getBalance') return new Response('ACCESS_BALANCE:50.00');
+      calls++;
       assert.equal(url.origin, "https://daisysms.io");
       assert.equal(url.searchParams.get("country"), "187");
       assert.equal(url.searchParams.get("max_price"), "0.770000");
@@ -67,7 +68,8 @@ Deno.test("Daisy IO uncertain allocation never retries or leaks a credential", a
     let calls = 0;
     const adapter = new DaisySmsAdapter(
       "private-test-key",
-      (async () => {
+      (async (url) => {
+        if (new URL(String(url)).searchParams.get('action') === 'getBalance') return new Response('ACCESS_BALANCE:50.00');
         calls++;
         return new Response(response);
       }) as typeof fetch,
@@ -81,7 +83,8 @@ Deno.test("Daisy IO uncertain allocation never retries or leaks a credential", a
   }
   const adapter = new DaisySmsAdapter(
     "test",
-    (async () => new Response("MAX_PRICE_EXCEEDED")) as typeof fetch,
+    (async (url) => new Response(new URL(String(url)).searchParams.get('action') === 'getBalance'
+      ? 'ACCESS_BALANCE:50.00' : "MAX_PRICE_EXCEEDED")) as typeof fetch,
   );
   await assert.rejects(
     () => adapter.rent("wa", 1000000),
@@ -256,8 +259,13 @@ Deno.test("Daisy checkout dispatches the quoted provider once and returns the ex
       created = true;
       return { dispatch, order: row } as T;
     }
-    assert.equal(name, "internal_number_allocation");
-    assert.equal((input.p_input as Record<string, unknown>).state, "allocated");
+    if (name === 'internal_number_dispatch') return true as T;
+    if (name === 'internal_number_record_receipt') {
+      assert.equal((input.p_input as Record<string, unknown>).state, 'allocated');
+      return 1 as T;
+    }
+    assert.equal(name, 'internal_number_apply_receipt');
+    assert.equal(input.p_receipt_id, 1);
     return row as T;
   };
   const quoteToken = await r.tokens.issueOpaque("number_quote", owner, {
@@ -318,7 +326,7 @@ Deno.test("Checkout backup is one order, one quote, one dispatch and safe on rep
   const r = runtime();
   const owner = 'a9190000-0000-4000-8000-000000000001';
   const row = { id: 'order', user_id: owner, status: 'processing' } as NumberOrder;
-  let creates = 0, primaryCalls = 0, backupCalls = 0, switches = 0, settled = 0;
+  let creates = 0, primaryCalls = 0, backupCalls = 0, switches = 0, settled = 0, receipts = 0;
   r.adapter!.rent = async () => { primaryCalls++; throw new NumberProviderError(false, 'Unavailable', 'stock'); };
   r.additionalAdapters!.daisysms!.rent = async (_service, price) => {
     backupCalls++;
@@ -328,14 +336,19 @@ Deno.test("Checkout backup is one order, one quote, one dispatch and safe on rep
   r.database.rpc = async <T>(name: string, input: Record<string, unknown>) => {
     if (name === 'internal_number_provider_access') return true as T;
     if (name === 'internal_number_create') return { dispatch: creates++ === 0, order: row } as T;
+    if (name === 'internal_number_dispatch') return true as T;
+    if (name === 'internal_number_record_receipt') {
+      assert.equal((input.p_input as {state: string}).state, receipts === 0 ? 'rejected' : 'allocated');
+      return ++receipts as T;
+    }
     if (name === 'internal_number_fallback_claim') {
       switches++;
       assert.equal(input.p_order_id, row.id);
       assert.equal((input.p_input as { reason: string }).reason, 'stock');
       return { dispatch: true, order: row } as T;
     }
-    assert.equal(name, 'internal_number_allocation');
-    assert.equal((input.p_input as { state: string }).state, 'allocated');
+    assert.equal(name, 'internal_number_apply_receipt');
+    assert.equal(input.p_receipt_id, 2);
     settled++; row.status = 'waiting'; return row as T;
   };
   const quoteToken = await r.tokens.issueOpaque('number_quote', owner, {
@@ -346,6 +359,7 @@ Deno.test("Checkout backup is one order, one quote, one dispatch and safe on rep
   const second = await handleNumberAction('numbers.order', input, { id: owner }, r);
   assert.deepEqual(first, second);
   assert.deepEqual([primaryCalls, backupCalls, switches, settled], [1, 1, 1, 1]);
+  assert.equal(receipts, 2, 'Both provider outcomes are retained');
   assert(!JSON.stringify(first).includes('daisysms'));
 });
 
@@ -355,6 +369,7 @@ Deno.test("Checkout never switches on ambiguity, unsupported products or an unaf
     const owner = 'a9190000-0000-4000-8000-000000000001';
     const row = { id: 'order', user_id: owner } as NumberOrder;
     let backupCalls = 0, switches = 0, state = '';
+    const receipts: {state: string}[] = [];
     r.adapter!.rent = async () => {
       throw new NumberProviderError(scenario === 'timeout', 'Synthetic refusal', scenario === 'unclassified' ? undefined : 'stock');
     };
@@ -365,26 +380,31 @@ Deno.test("Checkout never switches on ambiguity, unsupported products or an unaf
     r.database.rpc = async <T>(name: string) => {
       if (name === 'internal_number_provider_access') return (scenario !== 'denied') as T;
       if (name === 'internal_number_create') return { dispatch: true, order: row } as T;
+      if (name === 'internal_number_dispatch') return true as T;
+      if (name === 'internal_number_record_receipt') return receipts.length as T;
       if (name === 'internal_number_fallback_claim') {
         switches++;
         if (scenario === 'lost-claim') throw new Error('Acknowledgement lost');
         return { dispatch: !['already-switched', 'busy'].includes(scenario), rejected: scenario === 'busy', order: row } as T;
       }
-      assert.equal(name, 'internal_number_allocation');
+      assert.equal(name, 'internal_number_apply_receipt');
       return row as T;
     };
     const rpc = r.database.rpc;
     r.database.rpc = <T>(name: string, input: Record<string, unknown>) => {
-      if (name === 'internal_number_allocation') state = (input.p_input as { state: string }).state;
+      if (name === 'internal_number_record_receipt') receipts.push(input.p_input as {state: string});
+      if (name === 'internal_number_apply_receipt') state = receipts[Number(input.p_receipt_id)-1].state;
       return rpc<T>(name, input);
     };
     const quoteToken = await r.tokens.issueOpaque('number_quote', owner, {
       providerKey: 'getatext', serviceId: scenario === 'telegram' ? 'telegram' : 'whatsapp', serviceName: 'Service',
       maximumMicroUsd: scenario === 'price' ? 500000 : 800000, amountMinor: 112000, feeMinor: 0,
     }, 60000);
-    await handleNumberAction('numbers.order', { quoteToken, idempotencyKey: 'synthetic-backup-check' }, { id: owner }, r);
+    const run = () => handleNumberAction('numbers.order', { quoteToken, idempotencyKey: 'synthetic-backup-check' }, { id: owner }, r);
+    if (scenario === 'lost-claim') await assert.rejects(run);
+    else await run();
     assert.equal(backupCalls, scenario.startsWith('backup-') ? 1 : 0, scenario);
     assert.equal(switches, ['lost-claim', 'already-switched', 'busy', 'backup-timeout', 'backup-rejected'].includes(scenario) ? 1 : 0, scenario);
-    assert.equal(state, scenario === 'already-switched' ? '' : ['timeout', 'lost-claim', 'backup-timeout'].includes(scenario) ? 'unknown' : 'rejected', scenario);
+    assert.equal(state, ['already-switched','lost-claim'].includes(scenario) ? '' : ['timeout', 'backup-timeout'].includes(scenario) ? 'unknown' : 'rejected', scenario);
   }
 });

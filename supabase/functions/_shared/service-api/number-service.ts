@@ -8,6 +8,7 @@ import {
 import type { ServiceTokenCodec } from './tokens.ts';
 import type { ExtendedNumberAdapter } from '../providers/getatext-rentals.ts';
 import { handleExtendedNumberAction, rentalContext, refreshExtendedNumber } from './number-rentals.ts';
+import { applyNumberReceipt, failedAllocation, recordNumberReceipt, recoverNumber } from './number-recovery.ts';
 
 export class OperationsError extends Error {
   constructor(
@@ -113,6 +114,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
   };
 }
 export type NumberRuntime = {
+  receiptCipher?: { encrypt(value: unknown): Promise<string> };
   extended?: ExtendedNumberAdapter;
   adapter?: NumberAdapter;
   additionalAdapters?: Partial<Record<NumberProviderKey, NumberAdapter>>;
@@ -202,16 +204,27 @@ async function backupServices(runtime: NumberRuntime, userId: string) {
   ).sort((a, b) => a.priceMicroUsd - b.priceMicroUsd);
 }
 
-async function allocateNumber(adapter: NumberAdapter, serviceId: string, maximum: number, runtime: NumberRuntime) {
-  const result = await adapter.rent(serviceId, maximum);
-  return { ...result, state: 'allocated', digest: await runtime.digest(JSON.stringify(result)) };
+async function allocateNumber(adapter: NumberAdapter, serviceId: string, maximum: number, runtime: NumberRuntime,
+  userId: string, order: NumberOrder, providerKey: NumberProviderKey) {
+  const dispatch = await runtime.database.rpc<boolean>('internal_number_dispatch', {
+    p_user_id: userId, p_order_id: order.id, p_provider_key: providerKey,
+  });
+  if (!dispatch) return { order };
+  let allocation: Record<string, unknown>; let failure: unknown;
+  try { allocation = { ...await adapter.rent(serviceId, maximum), state: 'allocated' }; }
+  catch (error) { failure = error; allocation = failedAllocation(error); }
+  // Persistence is outside the purchase catch: a DB failure is not a new
+  // provider rejection and can never trigger a fallback purchase.
+  const receiptId = await recordNumberReceipt(runtime, userId, order.id, providerKey, 'allocation', allocation,
+    failure instanceof NumberProviderError ? failure.evidence?.response : undefined);
+  return { allocation, receiptId, failure };
 }
 
 async function fallbackNumber(runtime: NumberRuntime, userId: string, order: NumberOrder, quote: NumberQuote, reason: NonNullable<NumberProviderError['fallbackReason']>) {
   // A failed read-only catalogue lookup leaves the confirmed rejection intact.
   const candidate = await backupServices(runtime, userId).catch(() => [])
     .then((services) => services.find((s) => s.priceMicroUsd <= quote.maximumMicroUsd));
-  if (!candidate) return { allocation: { state: 'rejected' } };
+  if (!candidate) return undefined;
   let claim: { dispatch: boolean; order: NumberOrder; rejected: boolean };
   try {
     claim = await runtime.database.rpc('internal_number_fallback_claim', {
@@ -222,15 +235,10 @@ async function fallbackNumber(runtime: NumberRuntime, userId: string, order: Num
   } catch {
     // The route switch may have committed. Do not release the hold or dispatch
     // another allocation when the acknowledgement itself is uncertain.
-    return { allocation: { state: 'unknown' } };
+    throw new OperationsError(503, 'unavailable', 'Your request is being checked. Open your orders before trying again.', true);
   }
-  if (!claim.dispatch) return claim.rejected
-    ? { allocation: { state: 'rejected' } } : { order: claim.order };
-  try {
-    return { allocation: await allocateNumber(provider(runtime, 'daisysms'), candidate.serviceId, candidate.priceMicroUsd, runtime) };
-  } catch (error) {
-    return { allocation: { state: error instanceof NumberProviderError && !error.uncertain ? 'rejected' : 'unknown' } };
-  }
+  if (!claim.dispatch) return claim.rejected ? undefined : { order: claim.order };
+  return allocateNumber(provider(runtime, 'daisysms'), candidate.serviceId, candidate.priceMicroUsd, runtime, userId, order, 'daisysms');
 }
 export async function refreshNumber(
   runtime: NumberRuntime,
@@ -238,6 +246,8 @@ export async function refreshNumber(
   orderId: string,
   cancel = false,
 ) {
+  const recovered = await recoverNumber(runtime, userId, orderId);
+  if (recovered) return recovered;
   if (runtime.extended) {
     const context = await rentalContext(runtime, userId, orderId);
     if (context.pendingAllocation && ['processing', 'manual_review'].includes(context.order.status))
@@ -266,6 +276,11 @@ export async function refreshNumber(
       result = await adapter.cancel(claim.rentalId);
   } catch {
     result = { state: 'unknown' };
+  }
+  if (result.state === 'cancelled' || result.state === 'received') {
+    const receipt = await recordNumberReceipt(runtime, userId, orderId, claim.providerKey ?? 'getatext', 'status',
+      { ...result, rentalId: claim.rentalId }, undefined, claim.claimToken);
+    return applyNumberReceipt(runtime, userId, orderId, receipt);
   }
   return runtime.database.rpc<NumberOrder>('internal_number_status', {
     p_user_id: userId,
@@ -404,28 +419,17 @@ export async function handleNumberAction(
       },
     });
     if (!created.dispatch) return { data: publicOrder(created.order) };
-    let allocation: Record<string, unknown>;
-    try {
-      allocation = await allocateNumber(selectedAdapter, quote.serviceId, quote.maximumMicroUsd, runtime);
-    } catch (error) {
-      if ((quote.providerKey ?? 'getatext') === 'getatext' && quote.serviceId === 'whatsapp' &&
-        error instanceof NumberProviderError && !error.uncertain && error.fallbackReason) {
-        const fallback = await fallbackNumber(runtime, user.id, created.order, quote, error.fallbackReason);
-        if (fallback.order) return { data: publicOrder(fallback.order) };
-        allocation = fallback.allocation!;
-      } else {
-        allocation = {
-          state:
-            error instanceof NumberProviderError && !error.uncertain
-              ? 'rejected'
-              : 'unknown',
-        };
-      }
+    let result = await allocateNumber(selectedAdapter, quote.serviceId, quote.maximumMicroUsd, runtime,
+      user.id, created.order, quote.providerKey ?? 'getatext');
+    if (result.order) return { data: publicOrder(result.order) };
+    const failure = result.failure;
+    if ((quote.providerKey ?? 'getatext') === 'getatext' && quote.serviceId === 'whatsapp' &&
+      failure instanceof NumberProviderError && !failure.uncertain && failure.fallbackReason) {
+      const fallback = await fallbackNumber(runtime, user.id, created.order, quote, failure.fallbackReason);
+      if (fallback) result = fallback;
     }
-    const order = await runtime.database.rpc<NumberOrder>(
-      'internal_number_allocation',
-      { p_user_id: user.id, p_order_id: created.order.id, p_input: allocation },
-    );
+    if (result.order) return { data: publicOrder(result.order) };
+    const order = await applyNumberReceipt(runtime, user.id, created.order.id, result.receiptId!);
     return { data: publicOrder(order) };
   }
   throw new OperationsError(400, 'invalid_request', 'Unknown number action.');

@@ -283,7 +283,12 @@ Deno.test(
           dispatch: dispatch++ === 0,
           order: { id: 'order', user_id: 'owner' },
         } as T;
-      allocation = input.p_input;
+      if (name === 'internal_number_dispatch') return true as T;
+      if (name === 'internal_number_record_receipt') {
+        allocation = input.p_input;
+        return 1 as T;
+      }
+      assert.equal(name, 'internal_number_apply_receipt');
       return { id: 'order', user_id: 'owner', status: 'manual_review' } as T;
     };
     const input = {
@@ -296,7 +301,7 @@ Deno.test(
       { id: owner },
       r,
     );
-    assert.deepEqual(allocation, { state: 'unknown' });
+    assert.deepEqual(allocation, { state: 'unknown', code: 'UNCLASSIFIED_ERROR', digest: 'test-digest' });
     assert.equal((result.data as Record<string, unknown>).user_id, undefined);
     r.adapter!.rent = async () => {
       throw new Error('Must not redispatch');

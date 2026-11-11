@@ -542,6 +542,7 @@ const extendedNumberAdapter = env("GETATEXT_API_KEY") ? new GetatextRentals(requ
 async function numberRuntime(): Promise<NumberRuntime> {
   const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
   return {adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+    receiptCipher:new SecretPayloadCipher(serviceApiSigningSecret,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
     exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
 }
 async function readyServices() {

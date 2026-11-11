@@ -76,9 +76,9 @@ export class DaisySmsAdapter implements NumberAdapter {
         signal: AbortSignal.timeout(15_000),
       });
       const body = (await response.text()).trim();
-      // A gateway error or timeout must not cause a retry/fallback purchase.
-      if (!response.ok) throw new Error();
       return {
+        ok: response.ok,
+        status: response.status,
         body,
         price: usdMicros(response.headers.get("X-Price") ?? undefined),
       };
@@ -88,6 +88,8 @@ export class DaisySmsAdapter implements NumberAdapter {
         purchase
           ? "We are confirming your number request. Check your orders before trying again."
           : "Number services are temporarily unavailable.",
+        undefined,
+        { code: "TRANSPORT_ERROR" },
       );
     }
   }
@@ -101,6 +103,7 @@ export class DaisySmsAdapter implements NumberAdapter {
           const response = await this.#request({
             action: "getPricesVerification",
           });
+          if (!response.ok) throw new Error("Catalogue unavailable");
           let payload: unknown;
           try {
             payload = JSON.parse(response.body);
@@ -133,23 +136,46 @@ export class DaisySmsAdapter implements NumberAdapter {
         "This US number service is unavailable.",
       );
     }
+    // A read-only balance check prevents knowingly dispatching an unfunded
+    // request. It is not cached: another purchase may have changed the balance.
+    const balance = await this.#request({ action: "getBalance" });
+    const available = balance.ok && balance.body.startsWith("ACCESS_BALANCE:")
+      ? usdMicros(balance.body.slice("ACCESS_BALANCE:".length)) : undefined;
+    if (available === undefined || available < maximumMicroUsd) {
+      throw new NumberProviderError(false, "This number is unavailable. Your money has not been charged.", undefined, {
+        code: available === undefined ? "BALANCE_CHECK_FAILED" : "INSUFFICIENT_PROVIDER_BALANCE",
+        httpStatus: balance.status,
+      });
+    }
     const response = await this.#request({
       action: "getNumber",
       service: serviceId,
       country: "187",
       max_price: usdDecimal(maximumMicroUsd),
     }, true);
-    if (DEFINITIVE_REJECTIONS.has(response.body)) {
+    // The documented refusal body is authoritative on 2xx/4xx. Do not discard
+    // it just because a provider uses HTTP 402/400; never trust a 5xx as refusal.
+    if (response.status < 500 && DEFINITIVE_REJECTIONS.has(response.body)) {
       throw new NumberProviderError(
         false,
         "No number was allocated. Try another service.",
+        undefined,
+        { code: response.body, httpStatus: response.status, response: response.body },
       );
     }
-    const match = /^ACCESS_NUMBER:(\d{1,30}):(1\d{10})$/.exec(response.body);
-    if (!match) {
+    const match = /^ACCESS_NUMBER:(\d{1,30}):\+?(1\d{10})$/.exec(response.body);
+    if (!response.ok || !match) {
       throw new NumberProviderError(
         true,
         "We are confirming your number request.",
+        undefined,
+        {
+          code: response.ok ? "UNRECOGNIZED_ALLOCATION" : "ALLOCATION_HTTP_ERROR",
+          httpStatus: response.status,
+          rentalId: /^ACCESS_NUMBER:(\d{1,30}):/.exec(response.body)?.[1],
+          // Bounded, credential-redacted and encrypted by the service before storage.
+          response: response.body.replaceAll(this.#key, "[redacted]").slice(0, 8192),
+        },
       );
     }
     // Preserve allocated number evidence even if the cost header is absent.
@@ -164,13 +190,13 @@ export class DaisySmsAdapter implements NumberAdapter {
       throw new NumberProviderError(false, "Invalid number order.");
     }
     try {
-      const { body } = await this.#request(
+      const { body, ok } = await this.#request(
         cancel
           ? { action: "setStatus", id, status: "8" }
           : { action: "getStatus", id },
       );
       // ACCESS_READY / NO_ACTIVATION are not proof of a refund.
-      return normalizeNumberStatus(body);
+      return ok ? normalizeNumberStatus(body) : { state: "unknown" };
     } catch {
       return { state: "unknown" };
     }
