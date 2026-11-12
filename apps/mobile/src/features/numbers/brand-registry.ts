@@ -47,7 +47,9 @@ export function serviceBrand(name: string):ServiceBrand|null {
   const normalized = ' ' + normalize(name) + ' ';
   const match = matchers.find(({ words }) => normalized.includes(' ' + words + ' '));
   const rasterMatch=rasterMatchers.find(({words})=>normalized.includes(' '+words+' '));
-  if(rasterMatch){const raster=brandRasters[rasterMatch.slug];return {icon:match?.slug??rasterMatch.slug,label:raster.label,color:'#15231B',asset:raster.asset};}
+  // Prefer a verified vector mark at equal specificity. Small site favicons
+  // otherwise become blurry when enlarged in the mobile checkout sheet.
+  if(rasterMatch&&(!match||!artwork[match.slug]||rasterMatch.words.length>match.words.length)){const raster=brandRasters[rasterMatch.slug];return {icon:match?.slug??rasterMatch.slug,label:raster.label,color:'#15231B',asset:raster.asset};}
   if (!match) return null;
   const asset = artwork[match.slug];
   if (asset) return {

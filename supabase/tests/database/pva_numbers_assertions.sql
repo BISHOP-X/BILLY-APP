@@ -1,7 +1,7 @@
 do $$
 declare owner_id uuid:='a7120000-0000-4000-8000-000000000001'; other_id uuid:='a7120000-0000-4000-8000-000000000002';
  consent jsonb; o public.number_orders; replay public.number_orders; ctx jsonb; body jsonb; v jsonb; receipt bigint; failed boolean; scenario text;
- baseline bigint:=1000000; rental text; cache jsonb;
+ baseline bigint:=1000000; rental text; cache jsonb; scheduled_id bigint;
 begin
  assert not exists(select 1 from auth.users where id in(owner_id,other_id));
  select jsonb_build_object('terms_version',terms_version,'privacy_version',privacy_version,'legal_consent_source','billy_mobile_signup') into consent from private.legal_document_configuration where singleton;
@@ -29,6 +29,13 @@ begin
   body:=jsonb_build_object('request',jsonb_build_object('serviceId','697139f4fe5460ddc2f271c2','country','GB','duration',3),
     'name','WhatsApp','amountMinor',98000,'feeMinor',1000,'maximumMicroUsd',700000,'idempotencyKey','pva-synthetic-'||scenario);
   o:=public.internal_pva_create(owner_id,body);
+  if scenario='rejected' then
+    assert position('internal_pva_due' in pg_get_functiondef('private.schedule_provider_reconciliation()'::regprocedure))>0,'PVA wakes cron without another service';
+    scheduled_id:=private.schedule_provider_reconciliation();
+    assert scheduled_id is not null,'Scheduler credentials exist and PVA queue wakes worker';
+    assert exists(select 1 from net.http_request_queue where id=scheduled_id),'Worker request queued';
+    -- This entire test is rolled back: pg_net sends only after COMMIT.
+  end if;
   replay:=public.internal_pva_create(owner_id,body); assert replay.id=o.id,'Duplicate request returns original';
   failed:=false; begin perform public.internal_pva_create(owner_id,body||'{"amountMinor":1}'); exception when unique_violation then failed:=true; end; assert failed,'Conflicting replay rejected';
   assert (select reserved_minor=99000 and balance_minor=baseline from public.wallets where user_id=owner_id and currency='NGN');

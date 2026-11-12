@@ -63,9 +63,16 @@ export function NumberStorefront(
   const [country, setCountry] = useState("US"),
     [duration, setDuration] = useState(0);
   const [selection, setSelection] = useState<SmsProduct | null>(null);
-  const [sheet, setSheet] = useState<
+  const [sheet, setSheetContent] = useState<
     "country" | "service" | "location" | "review" | null
   >(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Preserve sheet contents during the native dismissal animation, rather than
+  // briefly painting an empty review screen as the modal slides away.
+  function setSheet(next: typeof sheet) {
+    if (next !== null) setSheetContent(next);
+    setSheetOpen(next !== null);
+  }
   const [search, setSearch] = useState(""), [state, setState] = useState("");
   const [quote, setQuote] = useState<SmsQuote | null>(null),
     [notice, setNotice] = useState("");
@@ -80,7 +87,7 @@ export function NumberStorefront(
   const locations = useQuery({
     queryKey: ["numbers", user?.id, "locations", selection?.id],
     queryFn: () => numberRepository.locations(selection!.id, duration),
-    enabled: sheet === "location" && !!selection && country === "US",
+    enabled: sheetOpen && sheet === "location" && !!selection && country === "US",
     staleTime: 300_000,
     retry: false,
   });
@@ -157,7 +164,6 @@ export function NumberStorefront(
         qc.invalidateQueries({ queryKey: ["main"] }),
       ]);
       setSheet(null);
-      setQuote(null);
       onDone(order.status_message);
     } catch (e) {
       setNotice(
@@ -345,7 +351,7 @@ export function NumberStorefront(
             </>
           )
           : null}
-        {notice && sheet !== "review"
+        {notice && (!sheetOpen || sheet !== "review")
           ? (
             <Text
               accessibilityLiveRegion="polite"
@@ -368,7 +374,7 @@ export function NumberStorefront(
         </Text>
       </View>
       <Modal
-        visible={sheet !== null}
+        visible={sheetOpen}
         transparent
         animationType="slide"
         onRequestClose={() => {
@@ -588,7 +594,6 @@ export function NumberStorefront(
                     disabled={busy}
                     onPress={() => {
                       setSheet(null);
-                      setQuote(null);
                     }}
                   />
                 </ScrollView>

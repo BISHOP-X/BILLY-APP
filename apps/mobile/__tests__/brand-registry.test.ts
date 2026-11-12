@@ -36,6 +36,11 @@ test('bright logos keep their brand colour on a contrasting tile', () => {
   expect(brandTileBackground('#000000')).toBe('#FFFFFF');
 });
 
+test('known vector logos stay sharp at mobile checkout size', () => {
+  expect(serviceBrand('WhatsApp')?.uri).toMatch(/^data:image\/svg\+xml/);
+  expect(serviceBrand('WhatsApp')?.color).toBe('#25D366');
+});
+
 test('regional and homonymous apps cannot supply an unrelated service logo', () => {
   expect(brandRasters['app-589653414'].source).toContain('7-eleven-rewards-shopping');
   expect(brandRasters['app-1472322409'].source).toContain('soul-chat-match-party');

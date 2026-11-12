@@ -3,8 +3,8 @@
 Status: owner approved implementation on 12 November 2026. Core server adapter,
 shared catalogue, one-shot purchase queue, SMS history, eligible cancellation,
 receipt-first settlement and Admin routing are implemented. Backend migrations
-and functions are deployed; frontend rollout and primary activation follow the
-verification below. No paid provider test purchases were made. GetAText and
+and functions are deployed. Production frontend is live and PVA became primary
+at 17:45 UTC on 12 November (routing version 2). No paid provider test purchases were made. GetAText and
 DaisySMS implementations and existing orders remain intact.
 
 ## Requested provider arrangement
@@ -171,25 +171,37 @@ authoritative pricing/capability source before exposing a chargeable quote.
 - GetAText new short rentals remain available when selected. US/CA long rentals
   and stale long-rental quotes are excluded; Daisy is historical reconciliation
   only. SMSBUS remains unconfigured pending its actual contract/credentials.
-- Backend Deno suite: 200 passing tests. Mobile Jest suite: 191 passing tests.
+- Backend Deno suite: 200 passing tests. Mobile Jest suite: 192 passing tests.
   TypeScript and ESLint pass. Production web export and both iOS/Android Hermes
   exports pass (build checks, **not physical-device execution**).
 - Synthetic production-schema assertions run in BEGIN/ROLLBACK: ownership,
   cross-user SMS denial, admin/RLS, concurrent claims, idempotency conflicts,
   receipt replay, exact debit/refund, queue throttling, unknown response holds,
   international phone storage and provider switching. No synthetic rows persist.
-- Migrations `20261112171020` and `20261112173847` deployed. service-api v40 and
+- Migrations `20261112171020`, `20261112173847`, and `20261112174430` deployed.
+  The existing cron wakeup includes the PVA queue, tested with a rolled-back
+  pg_net request (no provider call). service-api v40 and
   provider-reconcile v22 verified ACTIVE with **JWT verification still true**.
   New private tables intentionally have deny-all RLS with service-role-only
   RPCs. Existing Auth leaked-password and four owner RPC warnings are unchanged;
   the new composite FK index finding was corrected additively.
+- Authenticated production browser checks: US WhatsApp 20-minute quote at
+  NGN 2,520 and UK WhatsApp seven-day quote at NGN 5,670; both review sheets
+  showed a one-time wallet payment before purchase. Country flags and local
+  search were checked in light/dark mode; Canada exposes short rentals only and
+  a VoIP notice. A 320px phone viewport has no horizontal overflow. No Pay
+  button was pressed. These are browser checks, not physical-device tests.
+- Mobile QA found a closing-modal content flash and low-resolution known-brand
+  favicons: sheet contents now survive dismissal, and verified vector marks
+  take precedence over equally specific small raster icons.
 
 ### Deliberate incomplete slices (not represented as available)
 
 1. Dedicated `ALL_SERVICES` plans: no price/stock endpoint in supplied docs or
    live catalogue. `service/ALL_SERVICES` is rejected as an invalid ObjectId.
-   Asked owner for PVA's authoritative read-only lookup; no stale hardcoded
-   prices or speculative paid probes. This includes HK, which is dedicated-only.
+   Authoritative lookup remains needed for this separate slice only; it does
+   not block the core CEO live test. No stale hardcoded prices or speculative
+   paid probes. This includes HK, which is dedicated-only.
 2. Paid reuse, upgrades and automatic renewals are not enabled. Reuse has no
    fee preview; renew-ltr commits recurring provider charges. Do not offer a
    wallet-unbacked toggle. Per-service UK rentals are one-off with renewal off.
