@@ -215,3 +215,45 @@ Select **Use GetAText backup** under Admin Settings > SMS provider, with a reaso
 This changes new purchases only; retain PVA tables, secret and reconciliation
 until all PVA rentals have ended. Never delete orders, replay paid purchases,
 or refund an uncertain outcome without authenticated provider evidence.
+
+## Service picker usability and batch API review (12 November 2026)
+
+- Owner-requested curated 50-service display order: WhatsApp, Instagram and
+  Facebook lead; the remaining available catalogue is A-Z. All 50 names were
+  checked against Billy's live cached US catalogue. This is editorial ordering,
+  not measured usage. Country/duration/availability filtering still applies;
+  unavailable entries are never manufactured or enabled by this list.
+- Sort once per catalogue/country/duration; filter locally as the user types.
+  Reset list scroll on search changes. No new catalogue request per keystroke.
+- The service sheet keeps a stable height for many, one or zero matches. On web,
+  portal layout tracks VisualViewport height and offset (resize/scroll), not the
+  layout viewport hidden behind a keyboard. Native uses KeyboardAvoidingView.
+- Removed the duplicate inner input focus rectangle globally while preserving
+  rounded field focus borders and keyboard focus outlines on buttons/links.
+  Android native input underlines are suppressed on shared and standalone fields.
+- TypeScript, ESLint, production web export and 196 Jest tests pass. Added
+  coverage for exact ordering, missing-country isolation, unchanged input data,
+  stable one/zero-result sheet height, no search refetch, and viewport shrink,
+  pan and restore calculations. Physical iOS/Android keyboard checks are not
+  claimed by these automated tests.
+
+### Multi-service capability (verified, not yet enabled in Billy checkout)
+
+Source: current official [PVA API docs](https://app.pvadeals.com/developers#str-purchase),
+read 12 November 2026 (page revision 11 November 2026), and supplied API document.
+
+- `POST /v3/api/purchase` accepts a `services` array, each item containing
+  `serviceId` and optional `areaCode`/`state`. It explicitly supports one or more
+  **20-minute rentals**. The response contains `data.requests[]`, each with its
+  own ID, phone number, service, amount and status. This is multiple numbers for
+  selected services, not one shared number for every selected app.
+- `POST /v3/api/purchase-ltr` accepts one `serviceId` plus duration. The documented
+  bulk STR contract does not imply bulk long-term support. Dedicated
+  `ALL_SERVICES` plans are a different product, not this array operation.
+- Only one purchase request may be in flight for a provider account; retain
+  Billy's server-side serialization. Maximum batch size and partial-allocation
+  atomicity are not specified, so do not promise all-or-nothing purchasing.
+- A checkbox basket requires a server-owned quote/reservation plus per-item
+  order, provider-ID journal, settlement/refund and reconciliation. The current
+  single-service adapter cannot safely be made bulk by changing only the UI.
+  No paid batch call was made, and existing single-service checkout is unchanged.

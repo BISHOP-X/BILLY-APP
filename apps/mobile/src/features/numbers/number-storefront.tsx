@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,6 +23,7 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { formatMinorUnits } from "@/features/wallet/money";
 import { useBillyTheme } from "@/hooks/use-billy-theme";
 import { ServiceAvatar } from "./service-card";
+import { compareSmsServices, popularSmsRank } from "./popular-services";
 import { numberRepository, type SmsProduct, type SmsQuote } from "./repository";
 
 const labels: Record<string, string> = {
@@ -52,7 +54,7 @@ export function smsProducts(
   return services.filter((s) =>
     s.country === country && s.prices[String(duration)] &&
     (!term || s.name.toLowerCase().includes(term))
-  );
+  ).sort(compareSmsServices);
 }
 
 export function NumberStorefront(
@@ -78,6 +80,7 @@ export function NumberStorefront(
     [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const lock = useRef(false), requestKey = useRef("");
+  const serviceList = useRef<FlatList<SmsProduct>>(null);
   const market = useQuery({
     queryKey: ["numbers", user?.id, "market"],
     queryFn: numberRepository.market,
@@ -101,11 +104,16 @@ export function NumberStorefront(
       ].sort((a, b) => a - b),
     [market.data, country],
   );
+  const sortedProducts = useMemo(
+    () => smsProducts(market.data?.services ?? [], country, duration, ''),
+    [market.data, country, duration],
+  );
   const products = useMemo(
-    () => smsProducts(market.data?.services ?? [], country, duration, search),
-    [market.data, country, duration, search],
+    () => sortedProducts.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase())),
+    [sortedProducts, search],
   );
   const visiblePrice = selection?.prices[String(duration)];
+  const popularCount = products.filter((p) => Number.isFinite(popularSmsRank(p.name))).length;
   const panel = { backgroundColor: c.surface, borderColor: c.border },
     text = { color: c.text },
     muted = { color: c.textMuted };
@@ -381,10 +389,16 @@ export function NumberStorefront(
           if (!busy) setSheet(null);
         }}
       >
-        <KeyboardAvoidingView style={styles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          testID="sms-keyboard-overlay"
+          nativeID="billy-sms-keyboard-overlay"
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : Platform.OS === 'android' ? 'height' : undefined}
+        >
           <View
+            testID="sms-picker-sheet"
             accessibilityViewIsModal
-            style={[styles.sheet, {
+            style={[styles.sheet, sheet === 'service' && styles.serviceSheet, {
               backgroundColor: c.canvas,
               paddingBottom: Math.max(20, insets.bottom),
               paddingTop: 20,
@@ -447,8 +461,15 @@ export function NumberStorefront(
                     label="Search services"
                     placeholder="WhatsApp, Google, Telegram…"
                     value={search}
-                    onChangeText={setSearch}
+                    onChangeText={(value) => {
+                      setSearch(value);
+                      serviceList.current?.scrollToOffset({ offset: 0, animated: false });
+                    }}
                     icon="search-outline"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={Keyboard.dismiss}
                     autoFocus
                   />
                   <Text style={[styles.small, muted]}>
@@ -456,39 +477,50 @@ export function NumberStorefront(
                     {products.length.toLocaleString()} available
                   </Text>
                   <FlatList
+                    ref={serviceList}
+                    testID="sms-service-results"
+                    style={styles.results}
                     data={products}
                     keyExtractor={(item) => item.id}
                     keyboardShouldPersistTaps="handled"
                     initialNumToRender={12}
                     windowSize={5}
-                    renderItem={({ item }) => (
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`${item.name}, ${
-                          formatMinorUnits(item.prices[String(duration)], "NGN")
-                        }`}
-                        onPress={() => {
-                          setSelection(item);
-                          setState("");
-                          setQuote(null);
-                          setSheet(null);
-                        }}
-                        style={[styles.row, { borderBottomColor: c.border }]}
-                      >
-                        <ServiceAvatar name={item.name} size={42} />
-                        <Text
-                          numberOfLines={2}
-                          style={[styles.fieldText, styles.flex, text]}
+                    renderItem={({ item, index }) => (
+                      <View>
+                        {!search.trim() && (index === 0 || index === popularCount) ? (
+                          <Text style={[styles.sectionLabel, muted]}>
+                            {index === 0 && popularCount > 0 ? 'Popular services' : 'All services · A–Z'}
+                          </Text>
+                        ) : null}
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.name}, ${
+                            formatMinorUnits(item.prices[String(duration)], "NGN")
+                          }`}
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            setSelection(item);
+                            setState("");
+                            setQuote(null);
+                            setSheet(null);
+                          }}
+                          style={[styles.row, { borderBottomColor: c.border }]}
                         >
-                          {item.name}
-                        </Text>
-                        <Text style={[styles.price, { color: c.brand }]}>
-                          {formatMinorUnits(
-                            item.prices[String(duration)],
-                            "NGN",
-                          )}
-                        </Text>
-                      </Pressable>
+                          <ServiceAvatar name={item.name} size={42} />
+                          <Text
+                            numberOfLines={2}
+                            style={[styles.fieldText, styles.flex, text]}
+                          >
+                            {item.name}
+                          </Text>
+                          <Text style={[styles.price, { color: c.brand }]}>
+                            {formatMinorUnits(
+                              item.prices[String(duration)],
+                              "NGN",
+                            )}
+                          </Text>
+                        </Pressable>
+                      </View>
                     )}
                     ListEmptyComponent={
                       <Text style={[styles.body, muted]}>
@@ -664,6 +696,7 @@ const styles = StyleSheet.create({
   price: { fontSize: 14, fontWeight: "700", marginTop: 3 },
   overlay: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: "#00000080",
     justifyContent: "flex-end",
   },
@@ -679,6 +712,10 @@ const styles = StyleSheet.create({
     maxWidth: 680,
   },
   sheetTitle: { fontSize: 22, fontWeight: "700", flexShrink: 1 },
+  // A filtering result count must never determine the picker height.
+  serviceSheet: { height: '93%', minHeight: 0, flexShrink: 1 },
+  results: { flex: 1, minHeight: 0 },
+  sectionLabel: { fontSize: 12, fontWeight: '700', paddingTop: 8, paddingBottom: 5 },
   close: {
     width: 44,
     height: 44,

@@ -74,12 +74,14 @@ export default function ServicesScreen() {
       />
 
       <View
+        nativeID="billy-services-search"
         style={[
           styles.search,
           { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
         ]}>
         <Ionicons accessible={false} color={theme.colors.textSoft} name="search" size={20} />
         <TextInput
+          underlineColorAndroid="transparent"
           accessibilityLabel="Search services"
           autoCapitalize="none"
           onChangeText={setSearch}

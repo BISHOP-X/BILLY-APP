@@ -79,6 +79,8 @@ export function AdminInput({
     <View style={{ gap: 7, flexGrow: 1, minWidth: 180, maxWidth: '100%' }}>
       <Text style={s.label}>{label}</Text>
       <TextInput
+        testID="billy-admin-input"
+        underlineColorAndroid="transparent"
         accessibilityLabel={label}
         placeholderTextColor={adminColors.muted}
         selectionColor={adminColors.green}

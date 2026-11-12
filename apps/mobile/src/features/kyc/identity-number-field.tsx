@@ -61,6 +61,7 @@ export function IdentityNumberField({
           size={20}
         />
         <TextInput
+          underlineColorAndroid="transparent"
           accessibilityHint="The number is hidden by default and cleared as soon as you submit it."
           accessibilityLabel={label}
           accessibilityState={{ disabled }}

@@ -67,6 +67,7 @@ export function TextField({
           />
         ) : null}
         <TextInput
+          underlineColorAndroid="transparent"
           keyboardAppearance={theme.dark ? 'dark' : 'light'}
           {...inputProps}
           accessibilityLabel={inputProps.accessibilityLabel ?? label}

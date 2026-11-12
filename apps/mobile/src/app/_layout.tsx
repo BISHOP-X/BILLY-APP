@@ -24,6 +24,7 @@ import { AppProviders } from '@/providers/app-providers';
 import { PrivacyShield } from '@/components/ui/privacy-shield';
 import { FatalErrorScreen } from '@/components/ui/fatal-error-screen';
 import { AppearanceProvider, useAppearance } from '@/theme/appearance-provider';
+import { syncWebViewport } from '@/lib/web-viewport';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -33,13 +34,7 @@ function WebBootstrapController() {
 
     const visualViewport = window.visualViewport;
     const syncViewportHeight = () => {
-      const viewportBottom = visualViewport
-        ? visualViewport.height + visualViewport.offsetTop
-        : window.innerHeight;
-      document.documentElement.style.setProperty(
-        '--billy-app-height',
-        `${Math.max(1, Math.ceil(viewportBottom))}px`,
-      );
+      syncWebViewport(window, document.documentElement.style);
     };
 
     syncViewportHeight();

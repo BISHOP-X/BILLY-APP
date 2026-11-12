@@ -5,6 +5,7 @@ import {
   waitFor,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { POPULAR_SMS_SERVICES } from '@/features/numbers/popular-services';
 import {
   NumberStorefront,
   smsProducts,
@@ -171,4 +172,33 @@ test("filter keeps country-specific service IDs distinct and ignores zero-price 
     "ca-wa",
   ]);
   expect(smsProducts(services, "US", 7, "")).toEqual([]);
+});
+
+test('exactly 50 curated services precede the alphabetical remainder without inventing stock', () => {
+  expect(POPULAR_SMS_SERVICES).toHaveLength(50);
+  expect(new Set(POPULAR_SMS_SERVICES).size).toBe(50);
+  const names = ['Zebra', ...POPULAR_SMS_SERVICES.slice().reverse(), 'Aardvark', 'SignalWire', 'Apple Cinemas'];
+  const catalog = names.map((name) => ({ id: name, name, country: 'US', prices: { '0': 100 } }));
+  const before = [...catalog];
+  const sorted = smsProducts(catalog, 'US', 0, '');
+  expect(sorted.slice(0, 50).map((s) => s.name)).toEqual([...POPULAR_SMS_SERVICES]);
+  expect(sorted.slice(50).map((s) => s.name)).toEqual(['Aardvark', 'Apple Cinemas', 'SignalWire', 'Zebra']);
+  expect(catalog).toEqual(before);
+  expect(smsProducts(catalog, 'US', 0, 'whats').map((s) => s.name)).toEqual(['WhatsApp']);
+  expect(smsProducts(catalog, 'CA', 0, '')).toEqual([]);
+});
+
+test('service search keeps a fixed sheet and a flexible results area with one or zero matches', async () => {
+  await mount();
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  expect(screen.getByTestId('sms-picker-sheet')).toHaveStyle({ height: '93%', minHeight: 0 });
+  expect(screen.getByTestId('sms-service-results')).toHaveStyle({ flex: 1, minHeight: 0 });
+  expect(screen.getByText('Popular services')).toBeTruthy();
+  await fireEvent.changeText(screen.getByLabelText('Search services'), 'whats');
+  expect(screen.getByRole('button', { name: 'WhatsApp, ₦2,520.00' })).toBeTruthy();
+  expect(screen.getByTestId('sms-picker-sheet')).toHaveStyle({ height: '93%' });
+  await fireEvent.changeText(screen.getByLabelText('Search services'), 'doesnotexist');
+  expect(screen.getByText('No services match. Try a different name.')).toBeTruthy();
+  expect(screen.getByTestId('sms-picker-sheet')).toHaveStyle({ height: '93%' });
+  expect(numberRepository.market).toHaveBeenCalledTimes(1);
 });

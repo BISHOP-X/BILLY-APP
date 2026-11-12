@@ -6,6 +6,8 @@
   background: var(--billy-canvas);
   color-scheme: light;
   --billy-app-height: 100dvh;
+  --billy-viewport-height: 100dvh;
+  --billy-viewport-top: 0px;
   --font-display:
     Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
     Segoe UI Symbol, Noto Color Emoji;
@@ -107,9 +109,32 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-:focus-visible {
+:focus-visible:not(input):not(textarea) {
   outline: 3px solid #45b979;
   outline-offset: 3px;
+}
+
+/* Fields already have a rounded focus border. Do not draw a second rectangle
+   around the smaller native input inside that field. Keep button/link focus. */
+input:focus,
+textarea:focus {
+  outline: none;
+}
+
+#billy-services-search:focus-within,
+[data-testid='billy-admin-input']:focus {
+  border-color: var(--billy-brand) !important;
+}
+
+/* RN web Modals are portals outside #root. Size their contents to the visible
+   viewport (above the keyboard), including Safari's panned viewport offset. */
+#billy-sms-keyboard-overlay {
+  position: absolute;
+  top: var(--billy-viewport-top, 0px);
+  left: 0;
+  right: 0;
+  height: var(--billy-viewport-height, 100dvh);
+  min-height: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
