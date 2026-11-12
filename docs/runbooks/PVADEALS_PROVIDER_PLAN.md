@@ -259,10 +259,18 @@ read 12 November 2026 (page revision 11 November 2026), and supplied API documen
 
 ## Checkbox checkout implementation (12 November 2026)
 
-- Added optional **Select multiple** mode for short rentals: selections survive
-  search, every service keeps its price, and one review shows the exact wallet
+- Short rentals show service checkboxes by default, with no **Select multiple**
+  toggle. Selections survive search, every service keeps its price, and one review shows the exact wallet
   total. Maximum 10 services, one country per checkout. Long rentals remain
   single-service; US/Canada long term remains reserved for SMSBUS.
+- Selecting one service keeps the established single-number quote and optional
+  US location. Selecting two or more uses the existing atomic basket checkout.
+  Deselecting every service disables continuation; changing country or duration
+  clears selections. No additional provider purchase or wallet changes are
+  required for this UI update.
+- Default-checkbox regression checks: all 201 mobile tests, TypeScript, ESLint
+  and the production web export pass, including selection/deselection, search,
+  reopening, duration reset, single-location quotes and basket recovery.
 - The Billy basket reserves all items atomically, with an owner-bound quote and
   stable checkout key. Each item uses the existing number order, dispatch claim,
   encrypted provider receipt, reconciliation and confirmed refund machinery.

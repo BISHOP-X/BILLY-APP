@@ -64,9 +64,11 @@ export function NumberStorefront(
   const { user } = useAuth(), qc = useQueryClient();
   const [country, setCountry] = useState("US"),
     [duration, setDuration] = useState(0);
-  const [selection, setSelection] = useState<SmsProduct | null>(null);
-  const [multiple, setMultiple] = useState(false);
+  const [singleSelection, setSelection] = useState<SmsProduct | null>(null);
   const [basket, setBasket] = useState<SmsProduct[]>([]);
+  const checkboxes = duration === 0;
+  const multiple = checkboxes && basket.length > 1;
+  const selection = checkboxes ? basket[0] ?? null : singleSelection;
   const [sheet, setSheetContent] = useState<
     "country" | "service" | "location" | "review" | null
   >(null);
@@ -125,7 +127,6 @@ export function NumberStorefront(
     setDuration(0);
     setSelection(null);
     setBasket([]);
-    setMultiple(false);
     setState("");
     setQuote(null);
     setNotice("");
@@ -200,6 +201,7 @@ export function NumberStorefront(
   }
   function toggleService(item: SmsProduct) {
     setQuote(null);
+    setState('');
     setNotice('');
     if (basket.some((p) => p.id === item.id)) setBasket(basket.filter((p) => p.id !== item.id));
     else if (basket.length < 10) setBasket([...basket, item]);
@@ -274,7 +276,6 @@ export function NumberStorefront(
               setDuration(days);
               setSelection(null);
               setBasket([]);
-              setMultiple(false);
               setState("");
               setQuote(null);
             })
@@ -311,7 +312,7 @@ export function NumberStorefront(
         <View style={styles.between}>
           <Text style={[styles.label, text]}>Website or app</Text>
           <Text style={[styles.small, muted]}>
-            {multiple ? `${basket.length} selected` : selection ? "Selected" : "Choose a service"}
+            {checkboxes && basket.length ? `${basket.length} selected` : selection ? "Selected" : "Choose a service"}
           </Text>
         </View>
         <Pressable
@@ -321,7 +322,7 @@ export function NumberStorefront(
           onPress={() => open("service")}
           style={[styles.field, panel]}
         >
-          {selection
+          {selection && !multiple
             ? <ServiceAvatar name={selection.name} size={40} />
             : <Ionicons name="search-outline" size={22} color={c.textMuted} />}
           <View style={styles.flex}>
@@ -497,20 +498,7 @@ export function NumberStorefront(
                     autoFocus
                   />
                   <View style={styles.between}>
-                    {duration === 0 ? <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityLabel="Select multiple services"
-                      accessibilityState={{checked:multiple}}
-                      onPress={() => {
-                        setMultiple(!multiple);
-                        setBasket(!multiple && selection ? [selection] : []);
-                        setState(''); setQuote(null); setNotice('');
-                      }}
-                      style={styles.multiToggle}
-                    >
-                      <Ionicons name={multiple ? 'checkbox' : 'square-outline'} size={22} color={c.brand} />
-                      <Text style={[styles.small, text]}>Select multiple</Text>
-                    </Pressable> : <Text style={[styles.small, muted]}>{smsDuration(duration)}</Text>}
+                    <Text style={[styles.small, muted]}>{checkboxes ? `${basket.length} selected` : smsDuration(duration)}</Text>
                     <Text style={[styles.small, muted]}>{products.length.toLocaleString()} available</Text>
                   </View>
                   <FlatList
@@ -530,13 +518,13 @@ export function NumberStorefront(
                           </Text>
                         ) : null}
                         <Pressable
-                          accessibilityRole={multiple ? "checkbox" : "button"}
-                          accessibilityState={multiple ? {checked:basket.some((p) => p.id === item.id)} : undefined}
+                          accessibilityRole={checkboxes ? "checkbox" : "button"}
+                          accessibilityState={checkboxes ? {checked:basket.some((p) => p.id === item.id)} : undefined}
                           accessibilityLabel={`${item.name}, ${
                             formatMinorUnits(item.prices[String(duration)], "NGN")
                           }`}
                           onPress={() => {
-                            if (multiple) { toggleService(item); return; }
+                            if (checkboxes) { toggleService(item); return; }
                             Keyboard.dismiss();
                             setSelection(item);
                             setState("");
@@ -558,7 +546,7 @@ export function NumberStorefront(
                               "NGN",
                             )}
                           </Text>
-                          {multiple ? <Ionicons name={basket.some((p) => p.id === item.id) ? 'checkbox' : 'square-outline'} color={c.brand} size={23} /> : null}
+                          {checkboxes ? <Ionicons name={basket.some((p) => p.id === item.id) ? 'checkbox' : 'square-outline'} color={c.brand} size={23} /> : null}
                         </Pressable>
                       </View>
                     )}
@@ -568,7 +556,7 @@ export function NumberStorefront(
                       </Text>
                     }
                   />
-                  {multiple ? <View style={styles.basketFooter}>
+                  {checkboxes ? <View style={styles.basketFooter}>
                     {notice ? <Text accessibilityLiveRegion="polite" style={[styles.small, text]}>{notice}</Text> : null}
                     <AppButton
                       label={basket.length ? `Use ${basket.length} service${basket.length === 1 ? '' : 's'} · ${formatMinorUnits(visiblePrice ?? 0, 'NGN')}` : 'Choose your services'}
@@ -767,7 +755,6 @@ const styles = StyleSheet.create({
   // A filtering result count must never determine the picker height.
   serviceSheet: { height: '93%', minHeight: 0, flexShrink: 1, gap: 8 },
   results: { flex: 1, minHeight: 0 },
-  multiToggle: {flexDirection:'row', alignItems:'center', gap:6, minHeight:32},
   basketFooter: {gap:6},
   sectionLabel: { fontSize: 12, fontWeight: '700', paddingTop: 8, paddingBottom: 5 },
   close: {
