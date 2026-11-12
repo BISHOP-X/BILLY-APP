@@ -1,6 +1,8 @@
 import {
   normalizePvaRequest,
   normalizePvaService,
+  normalizePvaPlans,
+  validPvaSelection,
   PvadealsAdapter,
   type PvaSelection,
 } from "../_shared/providers/pvadeals.ts";
@@ -36,11 +38,14 @@ const rental = {
   codes: [],
   messageCounter: 0,
 };
-Deno.test("PVA keeps live country catalogue and excludes US/Canada LTR", () => {
-  for (const country of ["US", "USA", "CA", "AU", "ID", "BR", "TR"]) {
+Deno.test("PVA restores US 3/7/14 and reserves only US/Canada 30-day plans", () => {
+  for (const country of ["CA", "AU", "ID", "BR", "TR"]) {
     const s = normalizePvaService({ ...row, country });
     assert(s);
     assert(Object.keys(s.prices).join() === "0");
+  }
+  for (const country of ['US','USA']) {
+    assert(Object.keys(normalizePvaService({...row,country})!.prices).join() === '0,3,7,14');
   }
   const uk = normalizePvaService({ ...row, country: "UK" });
   assert(uk?.country === "GB");
@@ -108,6 +113,17 @@ Deno.test("PVA authenticates SMS identity and preserves complete message history
   }, selection);
   assert(!bad.code && bad.messages?.length === 0);
 });
+Deno.test("PVA dedicated live response uses generated service ID without weakening identity checks", () => {
+  const expected: PvaSelection = {serviceId:'ALL_SERVICES',country:'GB',duration:30};
+  const liveShape = {...rental, serviceId:'aaaaaaaaaaaaaaaaaaaaaaaa', serviceName:'All Services',
+    rentalWebsite:'All Services', country:'UK', duration:30, numberType:'LTR', autoRenewEnable:false};
+  assert(normalizePvaRequest(liveShape,expected,rentalId).state === 'allocated');
+  for (const changed of [{duration:90},{country:'US'},{serviceName:'WhatsApp'},
+    {rentalWebsite:'WhatsApp'},{serviceId:'invalid'},{autoRenewEnable:true}]) {
+    assert(normalizePvaRequest({...liveShape,...changed},expected,rentalId).state === 'unknown');
+  }
+  assert(normalizePvaRequest(liveShape,expected,'bbbbbbbbbbbbbbbbbbbbbbbb').state === 'unknown');
+});
 Deno.test("PVA refunds only confirmed eligible cancellations or unused expired STR", () => {
   assert(
     normalizePvaRequest({ ...rental, status: "FLAGGED" }, selection).state ===
@@ -160,7 +176,7 @@ Deno.test("PVA purchase uses documented envelope, does not send country or retry
       JSON.stringify({ services: [{ serviceId, state: "CA" }] }),
   );
 });
-Deno.test("PVA LTR forbids US/CA and uses UK per-service duration", async () => {
+Deno.test("PVA LTR allows US 7 days, forbids CA and US 30, and omits per-service country", async () => {
   let count = 0;
   const adapter = new PvadealsAdapter(
     "synthetic",
@@ -178,7 +194,7 @@ Deno.test("PVA LTR forbids US/CA and uses UK per-service duration", async () => 
   );
   for (const country of ["US", "CA"]) {
     try {
-      await adapter.purchase({ ...selection, country, duration: 7 });
+      await adapter.purchase({ ...selection, country, duration: 30 });
       throw new Error("Expected refusal");
     } catch (e) {
       assert(e instanceof NumberProviderError);
@@ -186,7 +202,42 @@ Deno.test("PVA LTR forbids US/CA and uses UK per-service duration", async () => 
   }
   assert(count === 0);
   await adapter.purchase({ ...selection, country: "GB", duration: 7 });
-  assert(Number(count) === 1);
+  await adapter.purchase({ ...selection, country: "US", duration: 7 });
+  assert(Number(count) === 2);
+});
+
+Deno.test('All-services plans use live prices/availability and preserve the SMSBoss exclusions', async () => {
+  const data = {getAllServicesCountries:[{country:'US',enabled:true},{country:'UK',enabled:true},{country:'CA',enabled:true},{country:'AU',enabled:false}],
+    US:{available:true,plans:[{durationDays:28,price:12.99},{durationDays:30,price:5}]},
+    GB:{available:true,plans:[{durationDays:30,price:6.99},{durationDays:365,price:18.99}]},
+    CA:{available:true,plans:[{durationDays:30,price:10.49}]},AU:{available:true,plans:[{durationDays:30,price:22.99}]}};
+  const plans = normalizePvaPlans(data);
+  assert(plans.length === 2 && plans[0].prices['28'] === 12990000 && !plans[0].prices['30']);
+  assert(plans[1].country === 'GB' && plans[1].kind === 'general' && plans[1].prices['365'] === 18990000);
+  const adapter = new PvadealsAdapter('secret-not-for-public-feed',(async(url,init)=>{
+    assert(String(url) === 'https://prod-v3.pvadeals.com/graphql');
+    assert(!new Headers(init?.headers).has('authorization'));
+    return Response.json({data});
+  }) as typeof fetch);
+  assert((await adapter.service('ALL_SERVICES','US')).prices['28'] === 12990000);
+  for (const [country,days] of Object.entries({US:[28],GB:[30,90,180,365],HK:[30,180],ID:[30,180],AU:[30]})) {
+    for (const duration of days) assert(validPvaSelection({serviceId:'ALL_SERVICES',country,duration}));
+  }
+  for (const country of ['US','CA']) assert(!validPvaSelection({serviceId:'ALL_SERVICES',country,duration:30}));
+});
+
+Deno.test('All-services sends country and duration; delayed delivery remains recoverable by the saved ID', async () => {
+  const expected = {serviceId:'ALL_SERVICES',country:'GB',duration:90};
+  const adapter = new PvadealsAdapter('synthetic',(async(_url,init)=>{
+    assert(JSON.stringify(JSON.parse(String(init?.body))) === JSON.stringify({serviceId:'ALL_SERVICES',duration:90,country:'UK'}));
+    return Response.json({success:true,data:{...rental,serviceId:'ALL_SERVICES',country:'UK',numberType:'LTR',status:'PENDING',number:null,amount:11.99}});
+  }) as typeof fetch);
+  const pending = await adapter.purchase(expected);
+  assert(pending.outcome.state === 'pending' && pending.outcome.rentalId === rentalId);
+  const allocated = normalizePvaRequest({...rental,serviceId:'ALL_SERVICES',country:'UK',numberType:'LTR',amount:11.99,allowFlag:false},expected,rentalId);
+  assert(allocated.state === 'allocated' && allocated.canCancel === false);
+  const expired = normalizePvaRequest({...rental,serviceId:'ALL_SERVICES',country:'UK',numberType:'LTR',amount:11.99,status:'TIMEOUT',endTime:'2020-01-01',allowFlag:false},expected,rentalId);
+  assert(expired.state === 'expired','Long expiry must not invent a refund');
 });
 Deno.test("PVA explicit 429 is not a timeout; ambiguous paid replies never retry", async () => {
   for (const status of [402, 409, 429, 422, 500]) {

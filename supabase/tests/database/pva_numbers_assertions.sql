@@ -80,9 +80,42 @@ begin
   end if;
   assert (select balance_minor=baseline and reserved_minor=0 from public.wallets where user_id=owner_id and currency='NGN');
  end loop;
+ -- Every newly supported contract can reserve funds; duplicate requests cannot.
+ for v in select value from jsonb_array_elements('[
+   {"country":"US","duration":3},{"country":"US","duration":7},{"country":"US","duration":14},
+   {"country":"US","duration":28,"serviceId":"ALL_SERVICES"},
+   {"country":"GB","duration":30,"serviceId":"ALL_SERVICES"},{"country":"GB","duration":90,"serviceId":"ALL_SERVICES"},
+   {"country":"GB","duration":180,"serviceId":"ALL_SERVICES"},{"country":"GB","duration":365,"serviceId":"ALL_SERVICES"},
+   {"country":"HK","duration":30,"serviceId":"ALL_SERVICES"},{"country":"HK","duration":180,"serviceId":"ALL_SERVICES"},
+   {"country":"ID","duration":30,"serviceId":"ALL_SERVICES"},{"country":"ID","duration":180,"serviceId":"ALL_SERVICES"},
+   {"country":"AU","duration":30,"serviceId":"ALL_SERVICES"}]'::jsonb) loop
+   body:=jsonb_build_object('request',jsonb_build_object('serviceId','697139f4fe5460ddc2f271c2')||v,
+     'name','Synthetic plan','amountMinor',100,'feeMinor',0,'maximumMicroUsd',1000,
+     'idempotencyKey','pva-synthetic-plan-'||(v->>'country')||'-'||(v->>'duration'));
+   o:=public.internal_pva_create(owner_id,body);
+   replay:=public.internal_pva_create(owner_id,body); assert replay.id=o.id;
+   assert o.rental_period=(v->>'duration')||' days';
+   assert o.rental_kind=case when v->>'serviceId'='ALL_SERVICES' then 'general' else 'service' end;
+   assert (select reserved_minor=100 from public.wallets where user_id=owner_id and currency='NGN');
+   -- Synthetic only, rolled back: no provider dispatch.
+   perform public.internal_financial_release(o.transaction_id,'failed','Synthetic plan cleanup');
+   update public.number_orders set status='failed',rental_closed=true where id=o.id;
+ end loop;
+ for v in select value from jsonb_array_elements('[{"country":"US","duration":30},{"country":"CA","duration":30},{"country":"HK","duration":7},{"country":"AU","duration":28}]'::jsonb) loop
+   failed:=false;
+   begin
+     perform public.internal_pva_create(owner_id,jsonb_build_object('request',v||'{"serviceId":"ALL_SERVICES"}'::jsonb,
+       'name','Invalid plan','amountMinor',100,'feeMinor',0,'maximumMicroUsd',1000,'idempotencyKey','pva-invalid-'||(v->>'country')));
+   exception when invalid_parameter_value then failed:=true; end;
+   assert failed,'Unsupported dedicated plan rejected before reserve';
+ end loop;
+ cache:=public.internal_pva_cache('plans');
+ assert cache ? 'lease','Plan cache is allowed';
+ cache:=public.internal_pva_cache('inventory:697139f4fe5460ddc2f271c2:LTR');
+ assert cache ? 'lease','LTR inventory cache is distinct from STR';
  foreach scenario in array array['US','CA'] loop
-  failed:=false; begin perform public.internal_pva_create(owner_id,jsonb_build_object('request',jsonb_build_object('serviceId','697139f4fe5460ddc2f271c2','country',scenario,'duration',3),'name','WhatsApp','amountMinor',98000,'feeMinor',0,'maximumMicroUsd',700000,'idempotencyKey','pva-forbidden-long-'||scenario)); exception when invalid_parameter_value then failed:=true; end;
-  assert failed,'US/Canada LTR excluded';
+  failed:=false; begin perform public.internal_pva_create(owner_id,jsonb_build_object('request',jsonb_build_object('serviceId','697139f4fe5460ddc2f271c2','country',scenario,'duration',30),'name','WhatsApp','amountMinor',98000,'feeMinor',0,'maximumMicroUsd',700000,'idempotencyKey','pva-forbidden-long-'||scenario)); exception when invalid_parameter_value then failed:=true; end;
+  assert failed,'US/Canada 30 days excluded';
  end loop;
  update private.sms_routing set primary_provider='getatext';
  failed:=false; begin perform public.internal_pva_create(owner_id,body||'{"idempotencyKey":"pva-after-route-switch"}'); exception when insufficient_privilege then failed:=true; end; assert failed,'Provider switch stops new PVA orders';

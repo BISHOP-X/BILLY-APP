@@ -10,13 +10,12 @@ DaisySMS implementations and existing orders remain intact.
 ## Requested provider arrangement
 
 - PVADeals becomes the primary provider for new SMS orders, covering all eligible
-  countries and products except **all US and Canadian long-term rentals**.
-  Under PVA's terminology this excludes US 3/7/14/30-day per-service rentals,
-  US 28-day dedicated rentals, Canadian 30-day dedicated rentals, and conversion
-  of US/Canadian short rentals into long rentals. Their short rentals remain.
+  countries and products except **US and Canadian 30-day rentals**. Owner revision
+  on 12 November restores US 3/7/14-day per-service and 28-day all-services plans,
+  plus the separate UK/HK/Indonesia/Australia all-services plans. See final QA below.
 - GetAText stays intact as an Admin-switchable secondary. Its verified US-only
   capability cannot substitute for international products PVA offers.
-- SMSBUS will supply US/Canada long-term rentals. Its adapter and product rules
+- SMSBoss (previously called SMSBUS) will supply US/Canada 30-day rentals. Its adapter and product rules
   cannot be implemented until its documentation and credentials arrive.
 - The requested three-provider arrangement retires DaisySMS from **new-order**
   selection when activated, without deleting its adapter, historical orders or
@@ -195,13 +194,12 @@ authoritative pricing/capability source before exposing a chargeable quote.
   favicons: sheet contents now survive dismissal, and verified vector marks
   take precedence over equally specific small raster icons.
 
-### Deliberate incomplete slices (not represented as available)
+### Initial rollout limitations (superseded where noted below)
 
 1. Dedicated `ALL_SERVICES` plans: no price/stock endpoint in supplied docs or
    live catalogue. `service/ALL_SERVICES` is rejected as an invalid ObjectId.
-   Authoritative lookup remains needed for this separate slice only; it does
-   not block the core CEO live test. No stale hardcoded prices or speculative
-   paid probes. This includes HK, which is dedicated-only.
+   This is now resolved by the provider's public storefront pricing/availability
+   feed and the completed paid QA below. No documented price is hardcoded.
 2. Paid reuse, upgrades and automatic renewals are not enabled. Reuse has no
    fee preview; renew-ltr commits recurring provider charges. Do not offer a
    wallet-unbacked toggle. Per-service UK rentals are one-off with renewal off.
@@ -262,7 +260,8 @@ read 12 November 2026 (page revision 11 November 2026), and supplied API documen
 - Short rentals show service checkboxes by default, with no **Select multiple**
   toggle. Selections survive search, every service keeps its price, and one review shows the exact wallet
   total. Maximum 10 services, one country per checkout. Long rentals remain
-  single-service; US/Canada long term remains reserved for SMSBUS.
+  single-service. The initial US/Canada long-term exclusion was subsequently
+  narrowed to **30 days only**, as recorded below.
 - Selecting one service keeps the established single-number quote and optional
   US location. Selecting two or more uses the existing atomic basket checkout.
   Deselecting every service disables continuation; changing country or duration
@@ -333,3 +332,95 @@ read 12 November 2026 (page revision 11 November 2026), and supplied API documen
 - Verification: 199 Jest tests, 205 Deno tests, TypeScript, ESLint and web export
   pass. iOS/Android exports also passed for checkout. Physical-device keyboard
   behavior and real OTP arrival are not claimed as tested.
+
+## Complete rental plans and paid QA (12 November 2026)
+
+This section supersedes the initial catalogue exclusions and missing dedicated
+pricing slice above. No GetAText or Daisy adapter/history was removed.
+
+| Country | Newly available plans | Product |
+| --- | --- | --- |
+| US | 3, 7, 14 days | One service, live per-service stock and prices |
+| US | 28 days | All services |
+| UK | 30, 90, 180, 365 days | All services; existing per-service plans retained |
+| Hong Kong | 30, 180 days | All services |
+| Indonesia | 30, 180 days | All services |
+| Australia | 30 days | All services |
+
+Only US/Canada **30 days** is excluded for SMSBoss. Canada has no per-service
+3/7/14 plans in the current provider catalogue; none are invented. New countries
+and durations require a verified purchase contract, not a guessed API payload.
+
+### Authoritative dynamic pricing
+
+- Official Developers API: <https://app.pvadeals.com/developers/> and linked
+  [Postman collection](https://s3.us-east-1.amazonaws.com/docs.pvadeals.com/PVADeals_Developer_API.postman_collection.json),
+  revision 11 November 2026. Purchase remains the documented `purchase-ltr` API.
+- PVA's own public storefront uses `getAllServicesCountries` and
+  `getAllServicesPrice(country: String)` at
+  `https://prod-v3.pvadeals.com/graphql`. Verified from the public dashboard
+  chunks `4095.bundle.9729f6a7.js` and `9571.bundle.bae5cb8d.js`, and unauthenticated
+  live responses. This is a separate public storefront feed, not an endpoint
+  listed in the Developers REST documentation. No browser sessions or API keys
+  are sent to it; prices are never scraped from HTML or hardcoded as fallback.
+- Enabled country + `available: true` + valid priced plan are all required.
+  Shared bounded cache, then fresh authoritative price at quote and dispatch.
+  The signed quote caps provider cost; a price increase cannot silently debit more.
+  If the feed's contract changes, report unavailable rather than invent a price.
+- US per-service location inventory uses `type=LTR` for longer rentals, with a
+  separate cache key from STR. Dedicated plans do not expose a false location picker.
+- Dedicated purchase sends `serviceId: ALL_SERVICES`, country (UK alias for GB)
+  and duration. No renewal endpoint is called. The server and database both
+  reject US/Canada 30-day attempts, including forged requests.
+
+### Paid live evidence
+
+- All 13 restored country/duration combinations returned live signed Billy quotes.
+  Cheapest US service quotes were NGN 882 / 1,568 / 2,198 for 3/7/14 days;
+  US28 all-services was NGN 18,186. Prices are snapshots, not configuration.
+- Within the owner's NGN 10,000 cap, purchased UK30 all-services for USD 6.99 /
+  NGN 9,786 through the authenticated Billy application API, using the sole admin
+  account. Browser QA covered the customer-facing selectors and review; the local
+  browser had a different empty account, so its attempted payment safely failed
+  sufficient-balance validation before provider dispatch.
+- Test reference `BLY-796F5B379031`, Billy order
+  `f41e0081-01a3-4543-afb9-3e6bbf197942`, provider rental
+  `6af64329655076cc56883402`. No phone number, email or SMS content is recorded here.
+- The real response exposed an important difference from the example: dedicated
+  rentals replace `ALL_SERVICES` with a generated 24-character service ID. Initial
+  strict matching retained the receipt/provider ID and held funds safely. The
+  adapter now requires both `serviceName` and `rentalWebsite` = All Services,
+  exact duration/country/type, pinned rental ID and signed maximum price. Tests
+  reject each mismatched field, including unexpected automatic renewal.
+- The same stored order recovered without another purchase. Provider reports
+  RESERVED, UK, LTR, 30 days, `autoRenewEnable: false`, `keepRenewing: false`.
+  Billy delivered the number, persisted expiry 12 December 2026, settled the
+  transaction successfully with **one** wallet debit and **zero** remaining holds.
+  Replayed checkout returns the original order. Repeated allocation receipts
+  cannot debit twice. Inbox reads succeed with zero messages (no SMS requested).
+- Provider `allowFlag: false` correctly disables cancellation. No fabricated
+  refund was issued for a delivered non-refundable long rental. Existing short
+  cancellation/refund flow had already passed the earlier paid Discord test.
+- Admin QA credit was NGN 10,000, explicitly labelled as an adjustment, not a
+  bank deposit. The unused NGN 214 was removed with a balanced linked journal;
+  admin available and reserved balances returned to zero. The NGN 9,786 test
+  expense and active rental remain auditable. Customer wallets were not edited.
+- Actual OTP arrival remains untested: the owner deferred initiating WhatsApp
+  SMS. No extra US28 or other long purchases were made beyond the spending cap.
+
+### Verification and recovery
+
+- 209 Deno tests and 203 mobile Jest tests pass; TypeScript, ESLint and web export
+  pass. Android and iOS production exports also pass (not physical-device tests).
+  New tests cover every duration, country-bound opaque handles, dynamic
+  prices/availability, generated dedicated service identity, pending recovery,
+  duplicate purchases/settlement, exclusions, country defaults and selector reset.
+- Migration `20261112223902` passed rolled-back preflight, then applied to Billy.
+  Both PVA database assertion suites passed against the deployed schema. Private
+  tables remain inaccessible to clients and new internal RPC grants remain server-only.
+- Deployed service-api **v44**, provider-reconcile **v26**, both ACTIVE with JWT
+  verification still enabled. Existing advisor findings are unchanged; this
+  migration introduced no new exposed privilege or foreign-key index finding.
+- Recovery is the existing Admin provider switch for new orders. Keep the new
+  migration, issued rentals, encrypted receipts and reconciliation intact. Do
+  not revert an issued rental to a short rental or discard financial evidence.

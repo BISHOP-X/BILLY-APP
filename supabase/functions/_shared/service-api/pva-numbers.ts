@@ -4,6 +4,7 @@ import type {
   PvaSelection,
   PvaService,
 } from "../providers/pvadeals.ts";
+import { validPvaSelection } from "../providers/pvadeals.ts";
 import {
   type NumberOrder,
   numberPrice,
@@ -136,14 +137,15 @@ async function handlePvaBasket(action: string, input: Record<string, unknown>, u
 }
 async function catalog(runtime: NumberRuntime) {
   if (!runtime.pva) throw fail("Numbers are temporarily unavailable.");
-  const [rows, disabled] = await Promise.all([
+  const [rows, plans, disabled] = await Promise.all([
     cached(runtime, "catalog", () => runtime.pva!.services()),
+    cached(runtime, "plans", () => runtime.pva!.plans()),
     runtime.database.rpc<{ item_id: string }[]>("internal_catalog_disabled", {
       p_service_key: "foreign_numbers",
     }),
   ]);
   const excluded = new Set(disabled.map((r) => r.item_id));
-  return rows.filter((s) =>
+  return [...rows, ...plans].filter((s) =>
     !excluded.has(s.id) && !excluded.has(`pvadeals.${s.id}`) &&
     Object.keys(s.prices).length
   );
@@ -164,7 +166,7 @@ async function selected(
   const duration = Number(input.duration);
   if (
     !Number.isInteger(duration) || !row.prices[String(duration)] ||
-    (duration && row.country !== "GB")
+    !validPvaSelection({serviceId:row.id,country:row.country,duration})
   ) throw fail("Choose an available rental duration.");
   return { row, duration };
 }
@@ -191,6 +193,7 @@ export async function handlePvaStore(
       id: await publicId(runtime, s),
       name: s.name,
       country: s.country,
+      ...(s.kind ? {kind:s.kind} : {}),
       prices: Object.fromEntries(
         Object.entries(s.prices).map((
           [duration, micros],
@@ -207,13 +210,13 @@ export async function handlePvaStore(
   }
   if (action === "numbers.locations") {
     const { row, duration } = await selected(runtime, input);
-    if (row.country !== "US" || duration) return { data: { locations: [] } };
+    if (row.country !== "US" || row.kind === "general") return { data: { locations: [] } };
     // The provider has a global 10/5-minute inventory limit. A refused read only
     // removes optional targeting; it must never block nationwide checkout.
     const locations = await cached(
       runtime,
-      `inventory:${row.id}`,
-      () => runtime.pva!.inventory(row.id),
+      `inventory:${row.id}${duration ? ':LTR' : ''}`,
+      () => runtime.pva!.inventory(row.id, duration),
     );
     return { data: { locations } };
   }
@@ -222,20 +225,20 @@ export async function handlePvaStore(
     const state = input.state === undefined || input.state === ""
       ? undefined
       : requestText(input.state, "Location", 2);
-    if (state && (row.country !== "US" || !/^[A-Z]{2}$/.test(state))) {
+    if (state && (row.country !== "US" || row.kind === "general" || !/^[A-Z]{2}$/.test(state))) {
       throw fail("Choose a valid location.");
     }
     if (state) {
       const locations = await cached(
         runtime,
-        `inventory:${row.id}`,
-        () => runtime.pva!.inventory(row.id),
+        `inventory:${row.id}${duration ? ':LTR' : ''}`,
+        () => runtime.pva!.inventory(row.id, duration),
       );
       if (!locations.some((l) => l.code === state)) {
         throw fail("This location is out of stock. Choose any location.");
       }
     }
-    const live = await runtime.pva.service(row.id),
+    const live = await runtime.pva.service(row.id, row.country),
       micros = live.prices[String(duration)];
     if (!micros || live.country !== row.country) {
       throw fail("This rental is out of stock. Choose another service.");
@@ -266,6 +269,7 @@ export async function handlePvaStore(
         country: row.country,
         duration,
         totalMinor: price.totalMinor,
+        ...(row.kind ? {kind:row.kind} : {}),
       },
     };
   }
@@ -329,7 +333,7 @@ export async function refreshPvaNumber(
   try {
     if (!route.dispatched_at) {
       // Queued quotes are checked again immediately before the one-shot purchase.
-      const service = await runtime.pva.service(route.request.serviceId);
+      const service = await runtime.pva.service(route.request.serviceId, route.request.country);
       const price = service.prices[String(route.request.duration)];
       if (
         context.order.cancel_requested || !price ||

@@ -5,6 +5,7 @@ export type PvaService = {
   id: string;
   name: string;
   country: string;
+  kind?: "general";
   prices: Record<string, number>;
   stock: Record<string, number>;
 };
@@ -41,8 +42,9 @@ export type PvaOutcome = {
 export type PvaReply = { outcome: PvaOutcome; raw: string };
 export interface PvaProvider {
   services(): Promise<PvaService[]>;
-  service(id: string): Promise<PvaService>;
-  inventory(id: string): Promise<{ code: string; name: string }[]>;
+  plans(): Promise<PvaService[]>;
+  service(id: string, country?: string): Promise<PvaService>;
+  inventory(id: string, duration?: number): Promise<{ code: string; name: string }[]>;
   purchase(selection: PvaSelection): Promise<PvaReply>;
   request(id: string, selection: PvaSelection): Promise<PvaReply>;
   flag(id: string): Promise<void>;
@@ -74,9 +76,9 @@ export function normalizePvaService(
   ) return;
   const prices: Record<string, number> = {}, stock: Record<string, number> = {};
   for (const duration of [0, 3, 7, 14, 30]) {
-    // Owner decision: US/Canada LTR belongs exclusively to SMSBUS. The API
-    // currently offers per-service LTR only for US and GB; never infer others.
-    if (duration && country !== "GB") continue;
+    // Only US/Canada 30 days belongs to SMSBoss. Other per-service LTR is
+    // documented for US/GB only; prices and stock still come from the provider.
+    if (duration && country !== "GB" && !(country === "US" && duration !== 30)) continue;
     const price = usdMicros(
       row[duration ? `LTR${duration}price` : detail ? "price" : "STRprice"],
     );
@@ -86,6 +88,35 @@ export function normalizePvaService(
     stock[String(duration)] = count;
   }
   return { id, name: row.name.trim().slice(0, 160), country, prices, stock };
+}
+// Protocol validation, not a price catalogue. Availability/prices are read live.
+export function validPvaSelection(s: PvaSelection): boolean {
+  if (s.serviceId === "ALL_SERVICES") {
+    const days: Record<string, number[]> = {US:[28], GB:[30,90,180,365], HK:[30,180], ID:[30,180], AU:[30]};
+    return !s.state && !!days[s.country]?.includes(s.duration);
+  }
+  return /^[a-f0-9]{24}$/.test(s.serviceId) && /^[A-Z]{2}$/.test(s.country) &&
+    (!s.state || (s.country === "US" && /^[A-Z]{2}$/.test(s.state))) &&
+    (s.duration === 0 || (s.country === "US" && [3,7,14].includes(s.duration)) ||
+      (s.country === "GB" && [3,7,14,30].includes(s.duration)));
+}
+export function normalizePvaPlans(value: unknown): PvaService[] {
+  const data = record(value);
+  if (!Array.isArray(data.getAllServicesCountries)) throw new NumberProviderError(false, "Long rentals are temporarily unavailable.");
+  return data.getAllServicesCountries.flatMap((item) => {
+    const countryRow = record(item), country = pvaCountry(countryRow.country);
+    const source = record(data[country]);
+    if (countryRow.enabled !== true || source.available !== true) return [];
+    if (!Array.isArray(source.plans)) throw new NumberProviderError(false, "Long rental pricing is unavailable.");
+    const prices: Record<string, number> = {};
+    for (const item of source.plans) {
+      const plan = record(item), duration = Number(plan.durationDays), price = usdMicros(plan.price);
+      if (!validPvaSelection({serviceId:"ALL_SERVICES",country,duration})) continue;
+      if (!price || prices[String(duration)]) throw new NumberProviderError(false, "Long rental pricing is unavailable.");
+      prices[String(duration)] = price;
+    }
+    return Object.keys(prices).length ? [{id:"ALL_SERVICES", name:"All services", country, kind:"general" as const, prices, stock:{}}] : [];
+  });
 }
 function iso(value: unknown): string | undefined {
   return typeof value === "string" && Number.isFinite(Date.parse(value))
@@ -102,8 +133,18 @@ export function normalizePvaRequest(
     !/^[a-f0-9]{24}$/.test(rentalId) || (expectedId && rentalId !== expectedId)
   ) return { state: "unknown" };
   const unknown: PvaOutcome = { state: "unknown", rentalId };
+  // Live dedicated rentals replace ALL_SERVICES with a generated service ID.
+  // Match both product labels and the exact duration, in addition to the pinned
+  // rental ID, country/type and price ceiling enforced during settlement.
+  const dedicatedMatch = expected.serviceId === "ALL_SERVICES" &&
+    /^[a-f0-9]{24}$/.test(String(row.serviceId)) &&
+    String(row.serviceName).toLowerCase() === "all services" &&
+    String(row.rentalWebsite).toLowerCase() === "all services" &&
+    row.duration === expected.duration;
   if (
-    row.serviceId !== expected.serviceId ||
+    (row.serviceId !== expected.serviceId && !dedicatedMatch) ||
+    (row.duration !== undefined && row.duration !== expected.duration) ||
+    row.autoRenewEnable === true ||
     pvaCountry(row.country) !== expected.country ||
     row.numberType !== (expected.duration ? "LTR" : "STR")
   ) return unknown;
@@ -251,7 +292,31 @@ export class PvadealsAdapter implements PvaProvider {
     }
     return result;
   }
-  async service(id: string) {
+  async plans(): Promise<PvaService[]> {
+    // Same public, read-only feed used by PVA's own storefront (verified
+    // 2026-11-12). No API key/session is sent to this public pricing endpoint.
+    // Do not fall back to documented prices if this contract changes.
+    try {
+      const response = await this.fetcher("https://prod-v3.pvadeals.com/graphql", {
+        method:"POST", redirect:"error", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({query:'query { getAllServicesCountries US:getAllServicesPrice(country:"US") GB:getAllServicesPrice(country:"UK") HK:getAllServicesPrice(country:"HK") ID:getAllServicesPrice(country:"ID") CA:getAllServicesPrice(country:"CA") AU:getAllServicesPrice(country:"AU") }'}),
+        signal:AbortSignal.timeout(12_000),
+      });
+      const raw = await response.text();
+      if (!response.ok || raw.length > 100_000) throw new Error("Bad plan response");
+      const json = record(JSON.parse(raw));
+      if (json.errors) throw new Error("Plan query failed");
+      return normalizePvaPlans(json.data);
+    } catch {
+      throw new NumberProviderError(false, "Long rental pricing is temporarily unavailable. Please try again.");
+    }
+  }
+  async service(id: string, country?: string) {
+    if (id === "ALL_SERVICES") {
+      const plan = (await this.plans()).find((row) => row.country === country);
+      if (!plan) throw new NumberProviderError(false, "This long rental is unavailable.");
+      return plan;
+    }
     if (!/^[a-f0-9]{24}$/.test(id)) {
       throw new NumberProviderError(false, "Invalid service.");
     }
@@ -264,12 +329,12 @@ export class PvadealsAdapter implements PvaProvider {
     }
     return row;
   }
-  async inventory(id: string) {
+  async inventory(id: string, duration = 0) {
     if (!/^[a-f0-9]{24}$/.test(id)) {
       throw new NumberProviderError(false, "Invalid service.");
     }
     const data = record(
-      (await this.call(`inventory?serviceId=${id}&type=STR`)).data,
+      (await this.call(`inventory?serviceId=${id}&type=${duration ? "LTR" : "STR"}`)).data,
     );
     return Object.entries(record(data.countsByState)).flatMap(
       ([code, value]) => {
@@ -282,7 +347,7 @@ export class PvadealsAdapter implements PvaProvider {
     );
   }
   async purchase(selection: PvaSelection): Promise<PvaReply> {
-    if (selection.duration && selection.country !== "GB") {
+    if (!validPvaSelection(selection)) {
       throw new NumberProviderError(false, "This rental is unavailable.");
     }
     const service = {
@@ -292,7 +357,7 @@ export class PvadealsAdapter implements PvaProvider {
     const reply = await this.call(
       selection.duration ? "purchase-ltr" : "purchase",
       selection.duration
-        ? { ...service, duration: selection.duration }
+        ? { ...service, duration: selection.duration, ...(selection.serviceId === "ALL_SERVICES" ? {country:selection.country === "GB" ? "UK" : selection.country} : {}) }
         : { services: [service] },
       true,
     );

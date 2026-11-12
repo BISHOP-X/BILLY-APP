@@ -63,6 +63,7 @@ function fixture() {
     markupBps: 0,
     pva: {
       services: async () => [service],
+      plans: async () => [],
       service: async () => service,
       inventory: async () => [],
       purchase: async () => {
@@ -97,7 +98,7 @@ function fixture() {
           case "internal_sms_routing":
             return { primary_provider: primary, version: 1 } as T;
           case "internal_pva_cache":
-            return { data: [service], lease: null } as T;
+            return { data: input.p_key === 'plans' ? [] : [service], lease: null } as T;
           case "internal_catalog_disabled":
             return [] as T;
           case "internal_pva_create":
@@ -191,6 +192,39 @@ Deno.test("PVA lost paid response is journaled as unknown and never retried or s
   await refreshPvaNumber(f.runtime, owner, id);
   assert.deepEqual(f.trace, ["internal_pva_context", "internal_pva_apply"]);
 });
+
+Deno.test('Dedicated plans stay country-bound, quote current price, and recover pending allocation without another purchase', async () => {
+  const f = fixture();
+  const plan = {id:'ALL_SERVICES',name:'All services',country:'GB',kind:'general' as const,prices:{'30':6990000},stock:{}};
+  const us = {...plan,country:'US',prices:{'28':12990000}};
+  const original = f.runtime.database.rpc;
+  f.runtime.database.rpc = async <T>(name:string,input:Record<string,unknown>):Promise<T> =>
+    name === 'internal_pva_cache' && input.p_key === 'plans' ? {data:[plan,us],lease:null} as T : original<T>(name,input);
+  f.runtime.pva!.plans = async () => [plan,us];
+  f.runtime.pva!.service = async (id,country) => {
+    assert.equal(id,'ALL_SERVICES'); assert.equal(country,'GB'); return plan;
+  };
+  const market = await handleNumberAction('numbers.market',{}, {id:owner},f.runtime) as {data:{services:{id:string;country:string;kind?:string}[]}};
+  const plans = market.data.services.filter(s=>s.kind==='general');
+  assert.equal(plans.length,2); assert.notEqual(plans[0].id,plans[1].id);
+  const quote = await handleNumberAction('numbers.quote',{productId:plans[0].id,duration:30},{id:owner},f.runtime) as {data:{totalMinor:number;kind:string}};
+  assert.equal(quote.data.totalMinor,978600); assert.equal(quote.data.kind,'general');
+  await assert.rejects(()=>handleNumberAction('numbers.quote',{productId:plans[1].id,duration:30},{id:owner},f.runtime));
+  await assert.rejects(()=>handleNumberAction('numbers.quote',{productId:plans[0].id,duration:30,state:'CA'},{id:owner},f.runtime));
+  const route = {provider_id:null,dispatched_at:null,maximum_micro_usd:6990000,request:{serviceId:'ALL_SERVICES',country:'GB',duration:30}};
+  f.setContext({order,claimed:true,claimToken:id,route});
+  f.runtime.pva!.purchase = async () => {f.trace.push('purchase'); return {outcome:{state:'pending',rentalId,priceMicroUsd:6990000},raw:'{}'};};
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'pending');
+  f.setContext({order,claimed:true,claimToken:id,route:{...route,provider_id:rentalId,dispatched_at:'2026-11-12'}});
+  f.runtime.pva!.request = async (id,selection) => {
+    assert.equal(id,rentalId); assert.equal(selection.country,'GB');
+    return {outcome:{state:'allocated',rentalId,phoneNumber:'+447700900123',priceMicroUsd:6990000,canCancel:false},raw:'{}'};
+  };
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal(f.trace.filter(s=>s==='purchase').length,1);
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'allocated');
+});
 Deno.test("PVA price increase / unavailable preflight releases hold without dispatch", async () => {
   for (const changed of [true, false]) {
     const f = fixture();
@@ -278,7 +312,7 @@ Deno.test("Full PVA catalogue crosses authenticated HTTP boundary without size-l
     name: string,
     input: Record<string, unknown>,
   ): Promise<T> =>
-    name === "internal_pva_cache"
+    name === "internal_pva_cache" && input.p_key !== 'plans'
       ? {
         data: Array.from(
           { length: 6000 },

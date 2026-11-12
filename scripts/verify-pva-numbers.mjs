@@ -4,7 +4,7 @@ const token = process.env.CODEX_SUPABASE_TOKEN_BILLY;
 if (!token) throw new Error("Billy management credential required.");
 const migration = process.argv.includes("--preflight")
   ? (await readFile(
-    "supabase/migrations/20261112171020_pva_numbers_primary.sql",
+    process.argv.includes('--plans') ? "supabase/migrations/20261112223902_pva_complete_rental_plans.sql" : "supabase/migrations/20261112171020_pva_numbers_primary.sql",
     "utf8",
   )).replace(/^begin;\s*$/gim, "").replace(/^commit;\s*$/gim, "")
   : "";

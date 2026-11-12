@@ -92,9 +92,9 @@ export function NumberStorefront(
     retry: 1,
   });
   const locations = useQuery({
-    queryKey: ["numbers", user?.id, "locations", selection?.id],
+    queryKey: ["numbers", user?.id, "locations", selection?.id, duration],
     queryFn: () => numberRepository.locations(selection!.id, duration),
-    enabled: sheetOpen && sheet === "location" && !!selection && country === "US",
+    enabled: sheetOpen && sheet === "location" && !!selection && selection.kind !== 'general' && country === "US",
     staleTime: 300_000,
     retry: false,
   });
@@ -109,7 +109,7 @@ export function NumberStorefront(
     [market.data, country],
   );
   const sortedProducts = useMemo(
-    () => smsProducts(market.data?.services ?? [], country, duration, ''),
+    () => smsProducts(market.data?.services ?? [], country, duration, '').filter((s) => s.kind !== 'general'),
     [market.data, country, duration],
   );
   const products = useMemo(
@@ -119,12 +119,14 @@ export function NumberStorefront(
   const visiblePrice = multiple ? basket.reduce((total, p) => total + p.prices['0'], 0) : selection?.prices[String(duration)];
   const hasSelection = multiple ? basket.length > 0 : !!selection;
   const popularCount = products.filter((p) => Number.isFinite(popularSmsRank(p.name))).length;
+  const allServices = market.data?.services.find((s) => s.country === country && s.kind === 'general' && s.prices[String(duration)]);
   const panel = { backgroundColor: c.surface, borderColor: c.border },
     text = { color: c.text },
     muted = { color: c.textMuted };
   function chooseCountry(code: string) {
     setCountry(code);
-    setDuration(0);
+    const available = (market.data?.services ?? []).filter((s) => s.country === code).flatMap((s) => Object.keys(s.prices).map(Number));
+    setDuration(available.length ? Math.min(...available) : 0);
     setSelection(null);
     setBasket([]);
     setState("");
@@ -304,11 +306,27 @@ export function NumberStorefront(
           )
           : null}
         <Text style={[styles.small, muted]}>
-          {duration
+          {selection?.kind === 'general' ? 'One number for different websites and apps. No automatic renewal.' : duration
             ? "Keep the same number for this service. One payment, no automatic renewal."
             : "Use this number for one website or app during its 20-minute rental."}
         </Text>
         <View style={[styles.rule, { backgroundColor: c.border }]} />
+        {allServices ? <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`All services, ${smsDuration(duration)}, ${formatMinorUnits(allServices.prices[String(duration)], 'NGN')}`}
+          accessibilityState={{selected:selection?.id === allServices.id}}
+          onPress={() => { setSelection(allServices); setState(''); setQuote(null); setNotice(''); }}
+          style={[styles.field, {backgroundColor:c.brandMist, borderColor:selection?.id === allServices.id ? c.brand : c.border}]}
+        >
+          <Ionicons name="apps-outline" size={28} color={c.brand} />
+          <View style={styles.flex}>
+            <Text style={[styles.fieldText, text]}>All services</Text>
+            <Text style={[styles.small, muted]}>One number · {smsDuration(duration)}</Text>
+            <Text style={[styles.price, {color:c.brand}]}>{formatMinorUnits(allServices.prices[String(duration)], 'NGN')}</Text>
+          </View>
+          <Ionicons name={selection?.id === allServices.id ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={c.brand} />
+        </Pressable> : null}
+        {sortedProducts.length > 0 || !market.data ? <>
         <View style={styles.between}>
           <Text style={[styles.label, text]}>Website or app</Text>
           <Text style={[styles.small, muted]}>
@@ -342,6 +360,7 @@ export function NumberStorefront(
           </View>
           <Ionicons name="chevron-forward" size={19} color={c.textMuted} />
         </Pressable>
+        </> : null}
         {country === "CA"
           ? (
             <Text style={[styles.small, muted]}>
@@ -350,7 +369,7 @@ export function NumberStorefront(
             </Text>
           )
           : null}
-        {country === "US" && !multiple
+        {country === "US" && !multiple && selection?.kind !== 'general' && sortedProducts.length > 0
           ? (
             <>
               <View style={styles.between}>
@@ -396,7 +415,7 @@ export function NumberStorefront(
         <AppButton
           label={visiblePrice
             ? `Review · ${formatMinorUnits(visiblePrice, "NGN")}`
-            : "Choose a website to start"}
+            : allServices && !sortedProducts.length ? "Choose your rental to start" : "Choose a website to start"}
           disabled={!hasSelection}
           loading={busy}
           onPress={() => void review()}
@@ -614,7 +633,7 @@ export function NumberStorefront(
               ? (
                 <ScrollView contentContainerStyle={styles.review}>
                   <View style={styles.reviewBrand}>
-                    {'items' in quote ? <Ionicons name="chatbubbles-outline" size={42} color={c.brand} /> : <ServiceAvatar name={quote.name} size={62} />}
+                    {'items' in quote || quote.kind === 'general' ? <Ionicons name="chatbubbles-outline" size={42} color={c.brand} /> : <ServiceAvatar name={quote.name} size={62} />}
                     <Text style={[styles.sheetTitle, text]}>{'items' in quote ? `${quote.items.length} SMS numbers` : quote.name}</Text>
                     <View style={styles.inline}>
                       <CountryFlag code={quote.country} />
@@ -641,9 +660,8 @@ export function NumberStorefront(
                     </Text>
                   </View>
                   <Text style={[styles.body, muted]}>
-                    {'items' in quote ? 'You’ll receive a separate number for each service. Each rental is processed independently.' : `This number is for ${quote.name}.`} Request your SMS after the number appears in
-                    My numbers. Eligible cancellations are refunded to your
-                    Billy balance after confirmation.
+                    {'items' in quote ? 'You’ll receive a separate number for each service. Each rental is processed independently.' : quote.kind === 'general' ? 'Use this number with different websites and apps. Some apps may not accept every number.' : `This number is for ${quote.name}.`} Request your SMS after the number appears in My numbers.
+                    {quote.kind === 'general' ? ' Long rentals are not automatically refundable if you do not receive a code. Cancellation is available only when eligible.' : ' Eligible cancellations are refunded to your Billy balance after confirmation.'}
                   </Text>
                   {notice
                     ? (

@@ -308,3 +308,33 @@ test('one checked US service retains its optional location and single-number quo
   expect(numberRepository.quote).toHaveBeenCalledWith('us-wa',0,'CA');
   expect(numberRepository.basketQuote).not.toHaveBeenCalled();
 });
+
+test('US 28-day all-services shows its NGN price without a website or location picker', async () => {
+  jest.mocked(numberRepository.market).mockResolvedValue({services:[...services,
+    {id:'all-us',name:'All services',country:'US',kind:'general',prices:{'28':1818600}}],countries:['US','GB','CA'],refreshedAt:'2026-11-12'});
+  await mount();
+  await fireEvent.press(screen.getByRole('button',{name:'28 days'}));
+  expect(screen.queryByLabelText('Choose website or app')).toBeNull();
+  expect(screen.queryByText('Location')).toBeNull();
+  await fireEvent.press(screen.getByRole('button',{name:'All services, 28 days, ₦18,186.00'}));
+  jest.mocked(numberRepository.quote).mockResolvedValue({quoteToken:'all-token',name:'All services',country:'US',duration:28,totalMinor:1818600,kind:'general'});
+  await fireEvent.press(screen.getByRole('button',{name:'Review · ₦18,186.00'}));
+  await waitFor(()=>expect(screen.getByText('Review your number')).toBeTruthy());
+  expect(numberRepository.quote).toHaveBeenCalledWith('all-us',28,undefined);
+  expect(screen.getByText(/Long rentals are not automatically refundable/)).toBeTruthy();
+  expect(numberRepository.buy).not.toHaveBeenCalled();
+});
+
+test('Hong Kong defaults to its available duration and switching country clears an all-services selection', async () => {
+  jest.mocked(numberRepository.market).mockResolvedValue({services:[...services,
+    {id:'all-hk',name:'All services',country:'HK',kind:'general',prices:{'30':1610000,'180':3150000}}],countries:['US','GB','HK'],refreshedAt:'2026-11-12'});
+  await mount();
+  await fireEvent.press(screen.getByRole('button',{name:'More'}));
+  await fireEvent.press(screen.getByText('Hong Kong'));
+  expect(screen.getByRole('button',{name:'30 days'}).props.accessibilityState.selected).toBe(true);
+  await fireEvent.press(screen.getByRole('button',{name:'All services, 30 days, ₦16,100.00'}));
+  expect(screen.getByRole('button',{name:'Review · ₦16,100.00'})).toBeEnabled();
+  await fireEvent.press(screen.getByRole('button',{name:'United States'}));
+  expect(screen.getByRole('button',{name:'Choose a website to start'})).toBeDisabled();
+  expect(numberRepository.market).toHaveBeenCalledTimes(1);
+});

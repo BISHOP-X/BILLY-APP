@@ -10,13 +10,13 @@ function fixture() {
   const trace:string[]=[];
   let saved:any=null, calls=0, pending=0;
   const runtime: NumberRuntime={tokens:new ServiceTokenCodec(secret),digest:createHmacHexDigester(secret),exchangeRateMinorPerUsd:140000,markupBps:0,
-    pva:{services:async()=>services,service:async(id)=>services.find(s=>s.id===id)!,inventory:async()=>[],
+    pva:{services:async()=>services,plans:async()=>[],service:async(id)=>services.find(s=>s.id===id)!,inventory:async()=>[],
       purchase:async()=>{calls++;pending++;assert.equal(pending,1);await Promise.resolve();pending--;return {outcome:{state:'allocated'},raw:'{}'};},
       request:async()=>({outcome:{state:'waiting'},raw:'{}'}),flag:async()=>{}},
     database:{orders:async()=>[],rpc:async<T>(name:string,input:Record<string,unknown>):Promise<T>=>{
       trace.push(name);
       if(name==='internal_sms_routing')return {primary_provider:'pvadeals',version:2} as T;
-      if(name==='internal_pva_cache')return {data:services,lease:null} as T;
+      if(name==='internal_pva_cache')return {data:input.p_key==='plans'?[]:services,lease:null} as T;
       if(name==='internal_catalog_disabled')return [] as T;
       if(name==='internal_pva_checkout'){
         assert.equal(input.p_user_id,owner);
