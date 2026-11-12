@@ -6,6 +6,7 @@ export type PvaService = {
   name: string;
   country: string;
   kind?: "general";
+  periodLabel?: string;
   prices: Record<string, number>;
   stock: Record<string, number>;
 };

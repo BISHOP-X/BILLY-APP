@@ -93,6 +93,24 @@ beforeEach(() => {
     } as NumberOrder,
   );
 });
+test('US monthly plan shows calendar-month label, NGN price and cancellation terms before payment', async () => {
+  jest.mocked(numberRepository.market).mockResolvedValue({services:[...services,
+    {id:'us-month',name:'All services',country:'US',kind:'general',periodLabel:'1 month',prices:{'30':560000}}],countries:['US','CA','GB'],refreshedAt:'2026-11-13'});
+  jest.mocked(numberRepository.quote).mockResolvedValue({quoteToken:'monthly-owner-quote',name:'All services',country:'US',kind:'general',periodLabel:'1 month',duration:30,totalMinor:560000});
+  const {done}=await mount();
+  await fireEvent.press(screen.getByText('1 month'));
+  expect(screen.queryByText('30 days')).toBeNull();
+  await fireEvent.press(screen.getByRole('button',{name:'All services, 1 month, ₦5,600.00'}));
+  await fireEvent.press(screen.getByRole('button',{name:'Review · ₦5,600.00'}));
+  await waitFor(()=>expect(screen.getByText('Review your number')).toBeTruthy());
+  expect(screen.getByText(/Eligible unused rentals can be cancelled within 20 minutes/)).toBeTruthy();
+  expect(numberRepository.quote).toHaveBeenCalledWith('us-month',30,undefined);
+  expect(numberRepository.buy).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole('button',{name:'Pay ₦5,600.00'}));
+  await waitFor(()=>expect(done).toHaveBeenCalled());
+  expect(numberRepository.buy).toHaveBeenCalledWith('monthly-owner-quote','sms-11111111-1111-4111-8111-111111111111');
+});
+
 test("country, duration and typing filter instantly without reloading catalogue", async () => {
   await mount();
   await fireEvent.press(screen.getByRole("button", { name: "United Kingdom" }));
@@ -115,6 +133,18 @@ test("country, duration and typing filter instantly without reloading catalogue"
     .toBeTruthy();
   expect(numberRepository.market).toHaveBeenCalledTimes(1);
   expect(numberRepository.quote).not.toHaveBeenCalled();
+});
+
+test('Canada monthly plans do not inherit the short-term provider VoIP claim', async () => {
+  jest.mocked(numberRepository.market).mockResolvedValue({services:[...services,
+    {id:'ca-month',name:'All services',country:'CA',kind:'general',periodLabel:'1 month',prices:{'30':490000}}],countries:['US','CA','GB'],refreshedAt:'2026-11-13'});
+  await mount();
+  await fireEvent.press(screen.getByRole('button',{name:'More'}));
+  await fireEvent.press(screen.getByText('Canada'));
+  expect(screen.getByText(/Canadian numbers use VoIP/)).toBeTruthy();
+  await fireEvent.press(screen.getByText('1 month'));
+  expect(screen.queryByText(/Canadian numbers use VoIP/)).toBeNull();
+  expect(screen.getByRole('button',{name:'All services, 1 month, ₦4,900.00'})).toBeTruthy();
 });
 test("visible NGN price, explicit review and PIN-free payment use stable idempotency key", async () => {
   const { done } = await mount();

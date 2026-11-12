@@ -120,6 +120,7 @@ export function NumberStorefront(
   const hasSelection = multiple ? basket.length > 0 : !!selection;
   const popularCount = products.filter((p) => Number.isFinite(popularSmsRank(p.name))).length;
   const allServices = market.data?.services.find((s) => s.country === country && s.kind === 'general' && s.prices[String(duration)]);
+  const durationLabel = (days: number) => market.data?.services.find((s) => s.country === country && s.prices[String(days)] && s.periodLabel)?.periodLabel ?? smsDuration(days);
   const panel = { backgroundColor: c.surface, borderColor: c.border },
     text = { color: c.text },
     muted = { color: c.textMuted };
@@ -274,7 +275,7 @@ export function NumberStorefront(
         <Text style={[styles.label, text]}>Duration</Text>
         <View style={styles.wrap}>
           {durations.map((days) =>
-            chip(smsDuration(days), duration === days, () => {
+            chip(durationLabel(days), duration === days, () => {
               setDuration(days);
               setSelection(null);
               setBasket([]);
@@ -313,7 +314,7 @@ export function NumberStorefront(
         <View style={[styles.rule, { backgroundColor: c.border }]} />
         {allServices ? <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`All services, ${smsDuration(duration)}, ${formatMinorUnits(allServices.prices[String(duration)], 'NGN')}`}
+          accessibilityLabel={`All services, ${durationLabel(duration)}, ${formatMinorUnits(allServices.prices[String(duration)], 'NGN')}`}
           accessibilityState={{selected:selection?.id === allServices.id}}
           onPress={() => { setSelection(allServices); setState(''); setQuote(null); setNotice(''); }}
           style={[styles.field, {backgroundColor:c.brandMist, borderColor:selection?.id === allServices.id ? c.brand : c.border}]}
@@ -321,7 +322,7 @@ export function NumberStorefront(
           <Ionicons name="apps-outline" size={28} color={c.brand} />
           <View style={styles.flex}>
             <Text style={[styles.fieldText, text]}>All services</Text>
-            <Text style={[styles.small, muted]}>One number · {smsDuration(duration)}</Text>
+            <Text style={[styles.small, muted]}>One number · {durationLabel(duration)}</Text>
             <Text style={[styles.price, {color:c.brand}]}>{formatMinorUnits(allServices.prices[String(duration)], 'NGN')}</Text>
           </View>
           <Ionicons name={selection?.id === allServices.id ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={c.brand} />
@@ -361,7 +362,7 @@ export function NumberStorefront(
           <Ionicons name="chevron-forward" size={19} color={c.textMuted} />
         </Pressable>
         </> : null}
-        {country === "CA"
+        {country === "CA" && duration === 0
           ? (
             <Text style={[styles.small, muted]}>
               Canadian numbers use VoIP. Check that your app accepts them before
@@ -517,7 +518,7 @@ export function NumberStorefront(
                     autoFocus
                   />
                   <View style={styles.between}>
-                    <Text style={[styles.small, muted]}>{checkboxes ? `${basket.length} selected` : smsDuration(duration)}</Text>
+                    <Text style={[styles.small, muted]}>{checkboxes ? `${basket.length} selected` : durationLabel(duration)}</Text>
                     <Text style={[styles.small, muted]}>{products.length.toLocaleString()} available</Text>
                   </View>
                   <FlatList
@@ -639,7 +640,7 @@ export function NumberStorefront(
                       <CountryFlag code={quote.country} />
                       <Text style={[styles.body, muted]}>
                         {smsCountryName(quote.country)} ·{" "}
-                        {smsDuration(quote.duration)}
+                        {quote.periodLabel ?? smsDuration(quote.duration)}
                       </Text>
                     </View>
                   </View>
@@ -661,7 +662,7 @@ export function NumberStorefront(
                   </View>
                   <Text style={[styles.body, muted]}>
                     {'items' in quote ? 'You’ll receive a separate number for each service. Each rental is processed independently.' : quote.kind === 'general' ? 'Use this number with different websites and apps. Some apps may not accept every number.' : `This number is for ${quote.name}.`} Request your SMS after the number appears in My numbers.
-                    {quote.kind === 'general' ? ' Long rentals are not automatically refundable if you do not receive a code. Cancellation is available only when eligible.' : ' Eligible cancellations are refunded to your Billy balance after confirmation.'}
+                    {quote.periodLabel === '1 month' ? ' Eligible unused rentals can be cancelled within 20 minutes. After that, this rental is non-refundable. Exact expiry appears in My numbers.' : quote.kind === 'general' ? ' Long rentals are not automatically refundable if you do not receive a code. Cancellation is available only when eligible.' : ' Eligible cancellations are refunded to your Billy balance after confirmation.'}
                   </Text>
                   {notice
                     ? (

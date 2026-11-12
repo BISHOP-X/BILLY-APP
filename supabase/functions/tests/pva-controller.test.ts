@@ -112,6 +112,9 @@ function fixture() {
             return 1 as T;
           case "internal_pva_apply":
             return { ...order, status: "waiting" } as T;
+          case "internal_smsbus_prepare":
+            assert.equal(input.p_user_id, owner);
+            return undefined as T;
           default:
             throw new Error(`Unexpected ${name}`);
         }
@@ -130,6 +133,73 @@ function fixture() {
     },
   };
 }
+function monthlyFixture() {
+  const f=fixture();
+  const monthly={id:'SMSBUS_MONTHLY',country:'US',name:'All services',kind:'general' as const,periodLabel:'1 month',prices:{'30':4000000},stock:{'30':378}};
+  const snapshot={total:0,ids:[],at:new Date().toISOString()};
+  const request={serviceId:monthly.id,country:'US',duration:30};
+  const route={request,maximum_micro_usd:4000000,provider_id:null,dispatched_at:null};
+  f.setContext({order,claimed:true,claimToken:id,route});
+  f.runtime.smsbus={
+    plans:async()=>[monthly],service:async()=>monthly,
+    snapshot:async()=>{f.trace.push('snapshot');return snapshot;},
+    purchase:async()=>{f.trace.push('monthly-purchase');return {raw:'{}',outcome:{state:'pending',rentalId:'smsbus:123',providerContext:{country:'US',mobile:'2025550101'}}};},
+    recover:async()=>{f.trace.push('monthly-recover');return {raw:'{}',outcome:{state:'pending',rentalId:'smsbus:123'}};},
+    request:async(_id,_selection,lookup)=>{f.trace.push('monthly-status');assert.equal(lookup?.mobile,'2025550101');return {raw:'{}',outcome:{state:'allocated',rentalId:'smsbus:123',phoneNumber:'+12025550101',priceMicroUsd:4000000,canCancel:true}};},
+    flag:async()=>{f.trace.push('monthly-cancel');},
+  };
+  const rpc=f.runtime.database.rpc;
+  f.runtime.database.rpc=async<T>(name:string,input:Record<string,unknown>):Promise<T>=>{
+    if(name==='internal_pva_cache'&&input.p_key==='smsbus-plans')return {data:[monthly],lease:null} as T;
+    return rpc<T>(name,input);
+  };
+  return {...f,route,snapshot};
+}
+Deno.test('SMSBUS quote is owner bound, priced in kobo and contains no provider identifiers',async()=>{
+  const f=monthlyFixture();
+  const result=await handleNumberAction('numbers.market',{}, {id:owner},f.runtime) as {data:{services:{id:string;country:string;periodLabel?:string;prices:Record<string,number>}[]}};
+  const item=result.data.services.find(r=>r.periodLabel==='1 month')!;
+  assert.equal(item.prices['30'],560000);assert(!JSON.stringify(result).includes('SMSBUS'));
+  const quote=await handleNumberAction('numbers.quote',{productId:item.id,duration:30},{id:owner},f.runtime) as {data:{quoteToken:string;totalMinor:number;periodLabel:string}};
+  assert.equal(quote.data.totalMinor,560000);assert.equal(quote.data.periodLabel,'1 month');
+  await assert.rejects(()=>handleNumberAction('numbers.buy',{quoteToken:quote.data.quoteToken,idempotencyKey:'smsbus-owner-test-001'},{id:other},f.runtime));
+  assert(!f.trace.includes('monthly-purchase'));
+});
+Deno.test('SMSBUS persists recovery baseline before purchase and identity receipt before settlement',async()=>{
+  const f=monthlyFixture();await refreshPvaNumber(f.runtime,owner,id);
+  assert(f.trace.indexOf('snapshot')<f.trace.indexOf('internal_smsbus_prepare'));
+  assert(f.trace.indexOf('internal_smsbus_prepare')<f.trace.indexOf('monthly-purchase'));
+  assert(f.trace.indexOf('internal_pva_record')<f.trace.indexOf('internal_pva_apply'));
+  assert(!f.trace.includes('purchase'));assert(!f.trace.includes('monthly-status'));
+  assert.equal((f.getEvidence().p_outcome as {rentalId:string}).rentalId,'smsbus:123');
+});
+Deno.test('SMSBUS timeout reads history on retry, never issues a replacement purchase',async()=>{
+  const f=monthlyFixture();f.runtime.smsbus!.purchase=async()=>{f.trace.push('monthly-purchase');throw new NumberProviderError(true,'Timeout');};
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'unknown');
+  f.setContext({order,claimed:true,claimToken:id,route:{...f.route,dispatched_at:new Date().toISOString(),recovery_snapshot:f.snapshot}});
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal(f.trace.filter(r=>r==='monthly-purchase').length,1);assert(f.trace.includes('monthly-recover'));
+});
+Deno.test('SMSBUS recovery lookup failure never becomes a customer refund',async()=>{
+  const f=monthlyFixture();f.runtime.smsbus!.recover=async()=>{throw new NumberProviderError(false,'History temporarily unavailable');};
+  f.setContext({order,claimed:true,claimToken:id,route:{...f.route,dispatched_at:new Date().toISOString(),recovery_snapshot:f.snapshot}});
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'unknown');assert(!f.trace.includes('monthly-purchase'));
+});
+Deno.test('SMSBUS snapshot failure aborts before any paid request',async()=>{
+  const f=monthlyFixture();f.runtime.smsbus!.snapshot=async()=>{throw Error('Snapshot unavailable');};
+  await refreshPvaNumber(f.runtime,owner,id);
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'rejected');assert(!f.trace.includes('monthly-purchase'));
+});
+Deno.test('SMSBUS saved identity uses its own inbox and cancellation contract',async()=>{
+  const f=monthlyFixture();f.setContext({order:{...order,cancel_requested:true},claimed:true,claimToken:id,
+    route:{...f.route,dispatched_at:new Date().toISOString(),provider_id:'smsbus:123',provider_context:{country:'US',mobile:'2025550101'}}});
+  await refreshPvaNumber(f.runtime,owner,id,true);
+  assert.equal(f.trace.filter(r=>r==='monthly-status').length,2);assert(f.trace.includes('monthly-cancel'));
+  assert(!f.trace.includes('flag'));assert(!f.trace.includes('monthly-purchase'));
+  assert.equal((f.getEvidence().p_outcome as {state:string}).state,'allocated','Acknowledgement alone cannot refund');
+});
 Deno.test("PVA user-bound live quote, exact NGN price and no client-supplied price", async () => {
   const f = fixture();
   const market = await handleNumberAction(

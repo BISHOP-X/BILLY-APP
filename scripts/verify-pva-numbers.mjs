@@ -4,14 +4,15 @@ const token = process.env.CODEX_SUPABASE_TOKEN_BILLY;
 if (!token) throw new Error("Billy management credential required.");
 const migration = process.argv.includes("--preflight")
   ? (await readFile(
-    process.argv.includes('--plans') ? "supabase/migrations/20261112223902_pva_complete_rental_plans.sql" : "supabase/migrations/20261112171020_pva_numbers_primary.sql",
+    process.argv.includes('--smsbus') ? "supabase/migrations/20261112231221_smsbus_monthly_rentals.sql" : process.argv.includes('--plans') ? "supabase/migrations/20261112223902_pva_complete_rental_plans.sql" : "supabase/migrations/20261112171020_pva_numbers_primary.sql",
     "utf8",
   )).replace(/^begin;\s*$/gim, "").replace(/^commit;\s*$/gim, "")
   : "";
-const tests = await readFile(
+let tests = await readFile(
   "supabase/tests/database/pva_numbers_assertions.sql",
   "utf8",
 );
+if (process.argv.includes('--smsbus')) tests += await readFile('supabase/tests/database/smsbus_numbers_assertions.sql','utf8');
 const response = await fetch(
   "https://api.supabase.com/v1/projects/omsrzwwudskxpkyynnxw/database/query",
   {

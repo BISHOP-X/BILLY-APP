@@ -5,6 +5,7 @@ import type {
   PvaService,
 } from "../providers/pvadeals.ts";
 import { validPvaSelection } from "../providers/pvadeals.ts";
+import { isSmsbus, validSmsbus, type SmsbusLookup, type SmsbusSnapshot } from '../providers/smsbus.ts';
 import {
   type NumberOrder,
   numberPrice,
@@ -43,6 +44,8 @@ type Context = {
     dispatched_at: string | null;
     request: PvaSelection;
     maximum_micro_usd: number;
+    recovery_snapshot?: SmsbusSnapshot | null;
+    provider_context?: SmsbusLookup | null;
   };
 };
 const fail = (message: string) =>
@@ -137,15 +140,16 @@ async function handlePvaBasket(action: string, input: Record<string, unknown>, u
 }
 async function catalog(runtime: NumberRuntime) {
   if (!runtime.pva) throw fail("Numbers are temporarily unavailable.");
-  const [rows, plans, disabled] = await Promise.all([
+  const [rows, plans, monthly, disabled] = await Promise.all([
     cached(runtime, "catalog", () => runtime.pva!.services()),
     cached(runtime, "plans", () => runtime.pva!.plans()),
+    runtime.smsbus ? cached(runtime, 'smsbus-plans', () => runtime.smsbus!.plans()) : Promise.resolve([]),
     runtime.database.rpc<{ item_id: string }[]>("internal_catalog_disabled", {
       p_service_key: "foreign_numbers",
     }),
   ]);
   const excluded = new Set(disabled.map((r) => r.item_id));
-  return [...rows, ...plans].filter((s) =>
+  return [...rows, ...plans, ...monthly].filter((s) =>
     !excluded.has(s.id) && !excluded.has(`pvadeals.${s.id}`) &&
     Object.keys(s.prices).length
   );
@@ -166,7 +170,7 @@ async function selected(
   const duration = Number(input.duration);
   if (
     !Number.isInteger(duration) || !row.prices[String(duration)] ||
-    !validPvaSelection({serviceId:row.id,country:row.country,duration})
+    !(validPvaSelection({serviceId:row.id,country:row.country,duration}) || validSmsbus({serviceId:row.id,country:row.country,duration}))
   ) throw fail("Choose an available rental duration.");
   return { row, duration };
 }
@@ -194,6 +198,7 @@ export async function handlePvaStore(
       name: s.name,
       country: s.country,
       ...(s.kind ? {kind:s.kind} : {}),
+      ...(s.periodLabel ? {periodLabel:s.periodLabel} : {}),
       prices: Object.fromEntries(
         Object.entries(s.prices).map((
           [duration, micros],
@@ -238,7 +243,9 @@ export async function handlePvaStore(
         throw fail("This location is out of stock. Choose any location.");
       }
     }
-    const live = await runtime.pva.service(row.id, row.country),
+    const provider = isSmsbus({serviceId:row.id,country:row.country,duration}) ? runtime.smsbus : runtime.pva;
+    if(!provider) throw fail('Monthly rentals are unavailable.');
+    const live = await provider.service(row.id, row.country),
       micros = live.prices[String(duration)];
     if (!micros || live.country !== row.country) {
       throw fail("This rental is out of stock. Choose another service.");
@@ -270,6 +277,7 @@ export async function handlePvaStore(
         duration,
         totalMinor: price.totalMinor,
         ...(row.kind ? {kind:row.kind} : {}),
+        ...(row.periodLabel ? {periodLabel:row.periodLabel} : {}),
       },
     };
   }
@@ -328,12 +336,15 @@ export async function refreshPvaNumber(
     return context.order;
   }
   const route = context.route;
+  const monthly = isSmsbus(route.request);
+  const provider = monthly ? runtime.smsbus : runtime.pva;
+  if(!provider) throw fail('This number provider is unavailable.');
   let outcome: PvaOutcome, raw: string | undefined, purchaseStarted = false;
   let diagnostic: { httpStatus?: number; code?: string; reason: string } | undefined;
   try {
     if (!route.dispatched_at) {
       // Queued quotes are checked again immediately before the one-shot purchase.
-      const service = await runtime.pva.service(route.request.serviceId, route.request.country);
+      const service = await provider.service(route.request.serviceId, route.request.country);
       const price = service.prices[String(route.request.duration)];
       if (
         context.order.cancel_requested || !price ||
@@ -342,24 +353,30 @@ export async function refreshPvaNumber(
       ) {
         outcome = { state: "rejected" };
       } else {
+        if(monthly) {
+          const snapshot = await runtime.smsbus!.snapshot();
+          await runtime.database.rpc('internal_smsbus_prepare', {p_user_id:userId,p_order_id:orderId,p_claim:context.claimToken,p_snapshot:snapshot});
+        }
         purchaseStarted = true;
-        ({ outcome, raw } = await runtime.pva.purchase(route.request));
+        ({ outcome, raw } = await provider.purchase(route.request));
       }
     } else if (route.provider_id) {
-      ({ outcome, raw } = await runtime.pva.request(
-        route.provider_id,
-        route.request,
-      ));
+      ({ outcome, raw } = monthly ? await runtime.smsbus!.request(route.provider_id,route.request,route.provider_context ?? undefined)
+        : await runtime.pva.request(route.provider_id,route.request));
       if (context.order.cancel_requested && outcome.canCancel) {
-        await runtime.pva.flag(route.provider_id);
+        await provider.flag(route.provider_id);
         // GET may still be cached for 5s. A later poll confirms the terminal flag;
         // the POST's boolean alone never mutates the customer's wallet.
-        ({ outcome, raw } = await runtime.pva.request(
-          route.provider_id,
-          route.request,
-        ));
+        ({ outcome, raw } = monthly ? await runtime.smsbus!.request(route.provider_id,route.request,route.provider_context ?? undefined)
+          : await runtime.pva.request(route.provider_id,route.request));
       }
+    } else if(monthly && route.recovery_snapshot) {
+      ({outcome,raw}=await runtime.smsbus!.recover(route.request,route.recovery_snapshot,route.maximum_micro_usd));
     } else outcome = { state: "unknown" };
+    if(outcome.priceMicroUsd && outcome.priceMicroUsd > route.maximum_micro_usd) {
+      outcome={state:'unknown',...(outcome.rentalId?{rentalId:outcome.rentalId}:{})};
+      diagnostic={reason:'provider_price_changed'};
+    }
   } catch (error) {
     const known = error instanceof NumberProviderError ? error : undefined;
     raw = known?.evidence?.response;
@@ -383,7 +400,7 @@ export async function refreshPvaNumber(
       ? { state: "rejected" }
       : known?.evidence?.code === "PVA_THROTTLED"
       ? { state: "throttled" }
-      : known && !known.uncertain
+      : purchaseStarted && known && !known.uncertain
       ? { state: "rejected" }
       : { state: "unknown" };
   }

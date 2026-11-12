@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { PvadealsAdapter } from '../_shared/providers/pvadeals.ts';
+import { SmsbusAdapter } from '../_shared/providers/smsbus.ts';
 import { timingSafeEqual } from 'node:crypto';
 import { GetatextAdapter } from '../_shared/providers/getatext.ts';
 import { GetatextRentals } from '../_shared/providers/getatext-rentals.ts';
@@ -75,6 +76,7 @@ const identityDependencies = { database: createServiceDatabase(client),
   digestIdentity: identityHmacSecret ? createHmacHexDigester(identityHmacSecret) : digest };
 const numbers: NumberRuntime = {
   pva: Deno.env.get('PVADEALS_API_KEY') ? new PvadealsAdapter(Deno.env.get('PVADEALS_API_KEY')!) : undefined,
+  smsbus: Deno.env.get('SMSBUS_API_KEY') ? new SmsbusAdapter(Deno.env.get('SMSBUS_API_KEY')!) : undefined,
   receiptCipher: new SecretPayloadCipher(signing,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
   extended: numberKey ? new GetatextRentals(numberKey, fetch, Deno.env.get('GETATEXT_API_TIER') !== 'standard') : undefined,
   additionalAdapters: { daisysms: Deno.env.get('DAISYSMS_API_KEY')

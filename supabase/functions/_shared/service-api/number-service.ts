@@ -10,6 +10,7 @@ import type { ExtendedNumberAdapter } from '../providers/getatext-rentals.ts';
 import { handleExtendedNumberAction, rentalContext, refreshExtendedNumber } from './number-rentals.ts';
 import { applyNumberReceipt, failedAllocation, recordNumberReceipt, recoverNumber } from './number-recovery.ts';
 import type { PvaProvider } from '../providers/pvadeals.ts';
+import type { SmsbusProvider } from '../providers/smsbus.ts';
 import { handlePvaStore, refreshPvaNumber, smsRouting } from './pva-numbers.ts';
 
 export class OperationsError extends Error {
@@ -119,6 +120,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
 }
 export type NumberRuntime = {
   pva?: PvaProvider;
+  smsbus?: SmsbusProvider;
   receiptCipher?: { encrypt(value: unknown): Promise<string> };
   extended?: ExtendedNumberAdapter;
   adapter?: NumberAdapter;

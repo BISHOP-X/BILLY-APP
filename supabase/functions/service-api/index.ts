@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { PvadealsAdapter } from '../_shared/providers/pvadeals.ts';
+import { SmsbusAdapter } from '../_shared/providers/smsbus.ts';
 import {
   createPocketFiLiveAdapter,
   createPocketFiMockAdapter,
@@ -537,13 +538,14 @@ const socialAdapter = env("SOCIAL_BOOST_API_KEY") ? new SocialBoostHttpAdapter({
   apiKey:requiredEnv("SOCIAL_BOOST_API_KEY"),baseUrl:"https://thelordofthepanels.com/api/v2",
 }) : undefined;
 const pvaAdapter = env("PVADEALS_API_KEY") ? new PvadealsAdapter(requiredEnv("PVADEALS_API_KEY")) : undefined;
+const smsbusAdapter = env('SMSBUS_API_KEY') ? new SmsbusAdapter(requiredEnv('SMSBUS_API_KEY')) : undefined;
 const numberAdapter = env("GETATEXT_API_KEY") ? new GetatextAdapter(requiredEnv("GETATEXT_API_KEY"),fetch,
   oneOf("GETATEXT_API_TIER",env("GETATEXT_API_TIER"),["premium","standard"] as const,"premium")) : undefined;
 const daisyAdapter = env("DAISYSMS_API_KEY") ? new DaisySmsAdapter(requiredEnv("DAISYSMS_API_KEY")) : undefined;
 const extendedNumberAdapter = env("GETATEXT_API_KEY") ? new GetatextRentals(requiredEnv("GETATEXT_API_KEY"),fetch,env("GETATEXT_API_TIER")!=="standard") : undefined;
 async function numberRuntime(): Promise<NumberRuntime> {
   const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
-  return {pva:pvaAdapter,adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+  return {pva:pvaAdapter,smsbus:smsbusAdapter,adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
     receiptCipher:new SecretPayloadCipher(serviceApiSigningSecret,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
     exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
 }

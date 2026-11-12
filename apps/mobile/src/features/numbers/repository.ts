@@ -81,9 +81,9 @@ export const numberRepository = {
   cancel: (orderId: string) =>
     invokeAction<NumberOrder>('numbers.cancel', { orderId }),
 };
-export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number>; kind?: 'general' };
+export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number>; kind?: 'general'; periodLabel?: string };
 export type SmsMarket = { services: SmsProduct[]; countries: string[]; refreshedAt: string };
-export type SmsQuote = { quoteToken: string; name: string; country: string; duration: number; totalMinor: number; kind?: 'general' };
+export type SmsQuote = { quoteToken: string; name: string; country: string; duration: number; totalMinor: number; kind?: 'general'; periodLabel?: string };
 export type SmsBasketQuote = Omit<SmsQuote, 'name'> & { items: { productId: string; name: string; totalMinor: number }[] };
 export type SmsCheckout = { checkoutId: string; totalMinor: number; orders: NumberOrder[] };
 export type NumberMessage = { id: string; body: string; sender: string; received_at: string | null; created_at: string };
