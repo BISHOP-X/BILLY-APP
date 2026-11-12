@@ -189,7 +189,7 @@ Deno.test("PVA LTR forbids US/CA and uses UK per-service duration", async () => 
   assert(Number(count) === 1);
 });
 Deno.test("PVA explicit 429 is not a timeout; ambiguous paid replies never retry", async () => {
-  for (const status of [429, 422, 500]) {
+  for (const status of [402, 409, 429, 422, 500]) {
     let calls = 0;
     const adapter = new PvadealsAdapter(
       "synthetic",
@@ -225,4 +225,10 @@ Deno.test("PVA explicit 429 is not a timeout; ambiguous paid replies never retry
     assert(e instanceof NumberProviderError && e.uncertain);
     assert(count === 1);
   }
+});
+
+Deno.test('PVA documented bare rate-limit envelope is a refusal, not an uncertain paid response', async () => {
+  const adapter = new PvadealsAdapter('synthetic', (async () => new Response(JSON.stringify({status:429,retryAfter:23,message:'API rate limit exceeded'}),{status:429})) as typeof fetch);
+  try { await adapter.purchase(selection); throw new Error('Expected refusal'); }
+  catch (e) { assert(e instanceof NumberProviderError && !e.uncertain && e.evidence?.code === 'PVA_THROTTLED'); }
 });

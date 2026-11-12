@@ -26,6 +26,12 @@ type PvaQuote = {
   feeMinor: number;
   maximumMicroUsd: number;
 };
+type PvaBasket = { items: PvaQuote[] };
+type PvaCheckout = { checkoutId: string; totalMinor: number; orders: NumberOrder[] };
+const publicCheckout = (checkout: PvaCheckout | null) => checkout && ({
+  ...checkout,
+  orders: checkout.orders.map(({ user_id: _user, ...order }) => order),
+});
 type Context = {
   order: NumberOrder;
   receiptId?: number;
@@ -67,6 +73,66 @@ async function cached<T>(
     if (cache.data !== null) return cache.data;
     throw error;
   }
+}
+async function handlePvaBasket(action: string, input: Record<string, unknown>, userId: string, runtime: NumberRuntime): Promise<{ data: unknown }> {
+  if (!runtime.pva) throw fail("Numbers are temporarily unavailable.");
+  if (action === "numbers.basket.quote") {
+    if (!Array.isArray(input.productIds) || input.productIds.length < 1 || input.productIds.length > 10) {
+      throw new OperationsError(400, "invalid_request", "Choose up to 10 services.");
+    }
+    const ids = input.productIds.map((id) => requestText(id, "Service", 32)).sort();
+    if (new Set(ids).size !== ids.length || ids.some((id) => !/^[a-f0-9]{32}$/.test(id))) {
+      throw new OperationsError(400, "invalid_request", "Choose each service only once.");
+    }
+    const rows = await catalog(runtime);
+    const handles = await Promise.all(rows.map((row) => publicId(runtime, row)));
+    const selectedRows = ids.map((id) => rows[handles.indexOf(id)]);
+    if (selectedRows.some((row) => !row || !row.prices['0'])) throw fail("A selected service is no longer available. Change your selection.");
+    if (new Set(selectedRows.map((row) => row.country)).size !== 1) {
+      throw new OperationsError(400, "invalid_request", "Choose services from one country.");
+    }
+    // Resolve catalogue handles once, then check each authoritative live price.
+    // At most 10 read-only calls; no per-keystroke or per-selection requests.
+    const items: PvaQuote[] = await Promise.all(selectedRows.map(async (row) => {
+      const live = await runtime.pva!.service(row.id), micros = live.prices['0'];
+      if (!micros || live.country !== row.country) throw fail(`${row.name} is out of stock. Change your selection.`);
+      const price = priced(runtime, micros);
+      return {request:{serviceId:row.id,country:row.country,duration:0}, name:row.name,
+        amountMinor:price.amountMinor, feeMinor:price.feeMinor, maximumMicroUsd:micros};
+    }));
+    const total = items.reduce((sum, item) => sum + BigInt(item.amountMinor) + BigInt(item.feeMinor), 0n);
+    if (total > BigInt(Number.MAX_SAFE_INTEGER)) throw fail("Checkout total is too large.");
+    return { data: {
+      quoteToken: await runtime.tokens.issueOpaque("pva_basket_quote", userId, { items }, 5 * 60_000),
+      country: items[0].request.country,
+      duration: 0,
+      totalMinor: Number(total),
+      items: items.map((item, index) => ({ productId: ids[index], name: item.name, totalMinor: item.amountMinor + item.feeMinor })),
+    } };
+  }
+  if (action === "numbers.checkout" || action === "numbers.checkout.status") {
+    const key = requestText(input.idempotencyKey, "Request key", 128);
+    if (!/^[A-Za-z0-9:_-]{16,128}$/.test(key)) throw new OperationsError(400, "invalid_request", "Invalid request key.");
+    if (action === "numbers.checkout.status") {
+      return { data: publicCheckout(await runtime.database.rpc<PvaCheckout | null>("internal_pva_checkout", { p_user_id: userId, p_key: key })) };
+    }
+    const basket = await runtime.tokens.readOpaque<PvaBasket>(
+      requestText(input.quoteToken, "Quote", 16000), "pva_basket_quote", userId,
+    );
+    const created = await runtime.database.rpc<PvaCheckout>("internal_pva_checkout", {
+      p_user_id: userId, p_key: key, p_items: basket.items,
+    });
+    // One checkout, independent rentals. Retain the proven single-order journal
+    // instead of guessing batch partial-allocation semantics. Durable cron takes
+    // over if this HTTP request is interrupted. Never parallelize paid requests.
+    const deadline = Date.now() + 25_000;
+    for (const order of created.orders) {
+      if (Date.now() >= deadline) break;
+      await refreshPvaNumber(runtime, userId, order.id).catch(() => undefined);
+    }
+    return { data: publicCheckout(await runtime.database.rpc<PvaCheckout>("internal_pva_checkout", { p_user_id: userId, p_key: key })) };
+  }
+  throw new OperationsError(400, "invalid_request", "Unknown checkout action.");
 }
 async function catalog(runtime: NumberRuntime) {
   if (!runtime.pva) throw fail("Numbers are temporarily unavailable.");
@@ -114,8 +180,11 @@ export async function handlePvaStore(
   input: Record<string, unknown>,
   userId: string,
   runtime: NumberRuntime,
-) {
+): Promise<{ data: unknown }> {
   if (!runtime.pva) throw fail("Numbers are temporarily unavailable.");
+  if (["numbers.basket.quote", "numbers.checkout", "numbers.checkout.status"].includes(action)) {
+    return handlePvaBasket(action, input, userId, runtime);
+  }
   if (action === "numbers.market") {
     const rows = await catalog(runtime);
     const services = await Promise.all(rows.map(async (s) => ({

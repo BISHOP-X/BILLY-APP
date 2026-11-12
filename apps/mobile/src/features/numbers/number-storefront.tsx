@@ -24,7 +24,7 @@ import { formatMinorUnits } from "@/features/wallet/money";
 import { useBillyTheme } from "@/hooks/use-billy-theme";
 import { ServiceAvatar } from "./service-card";
 import { compareSmsServices, popularSmsRank } from "./popular-services";
-import { numberRepository, type SmsProduct, type SmsQuote } from "./repository";
+import { numberRepository, type SmsProduct, type SmsQuote, type SmsBasketQuote } from "./repository";
 
 const labels: Record<string, string> = {
   US: "United States",
@@ -65,6 +65,8 @@ export function NumberStorefront(
   const [country, setCountry] = useState("US"),
     [duration, setDuration] = useState(0);
   const [selection, setSelection] = useState<SmsProduct | null>(null);
+  const [multiple, setMultiple] = useState(false);
+  const [basket, setBasket] = useState<SmsProduct[]>([]);
   const [sheet, setSheetContent] = useState<
     "country" | "service" | "location" | "review" | null
   >(null);
@@ -76,7 +78,7 @@ export function NumberStorefront(
     setSheetOpen(next !== null);
   }
   const [search, setSearch] = useState(""), [state, setState] = useState("");
-  const [quote, setQuote] = useState<SmsQuote | null>(null),
+  const [quote, setQuote] = useState<SmsQuote | SmsBasketQuote | null>(null),
     [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const lock = useRef(false), requestKey = useRef("");
@@ -112,7 +114,8 @@ export function NumberStorefront(
     () => sortedProducts.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase())),
     [sortedProducts, search],
   );
-  const visiblePrice = selection?.prices[String(duration)];
+  const visiblePrice = multiple ? basket.reduce((total, p) => total + p.prices['0'], 0) : selection?.prices[String(duration)];
+  const hasSelection = multiple ? basket.length > 0 : !!selection;
   const popularCount = products.filter((p) => Number.isFinite(popularSmsRank(p.name))).length;
   const panel = { backgroundColor: c.surface, borderColor: c.border },
     text = { color: c.text },
@@ -121,6 +124,8 @@ export function NumberStorefront(
     setCountry(code);
     setDuration(0);
     setSelection(null);
+    setBasket([]);
+    setMultiple(false);
     setState("");
     setQuote(null);
     setNotice("");
@@ -132,14 +137,14 @@ export function NumberStorefront(
     setSheet(next);
   }
   async function review() {
-    if (!selection || lock.current) return;
+    if (!hasSelection || lock.current) return;
     lock.current = true;
     setBusy(true);
     setNotice("");
     try {
       setQuote(
-        await numberRepository.quote(
-          selection.id,
+        multiple ? await numberRepository.basketQuote(basket.map((p) => p.id)) : await numberRepository.quote(
+          selection!.id,
           duration,
           state || undefined,
         ),
@@ -163,16 +168,25 @@ export function NumberStorefront(
     setBusy(true);
     setNotice("");
     try {
-      const order = await numberRepository.buy(
-        quote.quoteToken,
-        requestKey.current,
-      );
+      let message: string;
+      if ('items' in quote) {
+        const checkout = await numberRepository.checkout(quote.quoteToken, requestKey.current).catch(async (error) => {
+          // Recover a lost HTTP acknowledgement without creating a new basket.
+          const recovered = await numberRepository.checkoutStatus(requestKey.current).catch(() => null);
+          if (!recovered) throw error;
+          return recovered;
+        });
+        message = `${checkout.orders.length} number request${checkout.orders.length === 1 ? '' : 's'} saved. Track each one below.`;
+      } else {
+        const order = await numberRepository.buy(quote.quoteToken, requestKey.current);
+        message = order.status_message;
+      }
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["numbers", user?.id, "orders"] }),
         qc.invalidateQueries({ queryKey: ["main"] }),
       ]);
       setSheet(null);
-      onDone(order.status_message);
+      onDone(message);
     } catch (e) {
       setNotice(
         e instanceof Error
@@ -183,6 +197,13 @@ export function NumberStorefront(
       lock.current = false;
       setBusy(false);
     }
+  }
+  function toggleService(item: SmsProduct) {
+    setQuote(null);
+    setNotice('');
+    if (basket.some((p) => p.id === item.id)) setBasket(basket.filter((p) => p.id !== item.id));
+    else if (basket.length < 10) setBasket([...basket, item]);
+    else setNotice('You can choose up to 10 services per checkout.');
   }
   function chip(
     label: string,
@@ -252,6 +273,8 @@ export function NumberStorefront(
             chip(smsDuration(days), duration === days, () => {
               setDuration(days);
               setSelection(null);
+              setBasket([]);
+              setMultiple(false);
               setState("");
               setQuote(null);
             })
@@ -288,7 +311,7 @@ export function NumberStorefront(
         <View style={styles.between}>
           <Text style={[styles.label, text]}>Website or app</Text>
           <Text style={[styles.small, muted]}>
-            {selection ? "Selected" : "Choose a service"}
+            {multiple ? `${basket.length} selected` : selection ? "Selected" : "Choose a service"}
           </Text>
         </View>
         <Pressable
@@ -303,10 +326,10 @@ export function NumberStorefront(
             : <Ionicons name="search-outline" size={22} color={c.textMuted} />}
           <View style={styles.flex}>
             <Text
-              style={[styles.fieldText, selection ? text : muted]}
+              style={[styles.fieldText, hasSelection ? text : muted]}
               numberOfLines={2}
             >
-              {selection?.name ?? "Search & select website"}
+              {multiple ? (basket.length ? basket.map((p) => p.name).join(', ') : 'Choose your services') : selection?.name ?? "Search & select website"}
             </Text>
             {visiblePrice
               ? (
@@ -326,7 +349,7 @@ export function NumberStorefront(
             </Text>
           )
           : null}
-        {country === "US"
+        {country === "US" && !multiple
           ? (
             <>
               <View style={styles.between}>
@@ -373,7 +396,7 @@ export function NumberStorefront(
           label={visiblePrice
             ? `Review · ${formatMinorUnits(visiblePrice, "NGN")}`
             : "Choose a website to start"}
-          disabled={!selection}
+          disabled={!hasSelection}
           loading={busy}
           onPress={() => void review()}
         />
@@ -413,7 +436,7 @@ export function NumberStorefront(
                   ? "Choose your service"
                   : sheet === "location"
                   ? "Choose a location"
-                  : "Review your number"}
+                  : quote && 'items' in quote ? "Review your numbers" : "Review your number"}
               </Text>
               <Pressable
                 accessibilityRole="button"
@@ -472,10 +495,23 @@ export function NumberStorefront(
                     onSubmitEditing={Keyboard.dismiss}
                     autoFocus
                   />
-                  <Text style={[styles.small, muted]}>
-                    {smsCountryName(country)} · {smsDuration(duration)} ·{" "}
-                    {products.length.toLocaleString()} available
-                  </Text>
+                  <View style={styles.between}>
+                    {duration === 0 ? <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityLabel="Select multiple services"
+                      accessibilityState={{checked:multiple}}
+                      onPress={() => {
+                        setMultiple(!multiple);
+                        setBasket(!multiple && selection ? [selection] : []);
+                        setState(''); setQuote(null); setNotice('');
+                      }}
+                      style={styles.multiToggle}
+                    >
+                      <Ionicons name={multiple ? 'checkbox' : 'square-outline'} size={22} color={c.brand} />
+                      <Text style={[styles.small, text]}>Select multiple</Text>
+                    </Pressable> : <Text style={[styles.small, muted]}>{smsDuration(duration)}</Text>}
+                    <Text style={[styles.small, muted]}>{products.length.toLocaleString()} available</Text>
+                  </View>
                   <FlatList
                     ref={serviceList}
                     testID="sms-service-results"
@@ -493,11 +529,13 @@ export function NumberStorefront(
                           </Text>
                         ) : null}
                         <Pressable
-                          accessibilityRole="button"
+                          accessibilityRole={multiple ? "checkbox" : "button"}
+                          accessibilityState={multiple ? {checked:basket.some((p) => p.id === item.id)} : undefined}
                           accessibilityLabel={`${item.name}, ${
                             formatMinorUnits(item.prices[String(duration)], "NGN")
                           }`}
                           onPress={() => {
+                            if (multiple) { toggleService(item); return; }
                             Keyboard.dismiss();
                             setSelection(item);
                             setState("");
@@ -519,6 +557,7 @@ export function NumberStorefront(
                               "NGN",
                             )}
                           </Text>
+                          {multiple ? <Ionicons name={basket.some((p) => p.id === item.id) ? 'checkbox' : 'square-outline'} color={c.brand} size={23} /> : null}
                         </Pressable>
                       </View>
                     )}
@@ -528,6 +567,14 @@ export function NumberStorefront(
                       </Text>
                     }
                   />
+                  {multiple ? <View style={styles.basketFooter}>
+                    {notice ? <Text accessibilityLiveRegion="polite" style={[styles.small, text]}>{notice}</Text> : null}
+                    <AppButton
+                      label={basket.length ? `Use ${basket.length} service${basket.length === 1 ? '' : 's'} · ${formatMinorUnits(visiblePrice ?? 0, 'NGN')}` : 'Choose your services'}
+                      disabled={!basket.length}
+                      onPress={() => { Keyboard.dismiss(); setSheet(null); }}
+                    />
+                  </View> : null}
                 </>
               )
               : null}
@@ -578,8 +625,8 @@ export function NumberStorefront(
               ? (
                 <ScrollView contentContainerStyle={styles.review}>
                   <View style={styles.reviewBrand}>
-                    <ServiceAvatar name={quote.name} size={62} />
-                    <Text style={[styles.sheetTitle, text]}>{quote.name}</Text>
+                    {'items' in quote ? <Ionicons name="chatbubbles-outline" size={42} color={c.brand} /> : <ServiceAvatar name={quote.name} size={62} />}
+                    <Text style={[styles.sheetTitle, text]}>{'items' in quote ? `${quote.items.length} SMS numbers` : quote.name}</Text>
                     <View style={styles.inline}>
                       <CountryFlag code={quote.country} />
                       <Text style={[styles.body, muted]}>
@@ -588,6 +635,11 @@ export function NumberStorefront(
                       </Text>
                     </View>
                   </View>
+                  {'items' in quote ? quote.items.map((item) => <View key={item.productId} style={[styles.row, {borderBottomColor:c.border}]}>
+                    <ServiceAvatar name={item.name} size={36} />
+                    <Text style={[styles.fieldText, styles.flex, text]}>{item.name}</Text>
+                    <Text style={[styles.price, {color:c.brand}]}>{formatMinorUnits(item.totalMinor, 'NGN')}</Text>
+                  </View>) : null}
                   <View style={[styles.summary, panel]}>
                     <Text style={[styles.body, muted]}>
                       Total from your Billy balance
@@ -600,8 +652,7 @@ export function NumberStorefront(
                     </Text>
                   </View>
                   <Text style={[styles.body, muted]}>
-                    This number is for{" "}
-                    {quote.name}. Request your SMS after the number appears in
+                    {'items' in quote ? 'You’ll receive a separate number for each service. Each rental is processed independently.' : `This number is for ${quote.name}.`} Request your SMS after the number appears in
                     My numbers. Eligible cancellations are refunded to your
                     Billy balance after confirmation.
                   </Text>
@@ -715,6 +766,8 @@ const styles = StyleSheet.create({
   // A filtering result count must never determine the picker height.
   serviceSheet: { height: '93%', minHeight: 0, flexShrink: 1 },
   results: { flex: 1, minHeight: 0 },
+  multiToggle: {flexDirection:'row', alignItems:'center', gap:6, minHeight:32},
+  basketFooter: {gap:6},
   sectionLabel: { fontSize: 12, fontWeight: '700', paddingTop: 8, paddingBottom: 5 },
   close: {
     width: 44,

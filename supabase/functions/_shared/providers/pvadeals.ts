@@ -220,8 +220,8 @@ export class PvadealsAdapter implements PvaProvider {
     }
     if (!response.ok || json.success !== true) {
       const refusal =
-        [400, 401, 403, 404, 422, 429].includes(response.status) &&
-        json.success === false;
+        [400, 401, 402, 403, 404, 409, 422, 429].includes(response.status) &&
+        (json.success === false || (response.status === 429 && json.status === 429 && typeof json.retryAfter === 'number'));
       throw new NumberProviderError(
         paid && !refusal,
         "This number could not be reserved. Please try another service.",

@@ -237,7 +237,7 @@ or refund an uncertain outcome without authenticated provider evidence.
   pan and restore calculations. Physical iOS/Android keyboard checks are not
   claimed by these automated tests.
 
-### Multi-service capability (verified, not yet enabled in Billy checkout)
+### Multi-service capability (contract review before implementation)
 
 Source: current official [PVA API docs](https://app.pvadeals.com/developers#str-purchase),
 read 12 November 2026 (page revision 11 November 2026), and supplied API document.
@@ -257,3 +257,34 @@ read 12 November 2026 (page revision 11 November 2026), and supplied API documen
   order, provider-ID journal, settlement/refund and reconciliation. The current
   single-service adapter cannot safely be made bulk by changing only the UI.
   No paid batch call was made, and existing single-service checkout is unchanged.
+
+## Checkbox checkout implementation (12 November 2026)
+
+- Added optional **Select multiple** mode for short rentals: selections survive
+  search, every service keeps its price, and one review shows the exact wallet
+  total. Maximum 10 services, one country per checkout. Long rentals remain
+  single-service; US/Canada long term remains reserved for SMSBUS.
+- The Billy basket reserves all items atomically, with an owner-bound quote and
+  stable checkout key. Each item uses the existing number order, dispatch claim,
+  encrypted provider receipt, reconciliation and confirmed refund machinery.
+  Insufficient balance rolls the entire reservation back. A failed item cannot
+  refund another delivered item. Lost HTTP acknowledgements recover by the same
+  checkout key, not a replacement purchase.
+- PVA calls remain individual and serialized. This deliberately avoids guessing
+  partial-allocation semantics of its bulk array API. One customer checkout does
+  not promise all-or-nothing provider fulfilment; the review states that clearly.
+- Recognize documented HTTP 402/409 refusal and bare 429 retryAfter envelopes.
+  Provider insufficient funds releases the hold; timeout/5xx ambiguity is still
+  pending and cannot trigger another paid dispatch or an unconfirmed refund.
+- Migration `20261112213638` deployed through Billy CLI after dry run and
+  rolled-back preflight. Live assertions passed for atomicity, ownership,
+  idempotency, serialization, partial failure, RLS and existing PVA regressions.
+  `internal_pva_checkout` is service-role-only; private table RLS denies client
+  access. Existing security advisor warnings unchanged; no new unindexed FK.
+- service-api v41 and provider-reconcile v23 are ACTIVE, JWT verification true.
+- 204 Deno tests and 199 mobile Jest tests pass. TypeScript and ESLint pass.
+  Paid smoke test authorization: exactly one inexpensive service and WhatsApp,
+  total below NGN 10,000. Owner deferred WhatsApp SMS initiation; purchase,
+  inbox/status and refunds are the live scope. No OTP-delivery claim without SMS.
+- Recovery: revert basket UI/API if needed, retaining checkout/financial data and
+  the worker until all orders settle. Never delete journal records to roll back.

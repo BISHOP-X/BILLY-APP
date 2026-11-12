@@ -38,6 +38,9 @@ jest.mock(
       quote: jest.fn(),
       locations: jest.fn(),
       buy: jest.fn(),
+      basketQuote: jest.fn(),
+      checkout: jest.fn(),
+      checkoutStatus: jest.fn(),
     },
   }),
 );
@@ -201,4 +204,63 @@ test('service search keeps a fixed sheet and a flexible results area with one or
   expect(screen.getByText('No services match. Try a different name.')).toBeTruthy();
   expect(screen.getByTestId('sms-picker-sheet')).toHaveStyle({ height: '93%' });
   expect(numberRepository.market).toHaveBeenCalledTimes(1);
+});
+
+test('checkbox basket keeps selections while searching, reviews each price, and pays once without a PIN', async () => {
+  const { done } = await mount();
+  await fireEvent.press(screen.getByRole('button', {name:'United Kingdom'}));
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  await fireEvent.press(screen.getByRole('checkbox', {name:'Select multiple services'}));
+  await fireEvent.press(screen.getByRole('checkbox', {name:'WhatsApp, ₦2,800.00'}));
+  await fireEvent.changeText(screen.getByLabelText('Search services'), 'tele');
+  await fireEvent.press(screen.getByRole('checkbox', {name:'Telegram, ₦1,400.00'}));
+  expect(screen.getByRole('checkbox', {name:'Telegram, ₦1,400.00'}).props.accessibilityState.checked).toBe(true);
+  await fireEvent.changeText(screen.getByLabelText('Search services'), 'whats');
+  expect(screen.getByRole('checkbox', {name:'WhatsApp, ₦2,800.00'}).props.accessibilityState.checked).toBe(true);
+  await fireEvent.press(screen.getByRole('button', {name:'Use 2 services · ₦4,200.00'}));
+  jest.mocked(numberRepository.basketQuote).mockResolvedValue({quoteToken:'basket-token',country:'GB',duration:0,totalMinor:420000,
+    items:[{productId:'gb-wa',name:'WhatsApp',totalMinor:280000},{productId:'gb-tg',name:'Telegram',totalMinor:140000}]});
+  jest.mocked(numberRepository.checkout).mockResolvedValue({checkoutId:'basket',totalMinor:420000,orders:[{id:'one'},{id:'two'}] as NumberOrder[]});
+  await fireEvent.press(screen.getByRole('button', {name:'Review · ₦4,200.00'}));
+  await waitFor(() => expect(screen.getByText('Review your numbers')).toBeTruthy());
+  expect(numberRepository.basketQuote).toHaveBeenCalledWith(['gb-wa','gb-tg']);
+  expect(screen.getByText('₦2,800.00')).toBeTruthy();
+  expect(screen.getByText('₦1,400.00')).toBeTruthy();
+  expect(screen.queryByText('Transaction PIN')).toBeNull();
+  await fireEvent.press(screen.getByRole('button', {name:'Pay ₦4,200.00'}));
+  await waitFor(() => expect(done).toHaveBeenCalledWith('2 number requests saved. Track each one below.'));
+  expect(numberRepository.checkout).toHaveBeenCalledTimes(1);
+  expect(numberRepository.buy).not.toHaveBeenCalled();
+});
+
+test('lost basket acknowledgement is recovered by its original key, without a replacement purchase', async () => {
+  const { done } = await mount();
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  await fireEvent.press(screen.getByRole('checkbox', {name:'Select multiple services'}));
+  await fireEvent.press(screen.getByRole('checkbox', {name:'WhatsApp, ₦2,520.00'}));
+  await fireEvent.press(screen.getByRole('button', {name:'Use 1 service · ₦2,520.00'}));
+  jest.mocked(numberRepository.basketQuote).mockResolvedValue({quoteToken:'basket-token',country:'US',duration:0,totalMinor:252000,
+    items:[{productId:'us-wa',name:'WhatsApp',totalMinor:252000}]});
+  jest.mocked(numberRepository.checkout).mockRejectedValueOnce(new Error('Connection lost'));
+  jest.mocked(numberRepository.checkoutStatus).mockResolvedValue({checkoutId:'original',totalMinor:252000,orders:[{id:'original-order'}] as NumberOrder[]});
+  await fireEvent.press(screen.getByRole('button', {name:'Review · ₦2,520.00'}));
+  await waitFor(() => expect(screen.getByText('Review your numbers')).toBeTruthy());
+  await fireEvent.press(screen.getByRole('button', {name:'Pay ₦2,520.00'}));
+  await waitFor(() => expect(done).toHaveBeenCalled());
+  expect(numberRepository.checkoutStatus).toHaveBeenCalledWith('sms-11111111-1111-4111-8111-111111111111');
+  expect(numberRepository.checkout).toHaveBeenCalledTimes(1);
+});
+
+test('changing duration clears a short-term basket and long rentals stay single-service', async () => {
+  await mount();
+  await fireEvent.press(screen.getByRole('button',{name:'United Kingdom'}));
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  await fireEvent.press(screen.getByRole('checkbox',{name:'Select multiple services'}));
+  await fireEvent.press(screen.getByRole('checkbox',{name:'WhatsApp, ₦2,800.00'}));
+  await fireEvent.press(screen.getByRole('button',{name:'Use 1 service · ₦2,800.00'}));
+  await fireEvent.press(screen.getByText('7 days'));
+  expect(screen.getByRole('button',{name:'Choose a website to start'})).toBeDisabled();
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  expect(screen.queryByRole('checkbox',{name:'Select multiple services'})).toBeNull();
+  expect(screen.getByRole('button',{name:'WhatsApp, ₦7,000.00'})).toBeTruthy();
 });

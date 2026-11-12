@@ -323,7 +323,7 @@ export async function handleNumberAction(
   if (runtime.pva && !['numbers.orders', 'numbers.refresh', 'numbers.cancel', 'numbers.finish', 'numbers.another'].includes(action)) {
     const routing = await smsRouting(runtime);
     if (action === 'numbers.store') return { data: { layout: routing.primary_provider === 'getatext' ? 'legacy' : 'international', available: routing.primary_provider !== 'off' } };
-    if (['numbers.market', 'numbers.quote', 'numbers.buy', 'numbers.locations'].includes(action) && routing.primary_provider === 'pvadeals')
+    if (action === 'numbers.checkout.status' || (['numbers.market', 'numbers.quote', 'numbers.buy', 'numbers.locations', 'numbers.basket.quote', 'numbers.checkout'].includes(action) && routing.primary_provider === 'pvadeals'))
       return handlePvaStore(action, input, user.id, runtime);
     if (routing.primary_provider !== 'getatext' || ['numbers.long.catalog', 'numbers.rental.options'].includes(action))
       throw new OperationsError(409, 'unavailable', 'The number catalogue has changed. Refresh Numbers to continue.');
