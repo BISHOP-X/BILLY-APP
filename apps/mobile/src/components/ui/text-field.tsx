@@ -16,6 +16,7 @@ type TextFieldProps = TextInputProps & {
   appearance?: 'default' | 'auth';
   disabled?: boolean;
   label: string;
+  hideLabel?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
   error?: string;
   rightSlot?: ReactNode;
@@ -25,6 +26,7 @@ export function TextField({
   appearance = 'default',
   disabled = false,
   label,
+  hideLabel = false,
   icon,
   error,
   rightSlot,
@@ -46,7 +48,7 @@ export function TextField({
 
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: colors.label }]}>{label}</Text>
+      {!hideLabel ? <Text style={[styles.label, { color: colors.label }]}>{label}</Text> : null}
       <View
         style={[
           styles.field,

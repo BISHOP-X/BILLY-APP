@@ -325,6 +325,7 @@ export async function refreshPvaNumber(
   }
   const route = context.route;
   let outcome: PvaOutcome, raw: string | undefined, purchaseStarted = false;
+  let diagnostic: { httpStatus?: number; code?: string; reason: string } | undefined;
   try {
     if (!route.dispatched_at) {
       // Queued quotes are checked again immediately before the one-shot purchase.
@@ -358,6 +359,20 @@ export async function refreshPvaNumber(
   } catch (error) {
     const known = error instanceof NumberProviderError ? error : undefined;
     raw = known?.evidence?.response;
+    // Private operational metadata only. Keep free-form provider text encrypted;
+    // never put credentials, phone numbers or SMS in the plaintext journal.
+    let providerMessage = '';
+    try { providerMessage = String(JSON.parse(raw ?? '{}').message ?? '').toLowerCase(); } catch { /* encrypted evidence remains authoritative */ }
+    diagnostic = {
+      httpStatus: known?.evidence?.httpStatus,
+      code: known?.evidence?.code,
+      reason: /no (?:phone )?numbers|out of stock|no available|not available|no stock/.test(providerMessage) ? 'stock_unavailable'
+        : /daily.*(?:limit|cap)/.test(providerMessage) ? 'daily_limit'
+        : /(?:insufficient|not enough).*(?:credit|balance|fund)/.test(providerMessage) ? 'provider_balance'
+        : /busy|already.*(?:use|process)/.test(providerMessage) ? 'provider_busy'
+        : /blocked|suspended|not allowed/.test(providerMessage) ? 'provider_restriction'
+        : 'provider_error',
+    };
     outcome = route.provider_id
       ? { state: "unknown", rentalId: route.provider_id }
       : !route.dispatched_at && !purchaseStarted
@@ -370,6 +385,7 @@ export async function refreshPvaNumber(
   }
   const evidence = {
     ...outcome,
+    ...(diagnostic ? { diagnostic } : {}),
     digest: await runtime.digest(
       JSON.stringify({ outcome, claim: context.claimToken }),
     ),

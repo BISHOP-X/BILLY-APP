@@ -206,6 +206,16 @@ Deno.test("PVA price increase / unavailable preflight releases hold without disp
     );
   }
 });
+Deno.test('PVA refusal keeps safe private diagnostics and encrypts the free-form response', async () => {
+  const f=fixture();
+  const raw=JSON.stringify({success:false,message:'No numbers are currently available for this location',status:422});
+  f.runtime.pva!.purchase=async()=>{throw new NumberProviderError(false,'Rejected',undefined,{httpStatus:422,code:'PVA_REQUEST_FAILED',response:raw});};
+  await refreshPvaNumber(f.runtime,owner,id);
+  const evidence=f.getEvidence();
+  assert.deepEqual((evidence.p_outcome as {diagnostic:unknown}).diagnostic,{httpStatus:422,code:'PVA_REQUEST_FAILED',reason:'stock_unavailable'});
+  assert(!JSON.stringify(evidence.p_outcome).includes('this location'));
+  assert.equal((await cipher.decrypt<{response:string}>(String(evidence.p_ciphertext))).response,raw);
+});
 Deno.test("PVA big SMS histories do not break encrypted recovery evidence", async () => {
   const f = fixture();
   f.runtime.pva!.purchase = async () => ({

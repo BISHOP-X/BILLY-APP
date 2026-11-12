@@ -423,8 +423,8 @@ export function NumberStorefront(
             accessibilityViewIsModal
             style={[styles.sheet, sheet === 'service' && styles.serviceSheet, {
               backgroundColor: c.canvas,
-              paddingBottom: Math.max(20, insets.bottom),
-              paddingTop: 20,
+              paddingBottom: Math.max(sheet === 'service' ? 12 : 20, insets.bottom),
+              paddingTop: sheet === 'service' ? 12 : 20,
               marginTop: Math.max(28, insets.top),
             }]}
           >
@@ -482,6 +482,7 @@ export function NumberStorefront(
                 <>
                   <TextField
                     label="Search services"
+                    hideLabel
                     placeholder="WhatsApp, Google, Telegram…"
                     value={search}
                     onChangeText={(value) => {
@@ -764,7 +765,7 @@ const styles = StyleSheet.create({
   },
   sheetTitle: { fontSize: 22, fontWeight: "700", flexShrink: 1 },
   // A filtering result count must never determine the picker height.
-  serviceSheet: { height: '93%', minHeight: 0, flexShrink: 1 },
+  serviceSheet: { height: '93%', minHeight: 0, flexShrink: 1, gap: 8 },
   results: { flex: 1, minHeight: 0 },
   multiToggle: {flexDirection:'row', alignItems:'center', gap:6, minHeight:32},
   basketFooter: {gap:6},

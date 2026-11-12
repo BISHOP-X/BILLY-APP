@@ -4,7 +4,7 @@ Status: owner approved implementation on 12 November 2026. Core server adapter,
 shared catalogue, one-shot purchase queue, SMS history, eligible cancellation,
 receipt-first settlement and Admin routing are implemented. Backend migrations
 and functions are deployed. Production frontend is live and PVA became primary
-at 17:45 UTC on 12 November (routing version 2). No paid provider test purchases were made. GetAText and
+at 17:45 UTC on 12 November (routing version 2). Paid smoke-test results are below. GetAText and
 DaisySMS implementations and existing orders remain intact.
 
 ## Requested provider arrangement
@@ -39,7 +39,7 @@ Successful HTTP 200 checks: health, version, balance, webhook settings, full
 catalogue, paginated catalogue, an individual service from every returned
 country, US location inventory, request history and request detail. Only request
 field names/counts were reported; customer details and SMS contents were not
-exported. Paid actions have **not** been live-tested.
+exported. This initial probe was read-only; later paid smoke-test results are below.
 
 - Balance returned **2,002.96 credits**, documented as USD.
 - Webhook URL absent; delivery disabled. No settings were changed.
@@ -205,9 +205,8 @@ authoritative pricing/capability source before exposing a chargeable quote.
 2. Paid reuse, upgrades and automatic renewals are not enabled. Reuse has no
    fee preview; renew-ltr commits recurring provider charges. Do not offer a
    wallet-unbacked toggle. Per-service UK rentals are one-off with renewal off.
-3. Paid purchase/SMS/refund smoke tests await an explicit spend cap. Current live
-   checks are read-only. The CEO can exercise actual checkout with funded Billy
-   balance after primary activation; this is not a claim of a paid live test.
+3. Actual WhatsApp SMS delivery remains unverified. The owner deferred requesting
+   the WhatsApp SMS; the live allocation attempts below were refused for stock.
 
 ### Operational rollback
 
@@ -288,3 +287,41 @@ read 12 November 2026 (page revision 11 November 2026), and supplied API documen
   inbox/status and refunds are the live scope. No OTP-delivery claim without SMS.
 - Recovery: revert basket UI/API if needed, retaining checkout/financial data and
   the worker until all orders settle. Never delete journal records to roll back.
+
+### Paid browser smoke test and follow-up (12 November 2026)
+
+- Owner authorized a temporary NGN 3,000 admin-wallet test credit after the admin
+  wallet was found empty. It was an explicitly labelled adjustment, not a bank
+  deposit. Test purchases used the real signed-in production UI and provider.
+- One checkbox checkout: WhatsApp NGN 2,520 + Discord NGN 112 = NGN 2,632.
+  WhatsApp was refused and its entire reservation released in about three seconds.
+  Discord allocated a number in about two seconds, with its provider ID journaled
+  before settlement. The individual failure did not cancel the other rental.
+- Discord inbox/history loaded empty (no SMS was requested). The UI's Cancel &
+  refund flow reached authenticated provider status `FLAGGED`, zero messages,
+  and a full NGN 112 wallet refund. Provider amount was USD 0.08. This verifies
+  allocation, inbox reads and refund settlement, **not actual OTP reception**.
+- A second explicit WhatsApp attempt was refused with HTTP 422 and the private
+  diagnostic category `stock_unavailable`; NGN 2,520 was immediately released.
+  No further purchases attempted. PVA's catalogue advertised WhatsApp stock,
+  while its location inventory showed only one selectable US number and purchase
+  rejected allocation. Catalogue stock is not a reservation guarantee. The
+  optional location read was throttled by the shared per-key inventory quota;
+  the second attempt used the standard unrestricted location selection.
+- PVA balance read USD 1,992.80 during testing: this was not an empty provider
+  wallet. This shared provider wallet can have other activity, so do not infer
+  this test's spend from the account-wide balance difference. Billy's actual
+  delivered rental cost was USD 0.08, confirmed cancelled/refunded. No WhatsApp
+  allocation was returned. Billy net customer debit is zero; no holds remain.
+- The NGN 3,000 test credit was reversed with a linked adjustment and balanced
+  reversing journal after all tests settled. Admin wallet restored to NGN 0.
+  No customer wallet was edited and no transaction/evidence records were deleted.
+- Added safe private HTTP/error categories for future rejected attempts; raw
+  provider responses stay encrypted, with no SMS/phone/key in plaintext diagnostics.
+  service-api v42 and provider-reconcile v24 retain JWT verification.
+- Phone viewport QA found excessive picker header spacing with the keyboard-sized
+  viewport. Removed only the redundant visible search label (accessible name is
+  retained), tightened spacing, and kept results scrollable and selection pinned.
+- Verification: 199 Jest tests, 205 Deno tests, TypeScript, ESLint and web export
+  pass. iOS/Android exports also passed for checkout. Physical-device keyboard
+  behavior and real OTP arrival are not claimed as tested.
