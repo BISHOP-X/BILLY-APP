@@ -20,6 +20,7 @@ jest.mock(
 );
 jest.mock('@/features/numbers/repository', () => ({
   numberRepository: {
+    store: jest.fn(),
     longCatalog: jest.fn(),
     catalog: jest.fn(),
     sharedCatalog: jest.fn(),
@@ -71,6 +72,7 @@ async function mount(ui: React.ReactNode) {
   return client;
 }
 beforeEach(() => {
+  jest.mocked(numberRepository.store).mockResolvedValue({ layout: 'legacy', available: true });
   jest.mocked(numberRepository.catalog).mockResolvedValue({ services: [service], page: 1, pages: 1, total: 1 });
   jest.mocked(numberRepository.orders).mockResolvedValue({ orders: [] });
   jest.mocked(numberRepository.order).mockResolvedValue({ ...order, status_message: 'Your number is ready.' });

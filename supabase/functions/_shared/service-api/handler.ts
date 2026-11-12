@@ -3069,8 +3069,9 @@ export function createServiceApiHandler(
         },
         result.status ?? 200,
         {
-          catalogueSnapshot: action === "social.catalog" &&
-            isRecord(body.input) && body.input.snapshot === true,
+          catalogueSnapshot: action === "numbers.market" ||
+            (action === "social.catalog" &&
+              isRecord(body.input) && body.input.snapshot === true),
           acceptsGzip: (request.headers.get("accept-encoding") ?? "").split(",")
             .some((encoding) => {
               const [name, quality] = encoding.trim().split(";");

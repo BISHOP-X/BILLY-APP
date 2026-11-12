@@ -23,6 +23,7 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { RentalOptions, type RentalMode } from '@/features/numbers/rental-options';
 import { RentalTools } from '@/features/numbers/rental-tools';
 import { NumberServiceCard, ServiceAvatar, USFlag } from '@/features/numbers/service-card';
+import { NumberStorefront } from '@/features/numbers/number-storefront';
 
 const terminal = new Set(['received', 'cancelled', 'failed']);
 export default function ForeignNumbersScreen() {
@@ -42,6 +43,8 @@ export default function ForeignNumbersScreen() {
   const key = useRef('');
   const submitting = useRef(false);
   const busy = useRef(false);
+  const store = useQuery({queryKey:['numbers',user?.id,'store'],queryFn:numberRepository.store,staleTime:30_000});
+  const legacy = store.data?.layout === 'legacy' && store.data.available;
   useEffect(() => {
     const timer = setTimeout(() => {
       setQuery(search.trim());
@@ -52,7 +55,7 @@ export default function ForeignNumbersScreen() {
   const catalog = useQuery({
     queryKey: ['numbers', user?.id, 'catalog', page, query],
     queryFn: () => numberRepository.catalog(page, query),
-    enabled: tab === 'browse' && mode === 'short',
+    enabled: legacy && tab === 'browse' && mode === 'short',
     staleTime: 60_000,
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[1] === user?.id ? previous : undefined,
@@ -164,20 +167,22 @@ export default function ForeignNumbersScreen() {
       bottomSafe
       contentStyle={styles.content}
       onRefresh={() => {
-        void catalog.refetch();
+        void store.refetch();
+        if (legacy) void catalog.refetch();
+        else void qc.invalidateQueries({queryKey:['numbers',user?.id,'market']});
         void orders.refetch();
       }}
       refreshing={catalog.isRefetching || orders.isRefetching}
     >
-      <ScreenHeader title="US numbers" />
-      <View style={[styles.country, { borderColor: theme.colors.border }]}>
+      <ScreenHeader title="SMS numbers" />
+      {legacy ? <View style={[styles.country, { borderColor: theme.colors.border }]}>
         <View style={styles.flag}><USFlag /></View>
         <View style={styles.serviceText}>
           <Text style={[styles.heading, text]}>United States</Text>
           <Text style={[styles.body, muted]}>+1 numbers · Receive SMS in Billy</Text>
         </View>
         <Ionicons accessible={false} name="chatbubble-ellipses-outline" size={24} color={theme.colors.brand} />
-      </View>
+      </View> : null}
       <View style={[styles.tabs, styles.segment, { backgroundColor: theme.colors.surfaceMuted }]}>
         {(['browse', 'orders'] as const).map((item) => (
           <ScalePressable
@@ -213,16 +218,19 @@ export default function ForeignNumbersScreen() {
           <Text style={[styles.body, text]}>{notice}</Text>
         </View>
       ) : null}
-      {tab === 'browse' && !selection ? <View style={styles.tabs}>
-        {([{ key: 'short', label: 'Short rental', icon: 'flash-outline' }, { key: 'long', label: 'Long rental', icon: 'calendar-outline' }, { key: 'shared', label: 'Multiple services', icon: 'layers-outline' }] as const).map(item =>
+      {tab === 'browse' && store.data?.layout === 'international' && store.data.available ? <NumberStorefront onDone={(message) => {setNotice(message);setTab('orders');setOrdersPage(1);}}/> : null}
+      {tab === 'browse' && (store.error || store.data?.available === false) ? <StatePanel title="Numbers unavailable" message={store.error?.message ?? 'Please check again shortly.'} actionLabel="Try again" onAction={() => void store.refetch()} /> : null}
+      {tab === 'browse' && store.isPending ? <Text style={muted}>Loading numbers…</Text> : null}
+      {tab === 'browse' && legacy && !selection ? <View style={styles.tabs}>
+        {([{ key: 'short', label: 'Short rental', icon: 'flash-outline' }, { key: 'shared', label: 'Multiple services', icon: 'layers-outline' }] as const).map(item =>
           <ScalePressable key={item.key} containerStyle={styles.flex} accessibilityRole="button" accessibilityLabel={item.label} accessibilityState={{ selected: mode === item.key }}
             onPress={() => { setMode(item.key); setSourceOrder(undefined); }} style={[styles.mode, { borderColor: mode === item.key ? theme.colors.brand : theme.colors.border, backgroundColor: mode === item.key ? theme.colors.brandMist : theme.colors.surface }]}>
             <Ionicons accessible={false} name={item.icon} size={22} color={mode === item.key ? theme.colors.brand : theme.colors.textMuted} />
             <Text style={[styles.modeText, { color: mode === item.key ? theme.colors.brand : theme.colors.textMuted }]}>{item.label}</Text>
           </ScalePressable>)}
       </View> : null}
-      {tab === 'browse' && mode !== 'short' ? <RentalOptions key={`${mode}-${sourceOrder?.id ?? ''}`} mode={mode} order={sourceOrder} onDone={() => { setTab('orders'); setOrdersPage(1); }} /> : null}
-      {tab === 'browse' && mode === 'short' && !selection ? (
+      {tab === 'browse' && legacy && mode !== 'short' ? <RentalOptions key={`${mode}-${sourceOrder?.id ?? ''}`} mode={mode} order={sourceOrder} onDone={() => { setTab('orders'); setOrdersPage(1); }} /> : null}
+      {tab === 'browse' && legacy && mode === 'short' && !selection ? (
         <>
           <TextField
             label="Find your service"
@@ -287,7 +295,7 @@ export default function ForeignNumbersScreen() {
           ) : null}
         </>
       ) : null}
-      {tab === 'browse' && mode === 'short' && selection ? (
+      {tab === 'browse' && legacy && mode === 'short' && selection ? (
         <View style={card}>
           <Text style={[styles.eyebrow, { color: theme.colors.brand }]}>
             REVIEW YOUR NUMBER
@@ -345,7 +353,7 @@ export default function ForeignNumbersScreen() {
           ) : !orders.data?.orders.length ? (
             <StatePanel
               title="Your numbers will appear here"
-              message="Choose a service to get your first US SMS number."
+              message="Choose a country and service to get your first SMS number."
               icon="chatbubbles-outline"
             />
           ) : null}
@@ -407,7 +415,7 @@ export default function ForeignNumbersScreen() {
                     loading={update.isPending}
                     onPress={() => void refresh(o.id)}
                   />
-                  {o.status === 'waiting' && !o.cancel_requested ? (
+                  {o.status === 'waiting' && !o.cancel_requested && o.can_cancel !== false ? (
                     <AppButton
                       label={o.rental_kind && o.rental_kind !== 'short' ? 'Cancel & request refund' : 'Cancel & refund'}
                       variant="refund"

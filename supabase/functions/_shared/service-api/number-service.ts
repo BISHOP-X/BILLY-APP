@@ -9,6 +9,8 @@ import type { ServiceTokenCodec } from './tokens.ts';
 import type { ExtendedNumberAdapter } from '../providers/getatext-rentals.ts';
 import { handleExtendedNumberAction, rentalContext, refreshExtendedNumber } from './number-rentals.ts';
 import { applyNumberReceipt, failedAllocation, recordNumberReceipt, recoverNumber } from './number-recovery.ts';
+import type { PvaProvider } from '../providers/pvadeals.ts';
+import { handlePvaStore, refreshPvaNumber, smsRouting } from './pva-numbers.ts';
 
 export class OperationsError extends Error {
   constructor(
@@ -27,6 +29,8 @@ export class OperationsError extends Error {
   }
 }
 export type NumberOrder = {
+  continuous_messages?: boolean;
+  can_cancel?: boolean | null;
   rental_kind?: 'short' | 'general' | 'service';
   rental_period?: string | null;
   rental_end?: string | null;
@@ -114,6 +118,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
   };
 }
 export type NumberRuntime = {
+  pva?: PvaProvider;
   receiptCipher?: { encrypt(value: unknown): Promise<string> };
   extended?: ExtendedNumberAdapter;
   adapter?: NumberAdapter;
@@ -195,6 +200,9 @@ function publicOrder(order: NumberOrder) {
 // Only the .io US WhatsApp aliases are verified equivalents. Extended rentals
 // and shared-number bundles must never be silently replaced with a short rental.
 async function backupServices(runtime: NumberRuntime, userId: string) {
+  // The new routing model is an explicit PVA/GetAText switch. Daisy is retained
+  // exclusively to reconcile existing rentals, never for new purchases.
+  if (runtime.pva) return [];
   const adapter = runtime.additionalAdapters?.daisysms;
   if (!adapter || !await runtime.database.rpc<boolean>(
     'internal_number_provider_access', { p_user_id: userId },
@@ -246,6 +254,8 @@ export async function refreshNumber(
   orderId: string,
   cancel = false,
 ) {
+  const pvaOrder = await refreshPvaNumber(runtime, userId, orderId, cancel);
+  if (pvaOrder) return pvaOrder;
   const recovered = await recoverNumber(runtime, userId, orderId);
   if (recovered) return recovered;
   if (runtime.extended) {
@@ -305,6 +315,19 @@ export async function handleNumberAction(
       'US numbers are not available yet.',
     );
   const input = requestObject(value);
+  if (action === 'numbers.messages') {
+    return { data: { messages: await runtime.database.rpc('internal_number_messages', {
+      p_user_id: user.id, p_order_id: requestText(input.orderId, 'Order', 36), p_page: requestPage(input.page),
+    }) } };
+  }
+  if (runtime.pva && !['numbers.orders', 'numbers.refresh', 'numbers.cancel', 'numbers.finish', 'numbers.another'].includes(action)) {
+    const routing = await smsRouting(runtime);
+    if (action === 'numbers.store') return { data: { layout: routing.primary_provider === 'getatext' ? 'legacy' : 'international', available: routing.primary_provider !== 'off' } };
+    if (['numbers.market', 'numbers.quote', 'numbers.buy', 'numbers.locations'].includes(action) && routing.primary_provider === 'pvadeals')
+      return handlePvaStore(action, input, user.id, runtime);
+    if (routing.primary_provider !== 'getatext' || ['numbers.long.catalog', 'numbers.rental.options'].includes(action))
+      throw new OperationsError(409, 'unavailable', 'The number catalogue has changed. Refresh Numbers to continue.');
+  }
   if (!['numbers.orders', 'numbers.refresh', 'numbers.cancel', 'numbers.catalog', 'numbers.order'].includes(action))
     return handleExtendedNumberAction(action, input, user.id, runtime);
   if (action === 'numbers.orders')
@@ -406,6 +429,8 @@ export async function handleNumberAction(
       'number_quote',
       user.id,
     );
+    if (runtime.pva && quote.providerKey === 'daisysms')
+      throw new OperationsError(409, 'unavailable', 'The number catalogue has changed. Refresh Numbers to continue.');
     const selectedAdapter = provider(runtime, quote.providerKey ?? 'getatext');
     const created = await runtime.database.rpc<{
       dispatch: boolean;

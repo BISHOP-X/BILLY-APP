@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { PvadealsAdapter } from '../_shared/providers/pvadeals.ts';
 import { timingSafeEqual } from 'node:crypto';
 import { GetatextAdapter } from '../_shared/providers/getatext.ts';
 import { GetatextRentals } from '../_shared/providers/getatext-rentals.ts';
@@ -73,6 +74,7 @@ const identity = identityKey && identityHmacSecret && Deno.env.get('PREMBLY_MODE
 const identityDependencies = { database: createServiceDatabase(client),
   digestIdentity: identityHmacSecret ? createHmacHexDigester(identityHmacSecret) : digest };
 const numbers: NumberRuntime = {
+  pva: Deno.env.get('PVADEALS_API_KEY') ? new PvadealsAdapter(Deno.env.get('PVADEALS_API_KEY')!) : undefined,
   receiptCipher: new SecretPayloadCipher(signing,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
   extended: numberKey ? new GetatextRentals(numberKey, fetch, Deno.env.get('GETATEXT_API_TIER') !== 'standard') : undefined,
   additionalAdapters: { daisysms: Deno.env.get('DAISYSMS_API_KEY')
@@ -135,7 +137,7 @@ Deno.serve(async (request) => {
     failed = 0;
   type Due = { user_id: string; order_id: string };
   try {
-    const [n, s, f, k, w, c, p, r] = await Promise.all([
+    const [n, s, f, k, w, c, p, r, pn] = await Promise.all([
       numbers.adapter
         ? client.rpc('internal_number_due', { p_limit: 40 })
         : Promise.resolve({ data: [], error: null }),
@@ -152,8 +154,9 @@ Deno.serve(async (request) => {
       cryptoRuntime?client.rpc('internal_asset_settlement_due',{p_service:'crypto',p_limit:20}):Promise.resolve({data:[],error:null}),
       cardsRuntime?client.rpc('internal_asset_settlement_due',{p_service:'cards',p_limit:20}):Promise.resolve({data:[],error:null}),
       commerce.adapter?client.rpc('internal_commerce_due',{p_limit:20}):Promise.resolve({data:[],error:null}),
+      numbers.pva ? client.rpc('internal_pva_due', {p_limit:20}) : Promise.resolve({data:[],error:null}),
     ]);
-    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error || r.error) throw new Error('Queue unavailable');
+    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error || r.error || pn.error) throw new Error('Queue unavailable');
     const queue = [
       ...(w.data as Due[]).map(row=>({...row,type:'withdrawal'})),
       ...(r.data as Due[]).map(row=>({...row,type:'commerce'})),
@@ -199,9 +202,20 @@ Deno.serve(async (request) => {
         }
       }
     }
-    await Promise.all([run(), run(), run()]);
+    // One paced lane for PVA. Sending all due reads concurrently would spend
+    // the account-wide status lease on the first row and starve the remainder.
+    const pvaQueue = [...pn.data as Due[]];
+    async function runPva() {
+      while (pvaQueue.length && Date.now() - started < 48_000) {
+        const item = pvaQueue.shift()!;
+        try { await refreshNumber(numbers, item.user_id, item.order_id); completed++; }
+        catch { failed++; }
+        if (pvaQueue.length) await new Promise(resolve => setTimeout(resolve, 600));
+      }
+    }
+    await Promise.all([run(), run(), run(), runPva()]);
     return Response.json(
-      { ok: true, completed, failed, deferred: queue.length },
+      { ok: true, completed, failed, deferred: queue.length + pvaQueue.length },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch {

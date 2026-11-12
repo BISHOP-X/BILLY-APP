@@ -132,7 +132,7 @@ export function RentalTools(
           </View>
         )
         : null}
-      {long && order.phone_number && order.operation !== 'renew'
+      {long && !order.continuous_messages && order.phone_number && order.operation !== 'renew'
         ? (
           <AppButton
             label={order.rental_closed ? 'Recovery options' : 'Renew number'}

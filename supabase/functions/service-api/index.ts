@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { PvadealsAdapter } from '../_shared/providers/pvadeals.ts';
 import {
   createPocketFiLiveAdapter,
   createPocketFiMockAdapter,
@@ -535,20 +536,21 @@ async function pricingRows(): Promise<PricingRow[]> {
 const socialAdapter = env("SOCIAL_BOOST_API_KEY") ? new SocialBoostHttpAdapter({
   apiKey:requiredEnv("SOCIAL_BOOST_API_KEY"),baseUrl:"https://thelordofthepanels.com/api/v2",
 }) : undefined;
+const pvaAdapter = env("PVADEALS_API_KEY") ? new PvadealsAdapter(requiredEnv("PVADEALS_API_KEY")) : undefined;
 const numberAdapter = env("GETATEXT_API_KEY") ? new GetatextAdapter(requiredEnv("GETATEXT_API_KEY"),fetch,
   oneOf("GETATEXT_API_TIER",env("GETATEXT_API_TIER"),["premium","standard"] as const,"premium")) : undefined;
 const daisyAdapter = env("DAISYSMS_API_KEY") ? new DaisySmsAdapter(requiredEnv("DAISYSMS_API_KEY")) : undefined;
 const extendedNumberAdapter = env("GETATEXT_API_KEY") ? new GetatextRentals(requiredEnv("GETATEXT_API_KEY"),fetch,env("GETATEXT_API_TIER")!=="standard") : undefined;
 async function numberRuntime(): Promise<NumberRuntime> {
   const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
-  return {adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+  return {pva:pvaAdapter,adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
     receiptCipher:new SecretPayloadCipher(serviceApiSigningSecret,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
     exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
 }
 async function readyServices() {
   const prices=await pricingRows();
   const priced=(key:string)=>prices.some(p=>p.service_key===key && p.exchange_rate_minor_per_usd!==null && p.markup_bps!==null);
-  return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter)&&priced("foreign_numbers"),
+  return {social_boost:Boolean(socialAdapter)&&priced("social_boost"),foreign_numbers:Boolean(numberAdapter||pvaAdapter)&&priced("foreign_numbers"),
     wallet_funding:providerMode("POCKETFI_MODE")==="live",wallet_withdrawal:providerMode("POCKETFI_MODE")==="live",bills:Boolean(commerce.adapter)&&priced("reloadly_topups")&&priced("reloadly_electricity"),
     crypto:providerMode("QUIDAX_MODE")==="live",gift_cards:Boolean(commerce.adapter)&&priced("reloadly_gift_cards"),
     prepaid_cards:providerMode("PRESTMIT_MODE")==="live",

@@ -36,6 +36,14 @@ export async function handleAdminAction(
       'This account does not have administrator access.',
     );
   const input = requestObject(value);
+  if (action === 'admin.sms.read' || action === 'admin.sms.change') {
+    const { data, error } = await runtime.client.rpc('internal_sms_routing', action === 'admin.sms.read' ? {} : {
+      p_actor: user.id, p_provider: input.provider, p_version: input.version,
+      p_reason: requestText(input.reason, 'Reason', 240),
+    });
+    if (error) throw new OperationsError(409, 'conflict', 'Reload these settings and try again. Include a reason for the change.');
+    return { data };
+  }
   if (action === 'admin.read') {
     const section = requestText(input.section, 'Section', 30);
     const { data, error } = await runtime.client.rpc('internal_admin_read', {

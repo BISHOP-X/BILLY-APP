@@ -18,6 +18,8 @@ export type NumberCatalog = {
   total: number;
 };
 export type NumberOrder = {
+  continuous_messages?: boolean;
+  can_cancel?: boolean | null;
   refund_minor?: number;
   rental_kind?: 'short' | 'general' | 'service';
   rental_period?: string | null;
@@ -48,6 +50,11 @@ export type NumberOrder = {
   completed_at: string | null;
 };
 export const numberRepository = {
+  store: () => invokeAction<{ layout: 'legacy' | 'international'; available: boolean }>('numbers.store', {}),
+  market: () => invokeAction<SmsMarket>('numbers.market', {}),
+  locations: (productId: string, duration: number) => invokeAction<{ locations: { code: string; name: string }[] }>('numbers.locations', { productId, duration }),
+  quote: (productId: string, duration: number, state?: string) => invokeAction<SmsQuote>('numbers.quote', { productId, duration, state }),
+  buy: (quoteToken: string, idempotencyKey: string) => invokeAction<NumberOrder>('numbers.buy', { quoteToken, idempotencyKey }),
   sharedCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.catalog', { page, query: query.trim() || undefined, shared: true }),
   longCatalog: (page: number, query: string) => invokeAction<NumberCatalog>('numbers.long.catalog', { page, query }),
   reuseCatalog: (orderId: string, page: number, query: string) => invokeAction<NumberCatalog>('numbers.reuse.catalog', { orderId, page, query }),
@@ -71,4 +78,7 @@ export const numberRepository = {
   cancel: (orderId: string) =>
     invokeAction<NumberOrder>('numbers.cancel', { orderId }),
 };
+export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number> };
+export type SmsMarket = { services: SmsProduct[]; countries: string[]; refreshedAt: string };
+export type SmsQuote = { quoteToken: string; name: string; country: string; duration: number; totalMinor: number };
 export type NumberMessage = { id: string; body: string; sender: string; received_at: string | null; created_at: string };

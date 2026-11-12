@@ -361,6 +361,11 @@ export async function handleExtendedNumberAction(
     'number_extended_quote',
     userId,
   );
+  // Old signed quotes must not bypass the new SMSBUS-only long-rental policy.
+  // Keep the GetAText implementation intact for existing order reconciliation.
+  if (runtime.pva && quote.items.some((item) => item.kind !== 'short')) {
+    throw fail('This rental is no longer available. Refresh Numbers to continue.');
+  }
   const context = quote.parentId
     ? await rentalContext(runtime, userId, quote.parentId)
     : undefined;

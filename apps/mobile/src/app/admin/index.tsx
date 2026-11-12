@@ -37,6 +37,7 @@ import { invokeAction } from '@/features/services/supabase-service-repository';
 import { AdminNavigation } from '@/features/admin/navigation';
 import { AdminOverview } from '@/features/admin/overview';
 import { AppearanceToggle } from '@/theme/appearance-toggle';
+import { SmsRoutingControl } from '@/features/admin/sms-routing';
 
 const sectionDetails: Record<AdminSection, string> = {
   overview: 'Your business, at a glance.',
@@ -313,6 +314,7 @@ export default function BillyAdmin() {
           ) : null}
           {view.data && section === 'settings' ? (
             <>
+              <SmsRoutingControl />
               <Panel>
                 <Text style={styles.eyebrow}>SELLING PRICES</Text>
                 <AdminText large>Rates & margins</AdminText>
