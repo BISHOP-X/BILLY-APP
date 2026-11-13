@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { goBackSafely } from '@/lib/back-navigation';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { AppearanceToggle } from '@/theme/appearance-toggle';
@@ -27,7 +27,7 @@ export function ScreenHeader({
         accessibilityLabel={backLabel}
         accessibilityRole="button"
         hitSlop={8}
-        onPress={onBack ?? (() => router.back())}
+        onPress={() => { Keyboard.dismiss(); (onBack ?? goBackSafely)(); }}
         style={({ pressed }) => [
           styles.back,
           {

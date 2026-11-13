@@ -18,6 +18,7 @@ import { AppButton } from '@/components/ui/button';
 import { CountryFlag } from '@/components/ui/country-flag';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { goBackSafely } from '@/lib/back-navigation';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { TextField } from '@/components/ui/text-field';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -46,12 +47,14 @@ const titles: Record<CommerceKind, string> = {
 export function CommerceScreen({ kind }: { kind: CommerceKind }) {
   const theme = useBillyTheme();
   const scrollRef = useRef<ScrollView>(null);
+  const journeyBack = useRef<(() => boolean) | null>(null);
   const showStepFromTop = useCallback(() => {
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
   }, []);
   return (
     <AppScreen bottomSafe contentStyle={styles.content} scrollRef={scrollRef} testID={`commerce-${kind}`}>
       <ScreenHeader
+        onBack={() => { if (!journeyBack.current?.()) goBackSafely(); }}
         title={titles[kind]}
         subtitle={kind === 'gift_cards'
           ? 'Find a favourite. Send a little joy.'
@@ -69,12 +72,12 @@ export function CommerceScreen({ kind }: { kind: CommerceKind }) {
           Choose a country and service. You’ll see the full naira price before you pay.
         </Text>
       </View> : null}
-      <CommerceJourney key={kind} kind={kind} onStepChange={showStepFromTop} />
+      <CommerceJourney key={kind} kind={kind} onStepChange={showStepFromTop} backHandlerRef={journeyBack} />
     </AppScreen>
   );
 }
 
-export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; onStepChange?: () => void }) {
+export function CommerceJourney({ kind, onStepChange, backHandlerRef }: { kind: CommerceKind; onStepChange?: () => void; backHandlerRef?: { current: (() => boolean) | null } }) {
   const topup = kind === 'airtime' || kind === 'data';
   const theme = useBillyTheme();
   const { user } = useAuth();
@@ -135,6 +138,20 @@ export function CommerceJourney({ kind, onStepChange }: { kind: CommerceKind; on
     setDelivery(null);
     operationKey.current = '';
   }
+  useEffect(() => {
+    if (!backHandlerRef) return;
+    backHandlerRef.current = () => {
+      if (busy) return false; // Leaving does not cancel a submitted server order.
+      if (countriesOpen) setCountriesOpen(false);
+      else if (order) reset();
+      else if (quote) { setQuote(null); setError(''); }
+      else if (product) reset();
+      else return false;
+      onStepChange?.();
+      return true;
+    };
+    return () => { backHandlerRef.current = null; };
+  }, [backHandlerRef, busy, countriesOpen, order, quote, product, onStepChange]);
   async function refresh(current: CommerceOrder) {
     const next = await invokeAction<CommerceOrder>('commerce.refresh', { orderId: current.id });
     if (mounted.current) setOrder(next);

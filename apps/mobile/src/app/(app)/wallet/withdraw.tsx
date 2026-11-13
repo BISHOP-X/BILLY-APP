@@ -2,6 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
+import { goBackSafely } from '@/lib/back-navigation';
 import { useRef, useState } from "react";
 import { AppState, StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/layout/app-screen";
@@ -98,8 +99,7 @@ export default function WithdrawScreen() {
       setPicker(false);
       return;
     }
-    if (router.canGoBack()) router.back();
-    else router.replace("/home");
+    goBackSafely();
   };
   const card = {
     backgroundColor: theme.colors.surface,

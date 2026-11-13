@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { goBackSafely } from '@/lib/back-navigation';
 import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { AppScreen } from '@/components/layout/app-screen';
@@ -86,7 +86,7 @@ export default function TransactionPinScreen() {
             setPin('');
             setFirstPin('');
             setFeedback('');
-          } else router.back();
+          } else goBackSafely();
         }}
       />
       <Text style={{ color: theme.colors.textMuted, fontSize: 15, lineHeight: 23 }}>
@@ -110,7 +110,7 @@ export default function TransactionPinScreen() {
           />
         )
         : exists
-        ? <AppButton label='Done' onPress={() => router.back()} />
+        ? <AppButton label='Done' onPress={goBackSafely} />
         : (
           <>
             <PinEntry length={4} value={pin} onChange={setPin} testID='security-pin-entry' />

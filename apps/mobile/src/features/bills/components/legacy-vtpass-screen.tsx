@@ -9,6 +9,7 @@ import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide } from '@/components/ui/motion';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { goBackSafely } from '@/lib/back-navigation';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
 import { TextField } from '@/components/ui/text-field';
@@ -283,7 +284,7 @@ function BillJourney({
   function goBack() {
     if (purchaseGuard.current) return;
     if (step === 0) {
-      router.back();
+      goBackSafely();
       return;
     }
     if (step === 3) {

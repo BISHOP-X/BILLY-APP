@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
-import { CommerceJourney } from '@/features/commerce/commerce-screen';
+import { CommerceJourney, CommerceScreen } from '@/features/commerce/commerce-screen';
 import { invokeAction } from '@/features/services/supabase-service-repository';
 import type { CommerceProduct } from '@/features/commerce/domain';
 jest.mock(
@@ -124,6 +124,17 @@ test('gift purchase requires exact price confirmation, no PIN, then owner delive
   });
   await fireEvent.press(screen.getByRole('button', { name: 'View delivery' }));
   expect(await screen.findByText('Code: synthetic-code')).toBeTruthy();
+  await act(() => client.clear());
+});
+
+test('page header goes back from card value selection to the catalogue without paying', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  await render(<QueryClientProvider client={client}><SafeAreaInsetsContext.Provider value={{ top: 0, left: 0, right: 0, bottom: 0 }}><CommerceScreen kind="gift_cards" /></SafeAreaInsetsContext.Provider></QueryClientProvider>);
+  await fireEvent.press(await screen.findByRole('button', { name: 'Choose Synthetic card' }));
+  await screen.findByRole('button', { name: 'USD 5, ₦7,070.00' });
+  await fireEvent.press(screen.getByLabelText('Go back'));
+  expect(await screen.findByRole('button', { name: 'Choose Synthetic card' })).toBeTruthy();
+  expect(purchases).toBe(0);
   await act(() => client.clear());
 });
 test('lost response retries with the same operation key and never creates a new quote', async () => {

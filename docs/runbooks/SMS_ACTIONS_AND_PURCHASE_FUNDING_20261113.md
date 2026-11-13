@@ -27,6 +27,15 @@
 - Browser at 360×800: dark-mode transaction display had no horizontal overflow. Synthetic session and request interception were removed afterwards.
 - Screenshots are local QA artifacts under `output/`, not production customer data. Browser refund/checkout tests are simulated, not claims of a fresh paid provider test. Physical iOS/Android device testing was not performed in this pass.
 
-## Recovery
+## Back-navigation follow-up
+
+- Shared page Back previously called `router.back()` without a destination when the route was opened directly or refreshed. Added a bounded, memory-only, account-scoped app trail and `dismissTo` with parent-page fallback. Auth/callback routes and query strings are excluded; sign-out/account changes clear the trail. Rapid double taps issue one navigation.
+- Browser verification exposed Expo's temporary `/` route during deep-link restoration. It is now excluded so Back cannot select the root redirect and unexpectedly return Home. Added a regression test.
+- Bills/gift-card page headers now respect the journey's selected product, quote, order and country-picker steps before leaving. Explicit modal/withdrawal/security handlers remain intact. Keyboards dismiss on Back. No financial submission, authentication or onboarding requirements were weakened.
+- Replaced remaining bare app `router.back()` calls in card-order errors, transaction-PIN settings, withdrawal and the retained VTpass screen. Auth/setup uses its existing explicit routing, not this app trail.
+- Verification: full app suite passed 221 tests across 42 suites; after the hydration fix, the focused navigation/commerce suite passed all 11 tests (including the additional regression). ESLint, TypeScript, web export and both Android/iOS Hermes exports passed.
+- Built-app browser checks with a synthetic account: directly opened Airtime → Bills → Home; normal Bills → Airtime → Back to Bills; direct transaction link → Activity; refreshed SMS page → Home. Gift-card value selection → catalogue is covered by the component test, with zero purchases. Physical-device and native hardware-back testing were not performed.
+
+## Recovery notes
 
 No migrations or financial contract changes. Reverting this commit removes the UI/API additions; existing rental settlement and funding remain intact. Keep backend endpoints available while any released frontend still calls them.

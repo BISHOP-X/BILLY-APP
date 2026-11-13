@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBackSafely } from '@/lib/back-navigation';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -125,7 +126,7 @@ export default function CardOrderScreen() {
           actionLabel="Go back"
           icon="receipt-outline"
           message={error ?? 'This card order could not be found.'}
-          onAction={() => router.back()}
+          onAction={goBackSafely}
           title="Order unavailable"
           tone="danger"
         />

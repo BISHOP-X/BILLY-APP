@@ -5,6 +5,7 @@ import {
   Redirect,
   Stack,
   useSegments,
+  usePathname,
 } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +26,7 @@ import { PrivacyShield } from '@/components/ui/privacy-shield';
 import { FatalErrorScreen } from '@/components/ui/fatal-error-screen';
 import { AppearanceProvider, useAppearance } from '@/theme/appearance-provider';
 import { syncWebViewport } from '@/lib/web-viewport';
+import { appNavigationTrail } from '@/lib/back-navigation';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -86,7 +88,11 @@ function SplashController() {
 function RootNavigator() {
   const theme = useBillyTheme();
   const segments = useSegments();
-  const { status: authStatus } = useAuth();
+  const pathname = usePathname();
+  const { status: authStatus, user } = useAuth();
+  useEffect(() => {
+    appNavigationTrail.record(pathname, user?.id ?? null, segments[0] === '(app)' || segments[0] === 'admin');
+  }, [pathname, user?.id, segments]);
   const { status: lockStatus } = useAppLock();
   const isUnlockRoute = segments[0] === 'unlock';
   const mustUnlock =
