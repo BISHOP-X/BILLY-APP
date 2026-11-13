@@ -10,6 +10,8 @@ import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
 import { TransactionDetailView } from '@/features/activity/components/transaction-detail-view';
 import { useTransactionQuery } from '@/features/main/queries';
+import { NumberCancelAction, useTransactionNumbers } from '@/features/numbers/transaction-actions';
+import { CarrierBadge } from '@/features/numbers/carrier-badge';
 import type { BillOrder } from '@/features/services/domain';
 import {
   useBillOrderForTransactionQuery,
@@ -22,6 +24,7 @@ export default function TransactionDetailScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const id = typeof params.id === 'string' ? params.id : '';
   const query = useTransactionQuery(id);
+  const numbers = useTransactionNumbers(query.data?.serviceKey === 'foreign_numbers' ? [id] : []);
   const billOrderQuery = useBillOrderForTransactionQuery(
     id,
     query.data?.serviceKey === 'bills',
@@ -31,6 +34,7 @@ export default function TransactionDetailScreen() {
   async function refreshScreen() {
     await Promise.all([
       query.refetch(),
+      numbers.isEnabled ? numbers.refetch() : Promise.resolve(),
       query.data?.serviceKey === 'bills'
         ? billOrderQuery.refetch()
         : Promise.resolve(),
@@ -71,6 +75,11 @@ export default function TransactionDetailScreen() {
       ) : query.data ? (
         <>
           <TransactionDetailView transaction={query.data} />
+          {numbers.data?.map((order) => <View key={order.id}>
+            {order.phone_number ? <CarrierBadge orderId={order.id} /> : null}
+            <NumberCancelAction order={order} />
+          </View>)}
+          {numbers.isError ? <FeedbackBanner message="Number actions couldn’t load. Pull down to retry." tone="error" /> : null}
           {query.data.serviceKey === 'bills' ? (
             billOrderQuery.isLoading ? (
               <SkeletonBlock style={{ height: 170 }} />

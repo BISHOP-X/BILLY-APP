@@ -1,6 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { RentalCountdown } from '@/features/numbers/rental-countdown';
 import { SmsSound } from '@/features/numbers/sms-sound';
+import { copyWithSound } from '@/features/numbers/copy-sound';
+import { CarrierBadge } from '@/features/numbers/carrier-badge';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
@@ -158,7 +160,7 @@ export default function ForeignNumbersScreen() {
   }
   async function copy(value: string) {
     try {
-      await Clipboard.setStringAsync(value);
+      await copyWithSound(value, Clipboard.setStringAsync);
       setNotice('Copied to clipboard.');
     } catch {
       setNotice('Select and copy the number or code below.');
@@ -368,6 +370,7 @@ export default function ForeignNumbersScreen() {
               </View>
               {!(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <StatusChip {...numberOrderStatus(o)} /> : null}
               <RentalCountdown order={o} />
+              {o.phone_number ? <CarrierBadge orderId={o.id} /> : null}
               <Text style={[styles.body, muted]}>
                 {formatMinorUnits(o.amount_minor + o.fee_minor, 'NGN')} ·{' '}
                 {new Date(o.created_at).toLocaleDateString()}

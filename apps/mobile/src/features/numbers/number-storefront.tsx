@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppButton } from "@/components/ui/button";
+import { AddFundsAction } from '@/features/funding/add-funds-action';
 import { CountryFlag } from "@/components/ui/country-flag";
 import { TextField } from "@/components/ui/text-field";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -414,6 +415,7 @@ export function NumberStorefront(
             </Text>
           )
           : null}
+        {notice && (!sheetOpen || sheet !== 'review') ? <AddFundsAction message={notice} /> : null}
         <AppButton
           label={visiblePrice
             ? `Review · ${formatMinorUnits(visiblePrice, "NGN")}`
@@ -516,7 +518,6 @@ export function NumberStorefront(
                     autoCorrect={false}
                     returnKeyType="done"
                     onSubmitEditing={Keyboard.dismiss}
-                    autoFocus
                   />
                   <View style={styles.between}>
                     <Text style={[styles.small, muted]}>{checkboxes ? `${basket.length} selected` : durationLabel(duration)}</Text>
@@ -675,6 +676,7 @@ export function NumberStorefront(
                       </Text>
                     )
                     : null}
+                  {notice ? <AddFundsAction message={notice} /> : null}
                   <AppButton
                     label={`Pay ${formatMinorUnits(quote.totalMinor, "NGN")}`}
                     loading={busy}

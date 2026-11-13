@@ -9,6 +9,7 @@ import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { FadeSlide } from '@/components/ui/motion';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { AppButton } from '@/components/ui/button';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
 import {
@@ -32,7 +33,7 @@ type Feedback = {
   tone: 'error' | 'success';
 };
 
-export default function AddMoneyScreen() {
+export default function AddMoneyScreen({ onReturnToPurchase }: { onReturnToPurchase?: () => void } = {}) {
   const queryClient = useQueryClient();
   const dashboardQuery = useDashboardQuery();
   const fundingAccess = dashboardQuery.data?.walletActions.funding ?? null;
@@ -113,6 +114,7 @@ export default function AddMoneyScreen() {
 
   function openRefreshedDashboard() {
     void queryClient.invalidateQueries({ queryKey: ['main'] });
+    if (onReturnToPurchase) { onReturnToPurchase(); return; }
     router.replace('/(app)/(tabs)/home');
   }
 
@@ -120,6 +122,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-account-loading">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -135,6 +139,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-access-error">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -155,6 +161,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-access-disabled">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -178,6 +186,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-account-error">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -198,6 +208,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-account-disabled">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -218,6 +230,8 @@ export default function AddMoneyScreen() {
     return (
       <AppScreen bottomSafe testID="funding-account-invalid">
         <ScreenHeader
+          onBack={onReturnToPurchase}
+          backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
           subtitle="Transfer from any Nigerian bank."
           title="Add Money"
         />
@@ -242,10 +256,13 @@ export default function AddMoneyScreen() {
       refreshing={fundingQuery.isRefetching || dashboardQuery.isRefetching}
       testID="add-money-screen">
       <ScreenHeader
+        onBack={onReturnToPurchase}
+        backLabel={onReturnToPurchase ? 'Return to purchase' : 'Go back'}
         subtitle="Transfer from any Nigerian bank."
         title="Add Money"
       />
       <DemoDataBanner />
+      {onReturnToPurchase ? <AppButton label="Return to purchase" variant="secondary" onPress={openRefreshedDashboard} /> : null}
       {fundingIsPreview && !isBillyDevDemo ? (
         <FeedbackBanner message="Tester preview: this Paga account is synthetic. Do not transfer real money to it." />
       ) : null}
@@ -270,6 +287,7 @@ export default function AddMoneyScreen() {
               isRefreshing={dashboardQuery.isFetching}
               key={readyAccount.id}
               onOpenDashboard={openRefreshedDashboard}
+              returnToPurchase={!!onReturnToPurchase}
               onRefresh={() => dashboardQuery.refetch()}
             />
           </FadeSlide>

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
+import { AddFundsAction } from '@/features/funding/add-funds-action';
 
 type FeedbackBannerProps = {
   message: string;
@@ -40,7 +41,10 @@ export function FeedbackBanner({ message, tone = 'info' }: FeedbackBannerProps) 
       accessibilityRole="alert"
       style={[styles.banner, { backgroundColor: config.background }]}>
       <Ionicons color={config.color} name={config.icon} size={19} />
-      <Text style={[styles.message, { color: config.color }]}>{message}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.message, { color: config.color }]}>{message}</Text>
+        {tone === 'error' ? <AddFundsAction message={message} /> : null}
+      </View>
     </View>
   );
 }

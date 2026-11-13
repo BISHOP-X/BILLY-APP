@@ -50,6 +50,8 @@ export type NumberOrder = {
   completed_at: string | null;
 };
 export const numberRepository = {
+  forTransactions: (transactionIds: string[]) => invokeAction<{ orders: NumberOrder[] }>('numbers.for-transactions', { transactionIds }),
+  carrier: (orderId: string) => invokeAction<{ carrier: string | null }>('numbers.carrier', { orderId }),
   store: () => invokeAction<{ layout: 'legacy' | 'international'; available: boolean }>('numbers.store', {}),
   market: () => invokeAction<SmsMarket>('numbers.market', {}),
   locations: (productId: string, duration: number) => invokeAction<{ locations: { code: string; name: string }[] }>('numbers.locations', { productId, duration }),

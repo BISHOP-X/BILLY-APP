@@ -5,6 +5,7 @@ import { AppButton } from '@/components/ui/button';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { numberRepository, type NumberOrder } from './repository';
+import { muteCopySound } from './copy-sound';
 
 export function unseenMessages(seen: Set<string>, ids: string[], initialized: boolean) {
   const fresh = initialized && ids.some((id) => !seen.has(id));
@@ -51,13 +52,13 @@ export function SmsSound({ orders }: { orders: NumberOrder[] }) {
   useEffect(() => () => { void audio.current?.close(); }, []);
   if (Platform.OS !== 'web') return null;
   async function toggle() {
-    if (enabled) { setEnabled(false); return; }
+    if (enabled) { setEnabled(false); muteCopySound(true); return; }
     try {
       const Constructor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       audio.current ??= new Constructor();
       await audio.current.resume();
       if (audio.current.state !== 'running') throw new Error('blocked');
-      seen.current.clear(); chime(audio.current); setEnabled(true); setError('');
+      seen.current.clear(); chime(audio.current); setEnabled(true); muteCopySound(false); setError('');
     } catch { setError('Sound could not start. Tap to try again.'); }
   }
   return <View><AppButton label={enabled ? 'SMS sound on · mute' : 'Enable SMS sound'} variant="ghost" icon={enabled ? 'volume-high-outline' : 'volume-mute-outline'} onPress={() => void toggle()} />{error ? <Text style={{ color: colors.textMuted }}>{error}</Text> : null}</View>;

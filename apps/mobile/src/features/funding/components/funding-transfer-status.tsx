@@ -8,6 +8,7 @@ import { radii, spacing, typography } from '@/theme/tokens';
 import type { FundingTransferMonitorStatus } from '../use-funding-transfer-monitor';
 
 type FundingTransferStatusProps = {
+  returnToPurchase?: boolean;
   isRefreshing: boolean;
   onCheckAgain: () => void;
   onOpenDashboard: () => void;
@@ -15,6 +16,7 @@ type FundingTransferStatusProps = {
 };
 
 export function FundingTransferStatus({
+  returnToPurchase,
   isRefreshing,
   onCheckAgain,
   onOpenDashboard,
@@ -29,7 +31,7 @@ export function FundingTransferStatus({
       ? 'Automatic checks paused'
       : 'Waiting for your transfer';
   const message = received
-    ? 'Your transfer is now confirmed in Billy. Open the dashboard to review the amount and updated balance.'
+    ? returnToPurchase ? 'Your balance has been updated. Return to your purchase to review and confirm payment.' : 'Your transfer is now confirmed in Billy. Open the dashboard to review the amount and updated balance.'
     : paused
       ? 'Your account remains active. Check again here, or refresh the dashboard whenever you are ready.'
       : 'Billy checks your wallet every few seconds while this screen is open. We will also check when you return to the app.';
@@ -90,7 +92,7 @@ export function FundingTransferStatus({
       <AppButton
         icon="home-outline"
         iconPosition="left"
-        label={received ? 'View updated dashboard' : 'Refresh dashboard'}
+        label={returnToPurchase ? 'Return to purchase' : received ? 'View updated dashboard' : 'Refresh dashboard'}
         onPress={onOpenDashboard}
         testID="open-refreshed-dashboard"
         variant={received ? 'primary' : 'ghost'}

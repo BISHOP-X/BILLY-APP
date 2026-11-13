@@ -17,6 +17,7 @@ import { StatePanel } from '@/components/ui/state-panel';
 import { ActivityRow } from '@/features/activity/components/activity-row';
 import type { ActivityItem } from '@/features/main/domain';
 import { useActivityQuery } from '@/features/main/queries';
+import { NumberCancelAction, useTransactionNumbers } from '@/features/numbers/transaction-actions';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { radii, spacing, typography } from '@/theme/tokens';
 import { WEB_CONTENT_MAX_WIDTH } from '@/constants/web-layout';
@@ -51,6 +52,7 @@ export default function ActivityScreen() {
     () => activity.filter((item) => matchesFilter(item, filter)),
     [activity, filter],
   );
+  const numbers = useTransactionNumbers(activity.filter((item) => item.serviceKey === 'foreign_numbers' && item.direction === 'debit').map((item) => item.id));
 
   if (query.isError && !query.data) {
     return (
@@ -131,6 +133,7 @@ export default function ActivityScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             <DemoDataBanner />
+            {numbers.isError ? <Text style={{ color: theme.colors.textMuted }}>Number actions couldn’t load. Pull down to retry.</Text> : null}
             <SectionHeader
               appearance
               subtitle="Transactions, orders, refunds, and receipts."
@@ -182,9 +185,10 @@ export default function ActivityScreen() {
           }
         }}
         onEndReachedThreshold={0.35}
-        onRefresh={() => void query.refetch()}
+        onRefresh={() => { void query.refetch(); if (numbers.isEnabled) void numbers.refetch(); }}
         refreshing={query.isRefetching && !query.isFetchingNextPage}
         renderItem={({ item }) => (
+          <View>
           <ActivityRow
             item={item}
             onPress={() =>
@@ -195,6 +199,8 @@ export default function ActivityScreen() {
             }
             showStatus
           />
+          {numbers.data?.filter((order) => order.transaction_id === item.id).map((order) => <NumberCancelAction key={order.id} order={order} />)}
+          </View>
         )}
         showsVerticalScrollIndicator={false}
         style={styles.list}

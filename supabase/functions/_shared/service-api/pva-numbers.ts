@@ -51,6 +51,22 @@ type Context = {
 const fail = (message: string) =>
   new OperationsError(503, "unavailable", message, true);
 
+const carrierCache = new Map<string, { carrier: string | null; expires: number }>();
+export async function rentalCarrier(runtime: NumberRuntime, userId: string, orderId: string) {
+  // Ownership is checked before cache access; no provider IDs reach the client.
+  const context = await runtime.database.rpc<Context | null>('internal_pva_context', { p_user_id: userId, p_order_id: orderId });
+  if (!context?.route?.provider_id || isSmsbus(context.route.request) || !runtime.pva?.carrier) return { carrier: null };
+  // The database catalogue cache intentionally accepts catalogue keys only.
+  // This optional display field uses a bounded warm-instance cache instead.
+  const key = `${orderId}:${context.route.provider_id}`;
+  const hit = carrierCache.get(key);
+  if (hit && hit.expires > Date.now()) return { carrier: hit.carrier };
+  const carrier = await runtime.pva.carrier(context.route.provider_id);
+  if (carrierCache.size >= 1000) carrierCache.delete(carrierCache.keys().next().value!);
+  carrierCache.set(key, { carrier, expires: Date.now() + 300_000 });
+  return { carrier };
+}
+
 async function cached<T>(
   runtime: NumberRuntime,
   key: string,

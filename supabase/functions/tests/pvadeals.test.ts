@@ -13,6 +13,21 @@ function assert(value: unknown, label = "Assertion failed"): asserts value {
 const serviceId = "697139f4fe5460ddc2f271c2",
   rentalId = "6af5e45b7079ed87c685306d";
 const selection: PvaSelection = { serviceId, country: "US", duration: 0 };
+Deno.test('Carrier lookup is read-only, validates rental identity and permits absent carrier', async () => {
+  let response: unknown = { _id: rentalId, carrier: 'TMOBILE' };
+  const adapter = new PvadealsAdapter('synthetic', (async (url, init) => {
+    assert(String(url).endsWith(`request/${rentalId}`));
+    assert(!init?.method || init.method === 'GET');
+    return Response.json({ success: true, data: response });
+  }) as typeof fetch);
+  assert(await adapter.carrier(rentalId) === 'TMOBILE');
+  response = { _id: rentalId };
+  assert(await adapter.carrier(rentalId) === null);
+  response = { _id: serviceId, carrier: 'THREE' };
+  let rejected = false;
+  try { await adapter.carrier(rentalId); } catch { rejected = true; }
+  assert(rejected, 'Must reject mismatched rental');
+});
 const row = {
   _id: serviceId,
   name: "WhatsApp",

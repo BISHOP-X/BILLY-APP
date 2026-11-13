@@ -42,6 +42,7 @@ export type PvaOutcome = {
 };
 export type PvaReply = { outcome: PvaOutcome; raw: string };
 export interface PvaProvider {
+  carrier?(id: string): Promise<string | null>;
   services(): Promise<PvaService[]>;
   plans(): Promise<PvaService[]>;
   service(id: string, country?: string): Promise<PvaService>;
@@ -217,6 +218,12 @@ export function normalizePvaRequest(
 }
 
 export class PvadealsAdapter implements PvaProvider {
+  async carrier(id: string): Promise<string | null> {
+    if (!/^[a-f0-9]{24}$/.test(id)) throw new NumberProviderError(false, 'Invalid rental.');
+    const row = record((await this.call(`request/${id}`)).data);
+    if (row._id !== id) throw new NumberProviderError(false, 'Rental identity mismatch.');
+    return typeof row.carrier === 'string' && /^[A-Za-z0-9 &+._-]{1,60}$/.test(row.carrier) ? row.carrier : null;
+  }
   constructor(private key: string, private fetcher: typeof fetch = fetch) {}
   private async call(
     path: string,

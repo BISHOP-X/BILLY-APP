@@ -12,6 +12,7 @@ import { AppButton } from '@/components/ui/button';
 import { DemoDataBanner } from '@/components/ui/demo-data-banner';
 import { FadeSlide, ScalePressable } from '@/components/ui/motion';
 import { ScreenHeader } from '@/components/ui/screen-header';
+import { FeedbackBanner } from '@/components/ui/feedback-banner';
 import { SkeletonBlock } from '@/components/ui/skeleton';
 import { StatePanel } from '@/components/ui/state-panel';
 import { StatusChip } from '@/components/ui/status-chip';
@@ -71,6 +72,7 @@ export default function CryptoScreen() {
     null,
   );
   const [busy, setBusy] = useState(false);
+  const [purchaseError, setPurchaseError] = useState('');
   const confirmationLock=useRef(false);
   const operationIdentity=useRef<{quoteId:string;key:string}|null>(null);
   const currentAsset =
@@ -102,6 +104,7 @@ export default function CryptoScreen() {
 
   const handleContinue = async () => {
     if (!currentNetwork) return;
+    setPurchaseError('');
     setBusy(true);
     try {
       if (operation === 'receive') {
@@ -135,10 +138,7 @@ export default function CryptoScreen() {
         );
       }
     } catch (error) {
-      Alert.alert(
-        'Could not continue',
-        error instanceof Error ? error.message : 'Try again safely.',
-      );
+      setPurchaseError(error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setBusy(false);
     }
@@ -146,6 +146,7 @@ export default function CryptoScreen() {
 
   const handleConfirm = async () => {
     if (!quote || confirmationLock.current) return;
+    setPurchaseError('');
     confirmationLock.current=true;
     setBusy(true);
     try {
@@ -171,12 +172,7 @@ export default function CryptoScreen() {
       setAmount('');
       setAddress('');
     } catch (error) {
-      Alert.alert(
-        'Transaction stopped safely',
-        error instanceof Error
-          ? error.message
-          : 'Check your activity before trying again.',
-      );
+      setPurchaseError(error instanceof Error ? error.message : 'Check your activity before trying again.');
     } finally {
       confirmationLock.current=false;
       setBusy(false);
@@ -199,6 +195,7 @@ export default function CryptoScreen() {
     >
       <ScreenHeader title="Crypto" />
       <DemoDataBanner />
+      {purchaseError ? <FeedbackBanner message={purchaseError} tone="error" /> : null}
 
       <LinearGradient
         colors={['#071E14', '#0B4829', '#1A7B4A']}

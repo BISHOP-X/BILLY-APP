@@ -155,6 +155,32 @@ function monthlyFixture() {
   };
   return {...f,route,snapshot};
 }
+Deno.test('Transaction lookup validates input, scopes to session owner and strips private user identity', async () => {
+  const f = fixture();
+  let calls = 0;
+  f.runtime.database.forTransactions = async (userId, ids) => {
+    calls++; assert.equal(userId, owner); assert.deepEqual(ids, [id]);
+    return [order];
+  };
+  const result = await handleNumberAction('numbers.for-transactions', { transactionIds: [id, id] }, { id: owner }, f.runtime);
+  assert.equal(calls, 1); assert(!JSON.stringify(result).includes('user_id'));
+  await assert.rejects(() => handleNumberAction('numbers.for-transactions', { transactionIds: ['invalid'] }, { id: owner }, f.runtime));
+  assert.equal(calls, 1);
+});
+Deno.test('Carrier lookup checks ownership before reading cached provider data', async () => {
+  const f = fixture();
+  f.runtime.pva!.carrier = async () => { f.trace.push('provider'); return 'THREE'; };
+  f.setContext({ order, route: { provider_id: rentalId, request: { serviceId, country: 'GB', duration: 30 } } });
+  const result = await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime);
+  assert.deepEqual(result.data, { carrier: 'THREE' });
+  assert.deepEqual(f.trace, ['internal_pva_context', 'provider']);
+  f.trace.length = 0;
+  assert.deepEqual((await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime)).data, { carrier: 'THREE' });
+  assert.deepEqual(f.trace, ['internal_pva_context']);
+  f.trace.length = 0;
+  await assert.rejects(() => handleNumberAction('numbers.carrier', { orderId: id }, { id: other }, f.runtime));
+  assert.deepEqual(f.trace, ['internal_pva_context']);
+});
 Deno.test('SMSBUS quote is owner bound, priced in kobo and contains no provider identifiers',async()=>{
   const f=monthlyFixture();
   const result=await handleNumberAction('numbers.market',{}, {id:owner},f.runtime) as {data:{services:{id:string;country:string;periodLabel?:string;prices:Record<string,number>}[]}};

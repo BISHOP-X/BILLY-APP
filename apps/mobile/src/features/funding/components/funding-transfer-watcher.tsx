@@ -2,6 +2,7 @@ import { FundingTransferStatus } from './funding-transfer-status';
 import { useFundingTransferMonitor } from '../use-funding-transfer-monitor';
 
 type FundingTransferWatcherProps = {
+  returnToPurchase?: boolean;
   currentFundingTransactionId: string | null;
   isRefreshing: boolean;
   onOpenDashboard: () => void;
@@ -9,6 +10,7 @@ type FundingTransferWatcherProps = {
 };
 
 export function FundingTransferWatcher({
+  returnToPurchase,
   currentFundingTransactionId,
   isRefreshing,
   onOpenDashboard,
@@ -22,6 +24,7 @@ export function FundingTransferWatcher({
 
   return (
     <FundingTransferStatus
+      returnToPurchase={returnToPurchase}
       isRefreshing={isRefreshing}
       onCheckAgain={monitor.checkAgain}
       onOpenDashboard={onOpenDashboard}

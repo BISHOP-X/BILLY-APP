@@ -11,7 +11,7 @@ import { handleExtendedNumberAction, rentalContext, refreshExtendedNumber } from
 import { applyNumberReceipt, failedAllocation, recordNumberReceipt, recoverNumber } from './number-recovery.ts';
 import type { PvaProvider } from '../providers/pvadeals.ts';
 import type { SmsbusProvider } from '../providers/smsbus.ts';
-import { handlePvaStore, refreshPvaNumber, smsRouting } from './pva-numbers.ts';
+import { handlePvaStore, refreshPvaNumber, smsRouting, rentalCarrier } from './pva-numbers.ts';
 
 export class OperationsError extends Error {
   constructor(
@@ -72,11 +72,17 @@ export type NumberClaim = {
 };
 export type NumberProviderKey = 'getatext' | 'daisysms';
 export interface NumberDatabase {
+  forTransactions?(userId: string, ids: string[]): Promise<NumberOrder[]>;
   rpc<T>(name: string, input: Record<string, unknown>): Promise<T>;
   orders(userId: string, page: number): Promise<NumberOrder[]>;
 }
 export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
   return {
+    async forTransactions(userId, ids) {
+      const { data, error } = await client.from('number_orders').select('*').eq('user_id', userId).in('transaction_id', ids);
+      if (error) throw new OperationsError(503, 'unavailable', 'Number details could not be loaded.');
+      return data as NumberOrder[];
+    },
     async rpc<T>(name: string, input: Record<string, unknown>) {
       const { data, error } = await client.rpc(name, input);
       if (error) {
@@ -317,6 +323,18 @@ export async function handleNumberAction(
       'US numbers are not available yet.',
     );
   const input = requestObject(value);
+  if (action === 'numbers.for-transactions') {
+    const ids = input.transactionIds;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 100 || ids.some((id) => typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)))
+      throw new OperationsError(400, 'invalid_request', 'Invalid transactions.');
+    if (!runtime.database.forTransactions) throw new OperationsError(503, 'unavailable', 'Number details unavailable.');
+    return { data: { orders: (await runtime.database.forTransactions(user.id, [...new Set(ids)])).map(publicOrder) } };
+  }
+  if (action === 'numbers.carrier') {
+    const id = requestText(input.orderId, 'Order', 36);
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new OperationsError(400, 'invalid_request', 'Invalid order.');
+    return { data: await rentalCarrier(runtime, user.id, id) };
+  }
   if (action === 'numbers.messages') {
     return { data: { messages: await runtime.database.rpc('internal_number_messages', {
       p_user_id: user.id, p_order_id: requestText(input.orderId, 'Order', 36), p_page: requestPage(input.page),

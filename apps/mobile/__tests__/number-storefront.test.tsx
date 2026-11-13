@@ -226,6 +226,7 @@ test('exactly 50 curated services precede the alphabetical remainder without inv
 test('service search keeps a fixed sheet and a flexible results area with one or zero matches', async () => {
   await mount();
   await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  expect(screen.getByLabelText('Search services').props.autoFocus).not.toBe(true);
   expect(screen.getByTestId('sms-picker-sheet')).toHaveStyle({ height: '93%', minHeight: 0 });
   expect(screen.getByTestId('sms-service-results')).toHaveStyle({ flex: 1, minHeight: 0 });
   expect(screen.getByText('Popular services')).toBeTruthy();

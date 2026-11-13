@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { AddFundsAction } from '@/features/funding/add-funds-action';
 import * as Crypto from 'expo-crypto';
 import { useDeferredValue, useMemo, useRef, useState } from 'react';
 import {
@@ -229,6 +230,7 @@ export default function SocialBoostScreen() {
       {feedback ? <View accessibilityLiveRegion="polite" style={[styles.quote,{backgroundColor:theme.colors.surface,borderColor:theme.colors.border}]}>
         <Text style={[styles.cardTitle,{color:theme.colors.text}]}>{feedback.title}</Text>
         <Text style={[styles.helper,{color:theme.colors.textMuted}]}>{feedback.message}</Text>
+        <AddFundsAction message={feedback.message} />
         {(feedback.buttons??[{text:'Dismiss'}]).map(button=><AppButton key={button.text} label={button.text} variant={button.style === 'destructive' ? 'danger' : 'ghost'} onPress={()=>{setFeedback(null);button.onPress?.();}}/>)}</View>:null}
 
       <View
