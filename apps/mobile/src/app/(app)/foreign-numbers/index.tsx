@@ -1,4 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { RentalCountdown } from '@/features/numbers/rental-countdown';
+import { SmsSound } from '@/features/numbers/sms-sound';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
@@ -357,13 +359,15 @@ export default function ForeignNumbersScreen() {
               icon="chatbubbles-outline"
             />
           ) : null}
+          <SmsSound key={user?.id} orders={orders.data?.orders ?? []} />
           {orders.data?.orders.map((o) => (
             <View key={o.id} style={card}>
               <View style={styles.service}>
                 <ServiceAvatar name={o.service_name} size={40} />
                 <Text style={[styles.heading, styles.serviceText, text]}>{o.service_name}</Text>
               </View>
-              <StatusChip {...numberOrderStatus(o)} />
+              {!(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <StatusChip {...numberOrderStatus(o)} /> : null}
+              <RentalCountdown order={o} />
               <Text style={[styles.body, muted]}>
                 {formatMinorUnits(o.amount_minor + o.fee_minor, 'NGN')} ·{' '}
                 {new Date(o.created_at).toLocaleDateString()}
@@ -401,7 +405,7 @@ export default function ForeignNumbersScreen() {
                   />
                 </View>
               ) : null}
-              <Text style={[styles.body, muted]}>{o.status_message}</Text>
+              {!(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <Text style={[styles.body, muted]}>{o.status_message}</Text> : null}
               {numberRefundMinor(o) > 0 ? (
                 <Text style={[styles.body, { color: theme.dark ? '#D0B7FF' : '#6D28D9' }]}>
                   {formatMinorUnits(numberRefundMinor(o), 'NGN')} returned to your Billy wallet.

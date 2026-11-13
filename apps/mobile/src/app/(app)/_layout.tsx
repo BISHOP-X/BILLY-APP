@@ -1,12 +1,15 @@
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { Redirect, Stack } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { numberRepository } from '@/features/numbers/repository';
+import { mainQueryKeys } from '@/features/main/queries';
+import { billyMainRepository, isBillyDevDemo } from '@/features/main/repository';
 import { Platform } from 'react-native';
 
 import { getAccountStateRevision, getMyAccountState } from '@/features/auth/auth-api';
 import { useAuth } from '@/features/auth/auth-provider';
 import { setupDestinationForStep } from '@/features/auth/onboarding-routing';
-import { isBillyDevDemo } from '@/features/main/repository';
 import { invokeAction } from '@/features/services/supabase-service-repository';
 import { AppGateScreen } from '@/features/security/app-gate-screen';
 import { useAppLock } from '@/features/security/app-lock';
@@ -24,6 +27,15 @@ export default function AppLayout() {
   const { signOut, status, user } = useAuth();
   const { status: lockStatus } = useAppLock();
   const userId = user?.id;
+  const queryClient = useQueryClient();
+  // Start independent reads together, not after the account gate and route mount.
+  // Memory-only keys are account-scoped and cleared on sign-out/account changes.
+  useEffect(() => {
+    if (status !== 'authenticated' || !userId || isBillyDevDemo) return;
+    void queryClient.prefetchQuery({ queryKey: mainQueryKeys.dashboard(userId), queryFn: () => billyMainRepository.getDashboard() });
+    void queryClient.prefetchQuery({ queryKey: ['numbers', userId, 'store'], queryFn: numberRepository.store, staleTime: 30_000 });
+    void queryClient.prefetchQuery({ queryKey: ['numbers', userId, 'market'], queryFn: numberRepository.market, staleTime: 180_000, gcTime: 60 * 60_000 });
+  }, [status, userId, queryClient]);
   // Memory-only and account-scoped. A cached complete account renders immediately;
   // background checks never replace usable page content with a second splash.
   const account = useQuery({
@@ -38,7 +50,7 @@ export default function AppLayout() {
     },
     staleTime: 30_000,
     // Setup/legal writes change the revision in the key before returning here.
-    gcTime: 5 * 60_000,
+    gcTime: 60 * 60_000,
   });
   const profileState = account.data;
 

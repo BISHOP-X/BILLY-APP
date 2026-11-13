@@ -20,7 +20,7 @@ import {
   billyMainRepository,
 } from './repository';
 
-const keys = {
+export const mainQueryKeys = {
   activity: (userId: string) =>
     ['main', billyDataSource, billyDemoScenario, userId, 'activity'] as const,
   dashboard: (userId: string) =>
@@ -30,6 +30,7 @@ const keys = {
   transaction: (userId: string, id: string) =>
     ['main', billyDataSource, billyDemoScenario, userId, 'transaction', id] as const,
 };
+const keys = mainQueryKeys;
 
 export function useDashboardQuery() {
   const { user } = useAuth();

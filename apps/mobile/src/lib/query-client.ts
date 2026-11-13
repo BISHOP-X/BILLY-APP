@@ -6,7 +6,7 @@ export function createBillyQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        gcTime: 10 * 60_000,
+        gcTime: 30 * 60_000,
         refetchOnMount: true,
         refetchOnReconnect: true,
         staleTime: 30_000,

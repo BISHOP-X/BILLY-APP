@@ -49,7 +49,7 @@ export function RentalTools(
       {order.rental_end
         ? (
           <Text style={{ color: theme.colors.textMuted }}>
-            Rental end: {order.rental_end.split(/[ T]/)[0]}
+            Rental end: {new Date(order.rental_end).toLocaleString()}
           </Text>
         )
         : null}

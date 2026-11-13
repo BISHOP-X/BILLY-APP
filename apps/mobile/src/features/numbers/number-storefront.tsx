@@ -89,6 +89,7 @@ export function NumberStorefront(
     queryKey: ["numbers", user?.id, "market"],
     queryFn: numberRepository.market,
     staleTime: 180_000,
+    gcTime: 60 * 60_000,
     retry: 1,
   });
   const locations = useQuery({
