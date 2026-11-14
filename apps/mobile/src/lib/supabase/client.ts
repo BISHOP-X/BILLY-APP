@@ -68,7 +68,9 @@ export const supabase = createClient<Database>(
       autoRefreshToken: true,
       detectSessionInUrl: false,
       flowType: 'pkce',
-      lock: processLock,
+      // Browser auth-js coordinates refreshes across tabs itself. A custom
+      // process-only lock opts out of that path; it is for native clients.
+      ...(Platform.OS !== 'web' ? { lock: processLock } : {}),
       persistSession: true,
       storage: authStorage,
       storageKey: AUTH_STORAGE_KEY,

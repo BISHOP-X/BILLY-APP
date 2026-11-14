@@ -6,12 +6,14 @@ import type {
 } from '@supabase/supabase-js';
 import {
   createContext,
+  useCallback,
   type PropsWithChildren,
   useContext,
   useEffect,
   useMemo,
   useState,
 } from 'react';
+import { AppState, Platform } from 'react-native';
 
 import { retainAuthAutoRefresh, supabase } from '@/lib/supabase/client';
 
@@ -30,6 +32,8 @@ import {
 export type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 
 type AuthContextValue = {
+  sessionRecoveryError: boolean;
+  retrySessionRestore: () => void;
   authEvent: AuthChangeEvent | null;
   isAuthenticated: boolean;
   refreshSession: () => Promise<Session | null>;
@@ -127,15 +131,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [authEvent, setAuthEvent] = useState<AuthChangeEvent | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<AuthStatus>('loading');
+  const [sessionRecoveryError, setSessionRecoveryError] = useState(false);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const retrySessionRestore = useCallback(() => {
+    setSessionRecoveryError(false);
+    setRestoreAttempt((attempt) => attempt + 1);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
     let authEventVersion = 0;
     let previousUserId: string | undefined;
+    let recoveryPending = false;
+    let restoring = false;
+    let retryCount = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const releaseAutoRefresh = retainAuthAutoRefresh();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // Auth-js also emits INITIAL_SESSION(null) after a network/storage error.
+      // Only getSession's successful empty result proves there is no session.
+      if (event === 'INITIAL_SESSION' && !nextSession) return;
       authEventVersion += 1;
 
       if (!mounted) {
@@ -146,40 +163,65 @@ export function AuthProvider({ children }: PropsWithChildren) {
         queryClient.clear();
       }
       previousUserId = nextSession?.user.id;
+      recoveryPending = false;
+      clearTimeout(retryTimer);
+      setSessionRecoveryError(false);
       setAuthEvent(event);
       setSession(nextSession);
       setStatus(nextSession ? 'authenticated' : 'unauthenticated');
     });
-    const versionBeforeSessionRead = authEventVersion;
-
-    void supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
+    async function restoreSession() {
+      if (!mounted || restoring) return;
+      restoring = true;
+      const versionBeforeSessionRead = authEventVersion;
+      try {
+        const { data, error } = await supabase.auth.getSession();
         if (!mounted || authEventVersion !== versionBeforeSessionRead) {
           return;
         }
-
-        setSession(error ? null : data.session);
-        setStatus(data.session && !error ? 'authenticated' : 'unauthenticated');
-      })
-      .catch(() => {
+        if (error) throw error;
+        recoveryPending = false;
+        setSessionRecoveryError(false);
+        setSession(data.session);
+        setStatus(data.session ? 'authenticated' : 'unauthenticated');
+      } catch {
         if (!mounted || authEventVersion !== versionBeforeSessionRead) {
           return;
         }
-
-        setSession(null);
-        setStatus('unauthenticated');
-      });
+        // Do not convert a failed refresh into a logout, erase stored tokens,
+        // or authenticate from unverified cached credentials. Show retry UI.
+        recoveryPending = true;
+        setSessionRecoveryError(true);
+        if (retryCount++ < 2) retryTimer = setTimeout(() => void restoreSession(), 3_000);
+      } finally {
+        restoring = false;
+      }
+    }
+    const resumeRecovery = () => {
+      if (!recoveryPending) return;
+      clearTimeout(retryTimer);
+      void restoreSession();
+    };
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') resumeRecovery();
+    });
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.addEventListener('online', resumeRecovery);
+    void restoreSession();
 
     return () => {
       mounted = false;
+      clearTimeout(retryTimer);
+      appState.remove();
+      if (Platform.OS === 'web' && typeof window !== 'undefined') window.removeEventListener('online', resumeRecovery);
       subscription.unsubscribe();
       releaseAutoRefresh();
     };
-  }, [queryClient]);
+  }, [queryClient, restoreAttempt]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
+      sessionRecoveryError,
+      retrySessionRestore,
       authEvent,
       isAuthenticated: status === 'authenticated',
       refreshSession,
@@ -194,7 +236,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       status,
       user: session?.user ?? null,
     }),
-    [authEvent, session, status],
+    [authEvent, session, status, sessionRecoveryError, retrySessionRestore],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -27,6 +27,8 @@ import { FatalErrorScreen } from '@/components/ui/fatal-error-screen';
 import { AppearanceProvider, useAppearance } from '@/theme/appearance-provider';
 import { syncWebViewport } from '@/lib/web-viewport';
 import { appNavigationTrail } from '@/lib/back-navigation';
+import { AppGateScreen } from '@/features/security/app-gate-screen';
+import { AppBootScreen } from '@/components/ui/app-boot-screen';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
@@ -73,14 +75,14 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 
 function SplashController() {
   const { ready } = useAppearance();
-  const { status: authStatus } = useAuth();
+  const { status: authStatus, sessionRecoveryError } = useAuth();
   const { status: lockStatus } = useAppLock();
 
   useEffect(() => {
-    if (ready && authStatus !== 'loading' && lockStatus !== 'loading') {
+    if (ready && (sessionRecoveryError || (authStatus !== 'loading' && lockStatus !== 'loading'))) {
       SplashScreen.hideAsync().catch(() => undefined);
     }
-  }, [authStatus, lockStatus, ready]);
+  }, [authStatus, lockStatus, ready, sessionRecoveryError]);
 
   return null;
 }
@@ -89,12 +91,13 @@ function RootNavigator() {
   const theme = useBillyTheme();
   const segments = useSegments();
   const pathname = usePathname();
-  const { status: authStatus, user } = useAuth();
+  const { status: authStatus, user, sessionRecoveryError, retrySessionRestore } = useAuth();
   useEffect(() => {
     appNavigationTrail.record(pathname, user?.id ?? null, segments[0] === '(app)' || segments[0] === 'admin');
   }, [pathname, user?.id, segments]);
   const { status: lockStatus } = useAppLock();
   const isUnlockRoute = segments[0] === 'unlock';
+  const isSignInEntry = ['/sign-in', '/sign-up', '/welcome'].includes(pathname);
   const mustUnlock =
     !isBillyDevDemo &&
     authStatus === 'authenticated' &&
@@ -106,8 +109,19 @@ function RootNavigator() {
       <StatusBar style={theme.dark ? 'light' : 'dark'} />
       <WebBootstrapController />
       <SplashController />
-      {mustUnlock ? (
+      {sessionRecoveryError && authStatus === 'loading' ? (
+        <AppGateScreen
+          title="Let’s reconnect"
+          subtitle="Check your connection to continue with your saved sign-in."
+          error="We couldn’t restore your session yet."
+          onRetry={retrySessionRestore}
+        />
+      ) : mustUnlock ? (
         <Redirect href="/unlock" />
+      ) : isSignInEntry && authStatus === 'loading' ? (
+        <AppBootScreen onRetry={retrySessionRestore} />
+      ) : isSignInEntry && authStatus === 'authenticated' ? (
+        <Redirect href="/" />
       ) : (
         <Stack
           screenOptions={{
