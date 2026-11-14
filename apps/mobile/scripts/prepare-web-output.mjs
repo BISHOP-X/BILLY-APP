@@ -18,6 +18,16 @@ const appearanceBootstrap = `(function () {
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   document.documentElement.style.setProperty('--billy-canvas', dark ? '#0C1511' : '#F5F6F3');
   document.querySelector('meta[name="theme-color"]').content = dark ? '#0C1511' : '#F5F6F3';
+  setTimeout(function () {
+    if (document.documentElement.dataset.billyReady === 'true') return;
+    var boot = document.getElementById('billy-bootstrap');
+    if (!boot) return;
+    var retry = document.createElement('button');
+    retry.textContent = 'Taking longer than usual. Tap to reload';
+    retry.style.cssText = 'pointer-events:auto;padding:16px;border:1px solid #76877d;border-radius:16px;background:var(--billy-canvas);color:' + (dark ? '#f5faf7' : '#14251b');
+    retry.addEventListener('click', function () { location.reload(); });
+    boot.appendChild(retry);
+  }, 15000);
 })();`;
 const appearanceScript = `appearance-${createHash('sha256').update(appearanceBootstrap).digest('hex').slice(0, 16)}.js`;
 

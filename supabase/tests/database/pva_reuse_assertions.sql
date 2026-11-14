@@ -1,0 +1,56 @@
+do $$
+declare u uuid:='a7140000-0000-4000-8000-000000000001'; other uuid:='a7140000-0000-4000-8000-000000000002';
+ consent jsonb; o public.number_orders; ctx jsonb; receipt bigint; r jsonb; before_balance bigint; failed boolean;
+begin
+ assert not exists(select 1 from auth.users where id in(u,other));
+ select jsonb_build_object('terms_version',terms_version,'privacy_version',privacy_version,'legal_consent_source','billy_mobile_signup') into consent from private.legal_document_configuration where singleton;
+ insert into auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+ values(u,'authenticated','authenticated','reuse-owner@example.test',now(),'{"provider":"email"}',consent,now(),now()),
+ (other,'authenticated','authenticated','reuse-other@example.test',now(),'{"provider":"email"}',consent,now(),now());
+ update private.sms_routing set primary_provider='pvadeals';
+ update private.service_execution_modes set execution_mode='live' where service_key='foreign_numbers';
+ update public.service_availability set status='available' where service_key='foreign_numbers';
+ update public.feature_flags set enabled=true,rollout_mode='all' where key=(select feature_key from public.service_availability where service_key='foreign_numbers');
+ update public.wallets set balance_minor=1000000 where user_id=u and currency='NGN';
+ update private.provider_operation_limits set next_request_at=now()-interval '1 minute';
+ assert not has_table_privilege('authenticated','private.pva_reuses','select');
+ assert not has_function_privilege('anon','public.internal_pva_reuse_begin(uuid,uuid,text,jsonb)','execute');
+ assert not has_function_privilege('authenticated','public.internal_pva_reuse_apply(uuid,uuid,jsonb)','execute');
+ assert has_function_privilege('service_role','public.internal_pva_reuse_apply(uuid,uuid,jsonb)','execute');
+ o:=public.internal_pva_create(u,'{"request":{"serviceId":"697139f4fe5460ddc2f271c2","country":"US","duration":0},"name":"Synthetic reuse","amountMinor":10000,"feeMinor":0,"maximumMicroUsd":100000,"idempotencyKey":"reuse-fixture-create"}');
+ ctx:=public.internal_pva_context(u,o.id,true);
+ receipt:=public.internal_pva_record(u,o.id,(ctx->>'claimToken')::uuid,'{"state":"received","rentalId":"aaaaaaaaaaaaaaaaaaaaaaaa","phoneNumber":"+12025550101","expiresAt":"2099-01-01T00:00:00Z","priceMicroUsd":100000,"code":"123456","digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}',null);
+ o:=public.internal_pva_apply(u,o.id,receipt);
+ select balance_minor into before_balance from public.wallets where user_id=u and currency='NGN';
+ failed:=false; begin perform public.internal_pva_reuse_state(other,o.id); exception when no_data_found then failed:=true; end; assert failed,'Owner check';
+ r:=public.internal_pva_reuse_begin(u,o.id,'reuse-free-synthetic','{"counter":0,"baseline":[],"maximumMicroUsd":0,"amountMinor":0,"feeMinor":0}');
+ assert r->>'transaction_id' is null,'Free reuse has no artificial debit';
+ assert not (public.internal_pva_context(u,o.id,true,true)->>'claimed')::boolean,'Pending reuse blocks competing cancellation/status claims';
+ assert not (select cancel_requested from public.number_orders where id=o.id),'Cancellation cannot race reuse';
+ assert public.internal_pva_reuse_dispatch(u,(r->>'id')::uuid);
+ assert not public.internal_pva_reuse_dispatch(u,(r->>'id')::uuid),'No duplicate POST';
+ r:=public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"confirmed","providerId":"aaaaaaaaaaaaaaaaaaaaaaaa","counter":1,"phoneNumber":"+12025550101","actualMicroUsd":0,"expiresAt":"2099-01-02T00:00:00Z"}');
+ assert r->>'state'='confirmed';
+ assert (select sms_code is null and status='waiting' and not can_cancel from public.number_orders where id=o.id),'Reuse clears previous code without promising a second refund';
+ assert (select balance_minor=before_balance and reserved_minor=0 from public.wallets where user_id=u and currency='NGN');
+ r:=public.internal_pva_reuse_begin(u,o.id,'reuse-paid-synthetic','{"counter":1,"baseline":[],"maximumMicroUsd":500000,"amountMinor":70000,"feeMinor":0}');
+ assert (select reserved_minor=70000 from public.wallets where user_id=u and currency='NGN');
+ assert public.internal_pva_reuse_begin(u,o.id,'reuse-paid-synthetic','{}')->>'id'=r->>'id','Idempotent reservation';
+ assert public.internal_pva_reuse_dispatch(u,(r->>'id')::uuid);
+ r:=public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"confirmed","providerId":"aaaaaaaaaaaaaaaaaaaaaaaa","counter":2,"phoneNumber":"+12025550101","actualMicroUsd":500000,"expiresAt":"2099-01-03T00:00:00Z"}');
+ assert r->>'state'='confirmed';
+ perform public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"confirmed"}');
+ assert (select balance_minor=before_balance-70000 and reserved_minor=0 from public.wallets where user_id=u and currency='NGN'),'Single debit';
+ r:=public.internal_pva_reuse_begin(u,o.id,'reuse-fail-synthetic','{"counter":2,"baseline":[],"maximumMicroUsd":500000,"amountMinor":70000,"feeMinor":0}');
+ assert public.internal_pva_reuse_dispatch(u,(r->>'id')::uuid);
+ r:=public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"rejected","undispatched":true}');
+ assert r->>'state'='pending','A late abandon check cannot release a dispatched purchase';
+ r:=public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"rejected"}');
+ assert (select balance_minor=before_balance-70000 and reserved_minor=0 from public.wallets where user_id=u and currency='NGN'),'Confirmed failure releases hold';
+ r:=public.internal_pva_reuse_begin(u,o.id,'reuse-risk-synthetic','{"counter":2,"baseline":[],"maximumMicroUsd":500000,"amountMinor":70000,"feeMinor":0}');
+ assert public.internal_pva_reuse_dispatch(u,(r->>'id')::uuid);
+ r:=public.internal_pva_reuse_apply(u,(r->>'id')::uuid,'{"state":"confirmed","providerId":"aaaaaaaaaaaaaaaaaaaaaaaa","counter":3,"phoneNumber":"+12025550101","actualMicroUsd":900000,"expiresAt":"2099-01-04T00:00:00Z"}');
+ assert r->>'state'='review','Unexpected provider charge cannot silently debit more';
+ assert (select balance_minor=before_balance-70000 and reserved_minor=70000 from public.wallets where user_id=u and currency='NGN');
+ assert position('internal_pva_reuse_due' in pg_get_functiondef('private.schedule_provider_reconciliation()'::regprocedure))>0;
+end; $$;

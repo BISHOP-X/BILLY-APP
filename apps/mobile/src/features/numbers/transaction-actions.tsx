@@ -7,6 +7,7 @@ import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { numberRepository, type NumberOrder } from './repository';
 import { numberRefundMinor } from '@/features/services/order-status';
 import { formatMinorUnits } from '@/features/wallet/money';
+import { cacheNumberOrder } from './order-cache';
 
 export function useTransactionNumbers(transactionIds: string[]) {
   const { user } = useAuth();
@@ -30,6 +31,7 @@ export function canCancelNumber(order: NumberOrder) {
 }
 
 export function NumberCancelAction({ order }: { order: NumberOrder }) {
+  const { user } = useAuth();
   const qc = useQueryClient(), { colors } = useBillyTheme();
   const [confirm, setConfirm] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   const lock = useRef(false);
@@ -39,6 +41,7 @@ export function NumberCancelAction({ order }: { order: NumberOrder }) {
     lock.current = true; setBusy(true); setMessage('');
     try {
       const result = await numberRepository.cancel(order.id);
+      await cacheNumberOrder(qc, user?.id, result);
       setConfirm(false); setMessage(result.status_message);
       await Promise.all([qc.invalidateQueries({ queryKey: ['numbers'] }), qc.invalidateQueries({ queryKey: ['main'] })]);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not confirm cancellation. Please try again.'); }

@@ -14,6 +14,8 @@ import {
   requestText,
 } from "./number-service.ts";
 import { retryNumberWrite } from "./number-recovery.ts";
+import { internalTestCarrier } from './test-carriers.ts';
+import { reconcilePvaReuse } from './pva-reuse.ts';
 
 export type SmsRouting = {
   primary_provider: "pvadeals" | "getatext" | "off";
@@ -55,16 +57,19 @@ const carrierCache = new Map<string, { carrier: string | null; expires: number }
 export async function rentalCarrier(runtime: NumberRuntime, userId: string, orderId: string) {
   // Ownership is checked before cache access; no provider IDs reach the client.
   const context = await runtime.database.rpc<Context | null>('internal_pva_context', { p_user_id: userId, p_order_id: orderId });
-  if (!context?.route?.provider_id || isSmsbus(context.route.request) || !runtime.pva?.carrier) return { carrier: null };
+  const fixture = () => ({ carrier: runtime.internalTestCarriers && context?.order.phone_number ? internalTestCarrier(context.order.country_code, context.order.phone_number) : null, source: 'internal_test' });
+  if (!context?.route?.provider_id || isSmsbus(context.route.request) || !runtime.pva?.carrier) return fixture();
   // The database catalogue cache intentionally accepts catalogue keys only.
   // This optional display field uses a bounded warm-instance cache instead.
   const key = `${orderId}:${context.route.provider_id}`;
   const hit = carrierCache.get(key);
-  if (hit && hit.expires > Date.now()) return { carrier: hit.carrier };
-  const carrier = await runtime.pva.carrier(context.route.provider_id);
+  if (hit && hit.expires > Date.now()) return hit.carrier ? { carrier: hit.carrier, source: 'provider' } : fixture();
+  let carrier: string | null;
+  try { carrier = await runtime.pva.carrier(context.route.provider_id); }
+  catch (error) { if (runtime.internalTestCarriers) return fixture(); throw error; }
   if (carrierCache.size >= 1000) carrierCache.delete(carrierCache.keys().next().value!);
   carrierCache.set(key, { carrier, expires: Date.now() + 300_000 });
-  return { carrier };
+  return carrier ? { carrier, source: 'provider' } : fixture();
 }
 
 async function cached<T>(
@@ -165,7 +170,13 @@ async function catalog(runtime: NumberRuntime) {
     }),
   ]);
   const excluded = new Set(disabled.map((r) => r.item_id));
-  return [...rows, ...plans, ...monthly].filter((s) =>
+  return [...rows, ...plans, ...monthly].map((s) => {
+    // Owner suspension, not a provider capability change. Existing rentals keep
+    // their original route; reject even still-cached 28-day offers for new sales.
+    if (s.country !== 'US') return s;
+    const prices = { ...s.prices }; delete prices['28'];
+    return { ...s, prices };
+  }).filter((s) =>
     !excluded.has(s.id) && !excluded.has(`pvadeals.${s.id}`) &&
     Object.keys(s.prices).length
   );
@@ -307,6 +318,7 @@ export async function handlePvaStore(
       "pva_number_quote",
       userId,
     );
+    if (quote.request.country === 'US' && quote.request.duration === 28) throw fail('This rental is no longer available. Choose another duration.');
     const created = await runtime.database.rpc<NumberOrder>(
       "internal_pva_create",
       { p_user_id: userId, p_input: { ...quote, idempotencyKey: key } },
@@ -329,6 +341,11 @@ export async function refreshPvaNumber(
   cancel = false,
 ): Promise<NumberOrder | undefined> {
   if (!runtime.pva) return undefined;
+  const reuse = await reconcilePvaReuse(runtime, userId, orderId);
+  if (reuse && ['pending','review'].includes(reuse.state)) {
+    const held = await runtime.database.rpc<Context>('internal_pva_context', {p_user_id:userId,p_order_id:orderId});
+    return {...held.order, status_message: 'Confirming number reuse. Please do not submit another request.'};
+  }
   const context = await runtime.database.rpc<Context | null>(
     "internal_pva_context",
     {

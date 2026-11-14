@@ -5,7 +5,7 @@ import type { NumberOrder } from './repository';
 
 export function rentalClock(order: NumberOrder, now: number) {
   const end = Date.parse(order.expires_at ?? order.rental_end ?? '');
-  if (order.rental_kind !== 'short' || !Number.isFinite(end) || order.rental_closed || ['cancelled', 'failed'].includes(order.status)) return null;
+  if (order.rental_kind !== 'short' || !Number.isFinite(end) || order.rental_closed || order.cancel_requested || (order.refund_minor ?? 0) > 0 || ['cancelled', 'failed'].includes(order.status)) return null;
   const seconds = Math.max(0, Math.ceil((end - now) / 1000));
   return { seconds, label: `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`, progress: Math.min(1, seconds / 1200) };
 }

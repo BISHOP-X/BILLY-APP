@@ -12,6 +12,7 @@ import { applyNumberReceipt, failedAllocation, recordNumberReceipt, recoverNumbe
 import type { PvaProvider } from '../providers/pvadeals.ts';
 import type { SmsbusProvider } from '../providers/smsbus.ts';
 import { handlePvaStore, refreshPvaNumber, smsRouting, rentalCarrier } from './pva-numbers.ts';
+import { handlePvaReuse } from './pva-reuse.ts';
 
 export class OperationsError extends Error {
   constructor(
@@ -125,6 +126,7 @@ export function createNumberDatabase(client: SupabaseClient): NumberDatabase {
   };
 }
 export type NumberRuntime = {
+  internalTestCarriers?: boolean;
   pva?: PvaProvider;
   smsbus?: SmsbusProvider;
   receiptCipher?: { encrypt(value: unknown): Promise<string> };
@@ -335,6 +337,7 @@ export async function handleNumberAction(
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new OperationsError(400, 'invalid_request', 'Invalid order.');
     return { data: await rentalCarrier(runtime, user.id, id) };
   }
+  if (['numbers.reuse.preview','numbers.reuse.confirm','numbers.reuse.status'].includes(action)) return handlePvaReuse(action,input,user.id,runtime);
   if (action === 'numbers.messages') {
     return { data: { messages: await runtime.database.rpc('internal_number_messages', {
       p_user_id: user.id, p_order_id: requestText(input.orderId, 'Order', 36), p_page: requestPage(input.page),

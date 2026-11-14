@@ -5,6 +5,7 @@ import { AppState, Platform } from 'react-native';
 
 import type { Database } from './database.types';
 import { AUTH_STORAGE_KEY, authStorage } from './secure-storage';
+import { createBoundedFetch } from '@/lib/bounded-fetch';
 
 const BILLY_PROJECT_REF = 'omsrzwwudskxpkyynnxw';
 const BILLY_PROJECT_HOST = `${BILLY_PROJECT_REF}.supabase.co`;
@@ -73,6 +74,7 @@ export const supabase = createClient<Database>(
       storageKey: AUTH_STORAGE_KEY,
     },
     global: {
+      fetch: createBoundedFetch(fetch),
       headers: {
         'X-Client-Info': 'billy-mobile/1.0.0',
       },

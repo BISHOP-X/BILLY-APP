@@ -14,6 +14,8 @@ test('authoritative expiry survives reopening and clamps at zero', () => {
   expect(rentalClock({ ...order, expires_at: 'invalid' }, now)).toBeNull();
   expect(rentalClock({ ...order, rental_kind: 'general' }, now)).toBeNull();
   expect(rentalClock({ ...order, status: 'cancelled' }, now)).toBeNull();
+  expect(rentalClock({ ...order, cancel_requested: true }, now)).toBeNull();
+  expect(rentalClock({ ...order, refund_minor: 100 }, now)).toBeNull();
 });
 test('expired timer never claims a refund or refunds a received code', async () => {
   jest.useFakeTimers(); jest.setSystemTime(now + 1_199_000);

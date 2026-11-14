@@ -139,7 +139,7 @@ Deno.serve(async (request) => {
     failed = 0;
   type Due = { user_id: string; order_id: string };
   try {
-    const [n, s, f, k, w, c, p, r, pn] = await Promise.all([
+    const [n, s, f, k, w, c, p, r, pn, reuse] = await Promise.all([
       numbers.adapter
         ? client.rpc('internal_number_due', { p_limit: 40 })
         : Promise.resolve({ data: [], error: null }),
@@ -157,8 +157,9 @@ Deno.serve(async (request) => {
       cardsRuntime?client.rpc('internal_asset_settlement_due',{p_service:'cards',p_limit:20}):Promise.resolve({data:[],error:null}),
       commerce.adapter?client.rpc('internal_commerce_due',{p_limit:20}):Promise.resolve({data:[],error:null}),
       numbers.pva ? client.rpc('internal_pva_due', {p_limit:20}) : Promise.resolve({data:[],error:null}),
+      numbers.pva ? client.rpc('internal_pva_reuse_due', {p_limit:20}) : Promise.resolve({data:[],error:null}),
     ]);
-    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error || r.error || pn.error) throw new Error('Queue unavailable');
+    if (n.error || s.error || f.error || k.error || w.error || c.error || p.error || r.error || pn.error || reuse.error) throw new Error('Queue unavailable');
     const queue = [
       ...(w.data as Due[]).map(row=>({...row,type:'withdrawal'})),
       ...(r.data as Due[]).map(row=>({...row,type:'commerce'})),
@@ -206,7 +207,7 @@ Deno.serve(async (request) => {
     }
     // One paced lane for PVA. Sending all due reads concurrently would spend
     // the account-wide status lease on the first row and starve the remainder.
-    const pvaQueue = [...pn.data as Due[]];
+    const pvaQueue = [...new Map([...(reuse.data as Due[]),...(pn.data as Due[])].map(row=>[row.order_id,row])).values()];
     async function runPva() {
       while (pvaQueue.length && Date.now() - started < 48_000) {
         const item = pvaQueue.shift()!;

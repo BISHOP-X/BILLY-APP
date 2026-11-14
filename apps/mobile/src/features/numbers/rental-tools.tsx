@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { useBillyTheme } from '@/hooks/use-billy-theme';
 import { type NumberOrder, numberRepository } from './repository';
 import type { RentalMode } from './rental-options';
+import { ReuseAction } from './reuse-action';
 
 export function RentalTools(
   { order, onOptions }: {
@@ -46,6 +47,7 @@ export function RentalTools(
   }
   return (
     <View style={styles.stack}>
+      <ReuseAction order={order} />
       {order.rental_end
         ? (
           <Text style={{ color: theme.colors.textMuted }}>

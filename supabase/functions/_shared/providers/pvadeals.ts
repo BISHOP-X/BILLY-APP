@@ -15,7 +15,9 @@ export type PvaSelection = {
   country: string;
   duration: number;
   state?: string;
+  reuseBaselineMessageIds?: string[];
 };
+export type PvaReuseSnapshot = { counter: number; allowed: boolean; messageIds: string[]; outcome: PvaOutcome };
 export type PvaOutcome = {
   state:
     | "allocated"
@@ -42,6 +44,9 @@ export type PvaOutcome = {
 };
 export type PvaReply = { outcome: PvaOutcome; raw: string };
 export interface PvaProvider {
+  reusePreview?(id: string): Promise<number>;
+  reuseSnapshot?(id: string, selection: PvaSelection): Promise<PvaReuseSnapshot>;
+  reuse?(id: string, selection: PvaSelection): Promise<PvaReply & { counter: number }>;
   carrier?(id: string): Promise<string | null>;
   services(): Promise<PvaService[]>;
   plans(): Promise<PvaService[]>;
@@ -153,7 +158,9 @@ export function normalizePvaRequest(
   const priceMicroUsd = usdMicros(row.amount);
   if (priceMicroUsd === undefined) return unknown;
   const status = row.status;
-  const messages = (Array.isArray(row.codes) ? row.codes : []).slice(-100)
+  const baseline = new Set(expected.reuseBaselineMessageIds ?? []);
+  const codes = (Array.isArray(row.codes) ? row.codes : []).filter(raw => !baseline.has(String(record(raw)._id)));
+  const messages = codes.slice(-100)
     .flatMap((raw) => {
       const m = record(raw);
       if (
@@ -169,7 +176,7 @@ export function normalizePvaRequest(
         receivedAt: iso(m.createdAt) ?? null,
       }];
     });
-  const pins = (Array.isArray(row.codes) ? row.codes : []).flatMap((raw) => {
+  const pins = codes.flatMap((raw) => {
     const m = record(raw);
     return m.requestId === rentalId &&
         ["string", "number"].includes(typeof m.pin) && String(m.pin).trim()
@@ -180,12 +187,13 @@ export function normalizePvaRequest(
   // infer this from TIMEOUT alone: live TIMEOUT rows can have received SMS.
   // LTR has a separate flag window; no automatic full refund is inferred there.
   if (status === "FLAGGED") {
+    if (expected.reuseBaselineMessageIds) return unknown;
     return messages.length || Number(row.messageCounter) > 0
       ? unknown
       : { state: "cancelled", rentalId };
   }
   if (
-    status === "TIMEOUT" && !expected.duration && row.messageCounter === 0 &&
+    status === "TIMEOUT" && !expected.duration && !expected.reuseBaselineMessageIds && row.messageCounter === 0 &&
     Array.isArray(row.codes) && row.codes.length === 0 && iso(row.endTime) &&
     Date.parse(String(row.endTime)) <= Date.now()
   ) {
@@ -212,12 +220,33 @@ export function normalizePvaRequest(
     expiresAt,
     messages,
     ...(code ? { code } : {}),
-    canCancel: row.allowFlag === true && !messages.length && !code &&
+    canCancel: !expected.reuseBaselineMessageIds && row.allowFlag === true && !messages.length && !code &&
       !Number(row.messageCounter),
   };
 }
 
 export class PvadealsAdapter implements PvaProvider {
+  async reusePreview(id: string): Promise<number> {
+    if (!/^[a-f0-9]{24}$/.test(id)) throw new NumberProviderError(false, 'Invalid rental.');
+    const data = record((await this.call(`reuse/${id}/preview`)).data);
+    const cost = usdMicros(data.cost);
+    if (data.requestId !== id || data.currency !== 'USD' || cost === undefined || data.chargeable !== (cost > 0)) throw new NumberProviderError(false, 'Reuse pricing is unavailable.');
+    return cost;
+  }
+  async reuseSnapshot(id: string, selection: PvaSelection): Promise<PvaReuseSnapshot> {
+    if (!/^[a-f0-9]{24}$/.test(id) || selection.duration !== 0) throw new NumberProviderError(false, 'Only short rentals can be reused.');
+    const row = record((await this.call(`request/${id}`)).data);
+    const outcome = normalizePvaRequest(row, selection, id), counter = Number(row.reuseCounter);
+    if (outcome.state === 'unknown' || !Number.isSafeInteger(counter) || counter < 0 || !Array.isArray(row.codes)) throw new NumberProviderError(false, 'Reuse availability could not be confirmed.');
+    const messageIds = row.codes.map(m => String(record(m)._id));
+    if(messageIds.some(id => !/^[a-f0-9]{24}$/.test(id))) throw new NumberProviderError(false, 'Message history could not be confirmed.');
+    return { counter, allowed: row.allowReuse === true, outcome, messageIds };
+  }
+  async reuse(id: string, selection: PvaSelection): Promise<PvaReply & { counter: number }> {
+    if (!/^[a-f0-9]{24}$/.test(id) || selection.duration !== 0) throw new NumberProviderError(false, 'Only short rentals can be reused.');
+    const reply = await this.call(`reuse/${id}`, {}, true), row = record(reply.data);
+    return { raw: reply.raw, outcome: normalizePvaRequest(row, selection, id), counter: Number(row.reuseCounter) };
+  }
   async carrier(id: string): Promise<string | null> {
     if (!/^[a-f0-9]{24}$/.test(id)) throw new NumberProviderError(false, 'Invalid rental.');
     const row = record((await this.call(`request/${id}`)).data);

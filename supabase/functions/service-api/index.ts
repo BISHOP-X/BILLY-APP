@@ -545,7 +545,7 @@ const daisyAdapter = env("DAISYSMS_API_KEY") ? new DaisySmsAdapter(requiredEnv("
 const extendedNumberAdapter = env("GETATEXT_API_KEY") ? new GetatextRentals(requiredEnv("GETATEXT_API_KEY"),fetch,env("GETATEXT_API_TIER")!=="standard") : undefined;
 async function numberRuntime(): Promise<NumberRuntime> {
   const pricing=(await pricingRows()).find(p=>p.service_key==="foreign_numbers");
-  return {pva:pvaAdapter,smsbus:smsbusAdapter,adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
+  return {internalTestCarriers:env('BILLY_INTERNAL_TEST_CARRIERS') === 'true',pva:pvaAdapter,smsbus:smsbusAdapter,adapter:numberAdapter,extended:extendedNumberAdapter,additionalAdapters:{daisysms:daisyAdapter},database:createNumberDatabase(serviceClient),tokens:tokenCodec,digest:digestEvidence,
     receiptCipher:new SecretPayloadCipher(serviceApiSigningSecret,{context:'number-receipt',additionalData:'billy-number-receipt:v1',prefix:'nr1'}),
     exchangeRateMinorPerUsd:pricing?.exchange_rate_minor_per_usd ?? undefined,markupBps:pricing?.markup_bps ?? undefined};
 }

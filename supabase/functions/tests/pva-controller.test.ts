@@ -172,10 +172,10 @@ Deno.test('Carrier lookup checks ownership before reading cached provider data',
   f.runtime.pva!.carrier = async () => { f.trace.push('provider'); return 'THREE'; };
   f.setContext({ order, route: { provider_id: rentalId, request: { serviceId, country: 'GB', duration: 30 } } });
   const result = await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime);
-  assert.deepEqual(result.data, { carrier: 'THREE' });
+  assert.deepEqual(result.data, { carrier: 'THREE', source: 'provider' });
   assert.deepEqual(f.trace, ['internal_pva_context', 'provider']);
   f.trace.length = 0;
-  assert.deepEqual((await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime)).data, { carrier: 'THREE' });
+  assert.deepEqual((await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime)).data, { carrier: 'THREE', source: 'provider' });
   assert.deepEqual(f.trace, ['internal_pva_context']);
   f.trace.length = 0;
   await assert.rejects(() => handleNumberAction('numbers.carrier', { orderId: id }, { id: other }, f.runtime));
@@ -302,10 +302,11 @@ Deno.test('Dedicated plans stay country-bound, quote current price, and recover 
   };
   const market = await handleNumberAction('numbers.market',{}, {id:owner},f.runtime) as {data:{services:{id:string;country:string;kind?:string}[]}};
   const plans = market.data.services.filter(s=>s.kind==='general');
-  assert.equal(plans.length,2); assert.notEqual(plans[0].id,plans[1].id);
+  assert.equal(plans.length,1); assert.equal(plans[0].country,'GB');
+  assert(!market.data.services.some(s=>s.kind==='general' && s.country==='US'),'Removed US 28-day plans must not appear, including from cache');
   const quote = await handleNumberAction('numbers.quote',{productId:plans[0].id,duration:30},{id:owner},f.runtime) as {data:{totalMinor:number;kind:string}};
   assert.equal(quote.data.totalMinor,978600); assert.equal(quote.data.kind,'general');
-  await assert.rejects(()=>handleNumberAction('numbers.quote',{productId:plans[1].id,duration:30},{id:owner},f.runtime));
+  await assert.rejects(()=>handleNumberAction('numbers.quote',{productId:plans[0].id,duration:28},{id:owner},f.runtime));
   await assert.rejects(()=>handleNumberAction('numbers.quote',{productId:plans[0].id,duration:30,state:'CA'},{id:owner},f.runtime));
   const route = {provider_id:null,dispatched_at:null,maximum_micro_usd:6990000,request:{serviceId:'ALL_SERVICES',country:'GB',duration:30}};
   f.setContext({order,claimed:true,claimToken:id,route});

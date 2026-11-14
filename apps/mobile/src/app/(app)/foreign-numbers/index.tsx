@@ -3,6 +3,7 @@ import { RentalCountdown } from '@/features/numbers/rental-countdown';
 import { SmsSound } from '@/features/numbers/sms-sound';
 import { copyWithSound } from '@/features/numbers/copy-sound';
 import { CarrierBadge } from '@/features/numbers/carrier-badge';
+import { cacheNumberOrder } from '@/features/numbers/order-cache';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import * as Crypto from 'expo-crypto';
@@ -88,7 +89,7 @@ export default function ForeignNumbersScreen() {
   const update = useMutation({
     mutationFn: async ({ id, cancel }: { id: string; cancel?: boolean }) =>
       cancel ? numberRepository.cancel(id) : numberRepository.refresh(id),
-    onSuccess: invalidate,
+    onSuccess: async (order) => { await cacheNumberOrder(qc, user?.id, order); await invalidate(); },
     retry: false,
   });
   // Poll server-authoritative status while visible; background reconciliation also
@@ -368,7 +369,7 @@ export default function ForeignNumbersScreen() {
                 <ServiceAvatar name={o.service_name} size={40} />
                 <Text style={[styles.heading, styles.serviceText, text]}>{o.service_name}</Text>
               </View>
-              {!(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <StatusChip {...numberOrderStatus(o)} /> : null}
+              {!(o.rental_kind === 'short' && !o.rental_closed && !o.cancel_requested && o.expires_at && o.status === 'waiting') ? <StatusChip {...numberOrderStatus(o)} /> : null}
               <RentalCountdown order={o} />
               {o.phone_number ? <CarrierBadge orderId={o.id} /> : null}
               <Text style={[styles.body, muted]}>
@@ -386,6 +387,7 @@ export default function ForeignNumbersScreen() {
                     variant="ghost"
                     onPress={() => void copy(o.phone_number!)}
                   />
+                  {!o.rental_closed && !o.cancel_requested ? <Text style={[styles.body, muted]}>Please kindly use a GOOD VPN to login and add 2-step verification after purchase.</Text> : null}
                 </>
               ) : null}
               {o.sms_code ? (
@@ -408,7 +410,7 @@ export default function ForeignNumbersScreen() {
                   />
                 </View>
               ) : null}
-              {!(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <Text style={[styles.body, muted]}>{o.status_message}</Text> : null}
+              {o.cancel_requested && !o.rental_closed ? <Text style={[styles.body, muted]}>Confirming cancellation and refund. Stop using this number.</Text> : !(o.rental_kind === 'short' && !o.rental_closed && o.expires_at && o.status === 'waiting') ? <Text style={[styles.body, muted]}>{o.status_message}</Text> : null}
               {numberRefundMinor(o) > 0 ? (
                 <Text style={[styles.body, { color: theme.dark ? '#D0B7FF' : '#6D28D9' }]}>
                   {formatMinorUnits(numberRefundMinor(o), 'NGN')} returned to your Billy wallet.
@@ -417,7 +419,7 @@ export default function ForeignNumbersScreen() {
               {!o.rental_closed && (!terminal.has(o.status) || o.awaiting_another) ? (
                 <>
                   <AppButton
-                    label={o.rental_kind && o.rental_kind !== 'short' ? 'Refresh messages' : 'Check for code'}
+                    label={o.cancel_requested ? 'Check refund status' : o.rental_kind && o.rental_kind !== 'short' ? 'Refresh messages' : 'Check for code'}
                     variant="secondary"
                     loading={update.isPending}
                     onPress={() => void refresh(o.id)}

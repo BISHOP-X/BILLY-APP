@@ -87,6 +87,7 @@ export default function AppLayout() {
     return (
       <AppGateScreen
         busy
+        onRetry={() => void account.refetch()}
         subtitle="Confirming your account setup."
         title="Just a moment"
       />

@@ -35,6 +35,7 @@ export function AppGateScreen({
       <AppBootScreen
         accessibilityLabel={`${title}. ${subtitle}`}
         message={title}
+        onRetry={onRetry}
       />
     );
   }

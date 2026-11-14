@@ -50,6 +50,9 @@ export type NumberOrder = {
   completed_at: string | null;
 };
 export const numberRepository = {
+  reusePreview: (orderId: string) => invokeAction<{quoteToken:string;totalMinor:number}>('numbers.reuse.preview',{orderId}),
+  reuseConfirm: (orderId:string,quoteToken:string,idempotencyKey:string) => invokeAction<ReuseState>('numbers.reuse.confirm',{orderId,quoteToken,idempotencyKey}),
+  reuseStatus: (orderId:string,idempotencyKey?:string) => invokeAction<ReuseState|null>('numbers.reuse.status',{orderId,idempotencyKey}),
   forTransactions: (transactionIds: string[]) => invokeAction<{ orders: NumberOrder[] }>('numbers.for-transactions', { transactionIds }),
   carrier: (orderId: string) => invokeAction<{ carrier: string | null }>('numbers.carrier', { orderId }),
   store: () => invokeAction<{ layout: 'legacy' | 'international'; available: boolean }>('numbers.store', {}),
@@ -83,6 +86,7 @@ export const numberRepository = {
   cancel: (orderId: string) =>
     invokeAction<NumberOrder>('numbers.cancel', { orderId }),
 };
+export type ReuseState = {state:'pending'|'confirmed'|'rejected'|'review';totalMinor:number};
 export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number>; kind?: 'general'; periodLabel?: string };
 export type SmsMarket = { services: SmsProduct[]; countries: string[]; refreshedAt: string };
 export type SmsQuote = { quoteToken: string; name: string; country: string; duration: number; totalMinor: number; kind?: 'general'; periodLabel?: string };

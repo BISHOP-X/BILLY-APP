@@ -1,0 +1,24 @@
+import {fireEvent,render,screen,waitFor} from '@testing-library/react-native';
+import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
+import {ReuseAction} from '@/features/numbers/reuse-action';
+import {numberRepository,type NumberOrder} from '@/features/numbers/repository';
+jest.mock('@/features/numbers/repository',()=>({numberRepository:{reusePreview:jest.fn(),reuseConfirm:jest.fn(),reuseStatus:jest.fn()}}));
+jest.mock('expo-crypto',()=>({randomUUID:()=> 'synthetic-key-12345'}));
+const order={id:'one',rental_kind:'short',status:'received',phone_number:'+12025550101'} as NumberOrder;
+test('reuse shows price, requires confirmation and checks uncertain responses without a second purchase',async()=>{
+ const qc=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}});
+ jest.mocked(numberRepository.reusePreview).mockResolvedValue({totalMinor:70000,quoteToken:'quote'});
+ jest.mocked(numberRepository.reuseConfirm).mockRejectedValue(new Error('Network timeout'));
+ jest.mocked(numberRepository.reuseStatus).mockResolvedValue({state:'confirmed',totalMinor:70000});
+ const view=await render(<QueryClientProvider client={qc}><ReuseAction order={order}/></QueryClientProvider>);
+ await fireEvent.press(screen.getByText('Reuse number'));
+ await waitFor(()=>expect(screen.getByText('Confirm · ₦700.00')).toBeTruthy());
+ expect(numberRepository.reuseConfirm).not.toHaveBeenCalled();
+ await fireEvent.press(screen.getByText('Confirm · ₦700.00'));
+ await waitFor(()=>expect(screen.getByText('Check reuse status')).toBeTruthy());
+ await fireEvent.press(screen.getByText('Check reuse status'));
+ await waitFor(()=>expect(screen.getByText('Number reused. Waiting for a new code.')).toBeTruthy());
+ expect(numberRepository.reuseConfirm).toHaveBeenCalledTimes(1);
+ expect(numberRepository.reuseStatus).toHaveBeenCalledWith('one','reuse-synthetic-key-12345');
+ await view.unmount();qc.clear();
+});
