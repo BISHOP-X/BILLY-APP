@@ -26,10 +26,10 @@ Deno.test('Reuse suppresses old SMS, disables cancellation of original purchase,
  assert.equal(normalizePvaRequest({...row,status:'TIMEOUT',endTime:'2020-01-01'},expected,id).state,'expired');
 });
 function fixture(){
- let operation:any=null,quote:any,price=0,posts=0,allowed=true,counter=0,timeout=false;
+ let operation:any=null,quote:any,price=0,posts=0,allowed=true,counter=0,timeout=false,expired=false;
  const runtime={exchangeRateMinorPerUsd:140000,markupBps:0,
  tokens:{issueOpaque:(_p:string,_u:string,data:unknown)=>{quote=data;return Promise.resolve('quote');},readOpaque:()=>Promise.resolve(quote)},
- pva:{reusePreview:()=>Promise.resolve(price),reuseSnapshot:()=>Promise.resolve({counter,allowed,messageIds:[],outcome:{state:'allocated',rentalId:id,phoneNumber:row.number,priceMicroUsd:price,expiresAt:row.endTime}}),
+ pva:{reusePreview:()=>Promise.resolve(price),reuseSnapshot:()=>Promise.resolve({counter,allowed,messageIds:[],outcome:{state:expired?'expired':'allocated',rentalId:id,phoneNumber:row.number,priceMicroUsd:price,expiresAt:row.endTime}}),
  reuse:()=>{posts++;counter++;if(timeout)throw new NumberProviderError(true,'timeout');return Promise.resolve({counter,raw:'{}',outcome:{state:'allocated',rentalId:id,phoneNumber:row.number,priceMicroUsd:price,expiresAt:row.endTime}});}},
  database:{rpc:(name:string,input:any)=>{
   if(name==='internal_pva_context')return Promise.resolve({order:{id:orderId,status:'received',cancel_requested:false},route:{provider_id:id,request:selection}});
@@ -39,7 +39,7 @@ function fixture(){
   if(name==='internal_pva_reuse_apply'){operation={...operation,state:input.p_evidence.state};return Promise.resolve(operation);}
   throw Error(name);
  }}} as unknown as NumberRuntime;
- return {runtime,setPrice:(v:number)=>price=v,setAllowed:(v:boolean)=>allowed=v,setTimeout:()=>timeout=true,posts:()=>posts};
+ return {runtime,setPrice:(v:number)=>price=v,setAllowed:(v:boolean)=>allowed=v,setTimeout:()=>timeout=true,setExpired:()=>expired=true,posts:()=>posts};
 }
 Deno.test('Reuse explicit confirmation, price-change rejection, free success and idempotent replay',async()=>{
  const f=fixture(),input={orderId,idempotencyKey:'reuse-synthetic-test',quoteToken:'quote'};
@@ -56,6 +56,12 @@ Deno.test('Lost reuse response recovers by counter using GET; never repeats POST
 });
 Deno.test('A published reuse price alone is not allocation eligibility',async()=>{
  const f=fixture();f.setAllowed(false);await assert.rejects(()=>handlePvaReuse('numbers.reuse.preview',{orderId},'owner',f.runtime));assert.equal(f.posts(),0);
+});
+Deno.test('Delayed recovery still settles the proven reuse cycle after its expiry',async()=>{
+ const f=fixture(),input={orderId,idempotencyKey:'reuse-expired-test',quoteToken:'quote'};
+ await handlePvaReuse('numbers.reuse.preview',input,'owner',f.runtime);f.setTimeout();
+ await handlePvaReuse('numbers.reuse.confirm',input,'owner',f.runtime);f.setExpired();
+ assert.equal((await reconcilePvaReuse(f.runtime,'owner',orderId))?.state,'confirmed');assert.equal(f.posts(),1);
 });
 Deno.test('Internal carrier fixtures are stable per number and never invent an unsupported country',()=>{
  assert.equal(internalTestCarrier('US',row.number),internalTestCarrier('US',row.number));

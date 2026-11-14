@@ -35,8 +35,9 @@ Live read-only probes confirmed HTTP 200 for paid and free preview responses. **
 
 ## Verification
 
-- Backend: 235 passing Deno tests, including preview validation, free/paid quote rules, old-code suppression, counter recovery and no second POST.
-- Frontend: 223 full-suite tests plus new reuse-confirmation test (224 total); typecheck/lint passed. Additional three fetch deadline tests passed.
+- Backend: 236 passing Deno tests, including preview validation, free/paid quote rules, old-code suppression, counter recovery after expiry and no second POST.
+- Frontend: 224 passing tests across 44 suites; typecheck/lint passed. Additional three fetch deadline tests passed. Jest assertions all completed, but the full-suite process retained an open handle; the isolated new reuse test exited normally. This is recorded, not suppressed with forceExit.
+- Web build and both Android/iOS exports succeeded. Browser tests are emulated viewport checks, not physical iPhone/Android certification.
 - Migration tested twice inside BEGIN/ROLLBACK with synthetic accounts and no provider calls, then applied via linked Billy CLI and retested. Tests cover ownership, anonymous/authenticated function denial, free/paid settlement, duplicate submit, cancellation race, price mismatch and reservation release.
 - Browser (390px mobile viewport, mocked API only): reuse price/confirmation, cancellation removes waiting/timer, carrier visible, downward touch triggers exactly one order refresh, failed entry bundle exposes retry without a white canvas.
 - Live authenticated read-only application checks: owner transaction lookup, carrier lookup, non-owner rejection, US28 absent, cancelled rentals refused for reuse. No purchases/cancellations were made by these checks.

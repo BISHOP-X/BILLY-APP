@@ -14,7 +14,8 @@ async function apply(runtime:NumberRuntime,user:string,r:Reuse,evidence:Record<s
   return runtime.database.rpc<Reuse>('internal_pva_reuse_apply',{p_user_id:user,p_id:r.id,p_evidence:evidence});
 }
 function evidence(r:Reuse,outcome:PvaOutcome,counter:number) {
-  return {state:counter===r.expected_counter+1 && ['waiting','received','allocated'].includes(outcome.state) ? 'confirmed' : 'review',
+  return {state:counter===r.expected_counter+1 && ['waiting','received','allocated','expired'].includes(outcome.state) ? 'confirmed' :
+    Number.isSafeInteger(counter) && (counter>r.expected_counter+1 || counter<r.expected_counter) ? 'review' : 'pending',
     providerId:outcome.rentalId, counter, phoneNumber:outcome.phoneNumber, actualMicroUsd:outcome.priceMicroUsd, expiresAt:outcome.expiresAt};
 }
 /** Only GET after dispatch: a lost response must never cause a second paid POST. */
