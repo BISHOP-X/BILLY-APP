@@ -87,7 +87,7 @@ export const numberRepository = {
     invokeAction<NumberOrder>('numbers.cancel', { orderId }),
 };
 export type ReuseState = {state:'pending'|'confirmed'|'rejected'|'review';totalMinor:number};
-export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number>; kind?: 'general'; periodLabel?: string };
+export type SmsProduct = { id: string; name: string; country: string; prices: Record<string, number>; kind?: 'general'; periodLabel?: string; carrier?: string | null; carrierSource?: 'provider' | 'internal_test' };
 export type SmsMarket = { services: SmsProduct[]; countries: string[]; refreshedAt: string };
 export type SmsQuote = { quoteToken: string; name: string; country: string; duration: number; totalMinor: number; kind?: 'general'; periodLabel?: string };
 export type SmsBasketQuote = Omit<SmsQuote, 'name'> & { items: { productId: string; name: string; totalMinor: number }[] };

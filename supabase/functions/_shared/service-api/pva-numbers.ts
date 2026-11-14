@@ -57,7 +57,7 @@ const carrierCache = new Map<string, { carrier: string | null; expires: number }
 export async function rentalCarrier(runtime: NumberRuntime, userId: string, orderId: string) {
   // Ownership is checked before cache access; no provider IDs reach the client.
   const context = await runtime.database.rpc<Context | null>('internal_pva_context', { p_user_id: userId, p_order_id: orderId });
-  const fixture = () => ({ carrier: runtime.internalTestCarriers && context?.order.phone_number ? internalTestCarrier(context.order.country_code, context.order.phone_number) : null, source: 'internal_test' });
+  const fixture = () => ({ carrier: runtime.internalTestCarriers && context?.order.phone_number ? internalTestCarrier(context.order.country_code, context.route?.request.serviceId ?? context.order.phone_number) : null, source: 'internal_test' });
   if (!context?.route?.provider_id || isSmsbus(context.route.request) || !runtime.pva?.carrier) return fixture();
   // The database catalogue cache intentionally accepts catalogue keys only.
   // This optional display field uses a bounded warm-instance cache instead.
@@ -224,6 +224,13 @@ export async function handlePvaStore(
       id: await publicId(runtime, s),
       name: s.name,
       country: s.country,
+      // Owner-approved private-test display data, never an allocation guarantee.
+      // Keep this outside the provider cache so disabling fixtures takes effect
+      // without waiting for the provider catalogue to expire.
+      ...(runtime.internalTestCarriers ? {
+        carrier: internalTestCarrier(s.country, s.id),
+        carrierSource: 'internal_test',
+      } : {}),
       ...(s.kind ? {kind:s.kind} : {}),
       ...(s.periodLabel ? {periodLabel:s.periodLabel} : {}),
       prices: Object.fromEntries(

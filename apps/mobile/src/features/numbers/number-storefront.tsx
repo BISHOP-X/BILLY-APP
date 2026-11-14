@@ -24,6 +24,7 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { formatMinorUnits } from "@/features/wallet/money";
 import { useBillyTheme } from "@/hooks/use-billy-theme";
 import { ServiceAvatar } from "./service-card";
+import { CarrierLabel } from './carrier-badge';
 import { compareSmsServices, popularSmsRank } from "./popular-services";
 import { numberRepository, type SmsProduct, type SmsQuote, type SmsBasketQuote } from "./repository";
 
@@ -325,6 +326,7 @@ export function NumberStorefront(
           <View style={styles.flex}>
             <Text style={[styles.fieldText, text]}>All services</Text>
             <Text style={[styles.small, muted]}>One number · {durationLabel(duration)}</Text>
+            {allServices.carrier ? <CarrierLabel value={allServices.carrier} compact /> : null}
             <Text style={[styles.price, {color:c.brand}]}>{formatMinorUnits(allServices.prices[String(duration)], 'NGN')}</Text>
           </View>
           <Ionicons name={selection?.id === allServices.id ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={c.brand} />
@@ -364,6 +366,17 @@ export function NumberStorefront(
           <Ionicons name="chevron-forward" size={19} color={c.textMuted} />
         </Pressable>
         </> : null}
+        {(multiple ? basket : selection ? [selection] : []).some((product) => product.carrier) ? (
+          <View testID="sms-selected-networks" style={[styles.summary, panel]}>
+            <Text style={[styles.label, text]}>{multiple ? 'Networks' : 'Network'}</Text>
+            {(multiple ? basket : selection ? [selection] : []).map((product) => product.carrier ? (
+              <View key={product.id} style={styles.between}>
+                {multiple ? <Text numberOfLines={1} style={[styles.small, styles.flex, muted]}>{product.name}</Text> : null}
+                <CarrierLabel value={product.carrier} />
+              </View>
+            ) : null)}
+          </View>
+        ) : null}
         {country === "CA" && duration === 0
           ? (
             <Text style={[styles.small, muted]}>
@@ -556,12 +569,10 @@ export function NumberStorefront(
                           style={[styles.row, { borderBottomColor: c.border }]}
                         >
                           <ServiceAvatar name={item.name} size={42} />
-                          <Text
-                            numberOfLines={2}
-                            style={[styles.fieldText, styles.flex, text]}
-                          >
-                            {item.name}
-                          </Text>
+                          <View style={styles.flex}>
+                            <Text numberOfLines={2} style={[styles.fieldText, text]}>{item.name}</Text>
+                            {item.carrier ? <CarrierLabel value={item.carrier} compact /> : null}
+                          </View>
                           <Text style={[styles.price, { color: c.brand }]}>
                             {formatMinorUnits(
                               item.prices[String(duration)],

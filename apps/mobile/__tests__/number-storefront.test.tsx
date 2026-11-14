@@ -3,6 +3,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { POPULAR_SMS_SERVICES } from '@/features/numbers/popular-services';
@@ -92,6 +93,36 @@ beforeEach(() => {
       status_message: "Your number is ready.",
     } as NumberOrder,
   );
+});
+test('carrier is visible in the picker and before payment without extra requests', async () => {
+  jest.mocked(numberRepository.market).mockResolvedValue({ services: [
+    { ...services[0], carrier: 'T-Mobile', carrierSource: 'internal_test' },
+    { id: 'us-tg', name: 'Telegram', country: 'US', prices: { '0': 140000 }, carrier: 'Verizon', carrierSource: 'internal_test' },
+  ], countries: ['US'], refreshedAt: '2026-11-14' });
+  await mount();
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  expect(screen.getByLabelText('Network: T-Mobile')).toBeTruthy();
+  expect(screen.getByLabelText('T-Mobile logo')).toBeTruthy();
+  expect(screen.getByLabelText('Verizon logo')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'WhatsApp, ₦2,520.00' }));
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'Telegram, ₦1,400.00' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Use 2 services · ₦3,920.00' }));
+  const panel = within(screen.getByTestId('sms-selected-networks'));
+  expect(panel.getByText('WhatsApp')).toBeTruthy();
+  expect(panel.getByText('Telegram')).toBeTruthy();
+  expect(panel.getByLabelText('Network: T-Mobile')).toBeTruthy();
+  expect(panel.getByLabelText('Network: Verizon')).toBeTruthy();
+  expect(numberRepository.market).toHaveBeenCalledTimes(1);
+  expect(numberRepository.quote).not.toHaveBeenCalled();
+  expect(numberRepository.buy).not.toHaveBeenCalled();
+});
+
+test('old cached catalogues without a carrier do not invent a network', async () => {
+  await mount();
+  await fireEvent.press(screen.getByLabelText('Choose website or app'));
+  await fireEvent.press(screen.getByRole('checkbox', { name: 'WhatsApp, ₦2,520.00' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Use 1 service · ₦2,520.00' }));
+  expect(screen.queryByTestId('sms-selected-networks')).toBeNull();
 });
 test('US monthly plan shows calendar-month label, NGN price and cancellation terms before payment', async () => {
   jest.mocked(numberRepository.market).mockResolvedValue({services:[...services,

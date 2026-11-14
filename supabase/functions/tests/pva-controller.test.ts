@@ -133,6 +133,27 @@ function fixture() {
     },
   };
 }
+Deno.test('market includes stable private-test carriers only when enabled, with no per-row provider lookup', async () => {
+  const f = fixture();
+  let calls = 0;
+  f.runtime.pva!.carrier = async () => { calls++; return 'THREE'; };
+  const read = async () => (await handleNumberAction('numbers.market', {}, { id: owner }, f.runtime)).data as { services: { carrier?: string; carrierSource?: string }[] };
+  assert.equal((await read()).services[0].carrier, undefined);
+  f.runtime.internalTestCarriers = true;
+  const first = (await read()).services[0];
+  assert(['T-Mobile', 'AT&T', 'Verizon'].includes(first.carrier!));
+  assert.equal(first.carrierSource, 'internal_test');
+  assert.equal((await read()).services[0].carrier, first.carrier);
+  f.setContext({ order: { ...order, phone_number: '+12025550101', country_code: 'US' }, route: {
+    provider_id: null, request: { serviceId, country: 'US', duration: 0 },
+  } });
+  const afterPurchase = await handleNumberAction('numbers.carrier', { orderId: id }, { id: owner }, f.runtime);
+  assert.equal((afterPurchase.data as { carrier: string }).carrier, first.carrier);
+  f.runtime.internalTestCarriers = false;
+  assert.equal((await read()).services[0].carrier, undefined);
+  assert.equal(calls, 0);
+});
+
 function monthlyFixture() {
   const f=fixture();
   const monthly={id:'SMSBUS_MONTHLY',country:'US',name:'All services',kind:'general' as const,periodLabel:'1 month',prices:{'30':4000000},stock:{'30':378}};
